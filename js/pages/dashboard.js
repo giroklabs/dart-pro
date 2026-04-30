@@ -357,6 +357,7 @@ async function initDashboard() {
           </div>
         </div>
       `).join('');
+      }
     } else {
       feedEl.innerHTML = `
         <div class="empty-state">
