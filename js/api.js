@@ -202,27 +202,48 @@ const DART_API = {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
     const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
 핵심 포인트 3가지를 리스트 형태로 포함해 주세요. 
-형식: JSON { "insight": "...", "impact": "...", "points": ["...", "...", "..."] }
+반드시 다음 JSON 형식으로만 응답하세요:
+{ "insight": "공시의 핵심 의미 요약 (1문장)", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
 
 공시 정보:
 기업명: ${corpName}
 공시제목: ${reportNm}`;
 
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      });
-      const data = await res.json();
-      return JSON.parse(data.candidates[0].content.parts[0].text);
-    } catch (err) {
-      console.error('Gemini API Error:', err);
-      return null;
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    // 브라우저 CORS 회피를 위해 프록시 사용 시도
+    const proxies = [
+      u => u, // 직통 (CORS 허용 시)
+      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+    ];
+
+    for (const getUrl of proxies) {
+      try {
+        const res = await fetch(getUrl(url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body
+        });
+        
+        if (!res.ok) {
+          const errText = await res.text();
+          console.warn(`Gemini Proxy Attempt Failed: ${errText}`);
+          continue;
+        }
+
+        const data = await res.json();
+        if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+          const text = data.candidates[0].content.parts[0].text;
+          return JSON.parse(text);
+        }
+      } catch (err) {
+        console.error('Gemini Fetch Error:', err);
+      }
     }
+    return null;
   },
 
   // 1. 공시검색
