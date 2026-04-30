@@ -313,7 +313,8 @@ async function initDashboard() {
     const kosdaqData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 });
     document.getElementById('stat-kosdaq').textContent = kosdaqData.total_count || 0;
 
-    renderTypeStats(allList);
+    const allDisclosures = groups.flatMap(g => g.list);
+    renderTypeStats(allDisclosures);
   } catch (err) {
     console.error(err);
     feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
