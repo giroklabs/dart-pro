@@ -104,35 +104,52 @@ const DART_API = {
     try {
       const key = this.getKey();
       const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
-      // AllOrigins 대신 더 직접적인 바이너리 처리를 시도
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
       
-      const res = await fetch(proxyUrl);
-      if (!res.ok) throw new Error('Proxy response not ok');
-      const zipData = await res.arrayBuffer();
-      
-      const zip = await JSZip.loadAsync(zipData);
-      const xmlFile = zip.file("CORPCODE.xml");
-      if (!xmlFile) throw new Error('CORPCODE.xml not found in zip');
-      
-      const xmlText = await xmlFile.async("string");
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(xmlText, "text/xml");
-      const list = xml.getElementsByTagName("list");
-      
-      const db = {};
-      for (let i = 0; i < list.length; i++) {
-        const name = list[i].getElementsByTagName("corp_name")[0].textContent;
-        const code = list[i].getElementsByTagName("corp_code")[0].textContent;
-        db[name] = code;
+      // 멀티 프록시 폴백 시스템
+      const proxies = [
+        u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+        u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+        u => `https://thingproxy.freeboard.io/fetch/${u}`
+      ];
+
+      for (const getProxyUrl of proxies) {
+        try {
+          const proxyUrl = getProxyUrl(url);
+          const res = await fetch(proxyUrl);
+          if (!res.ok) continue;
+          
+          const zipData = await res.arrayBuffer();
+          if (zipData.byteLength < 1000) continue; // 너무 작으면 에러 페이지일 가능성
+
+          const zip = await JSZip.loadAsync(zipData);
+          const xmlFile = zip.file("CORPCODE.xml");
+          if (!xmlFile) continue;
+          
+          const xmlText = await xmlFile.async("string");
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(xmlText, "text/xml");
+          const list = xml.getElementsByTagName("list");
+          
+          const db = {};
+          for (let i = 0; i < list.length; i++) {
+            const name = list[i].getElementsByTagName("corp_name")[0].textContent;
+            const code = list[i].getElementsByTagName("corp_code")[0].textContent;
+            db[name] = code;
+          }
+          
+          this._corpDb = { timestamp: Date.now(), data: db };
+          localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
+          console.log(`Corp DB Loaded via Proxy: ${proxyUrl}`);
+          return db;
+        } catch (err) {
+          console.warn(`Proxy Attempt Failed:`, err);
+        }
       }
       
-      this._corpDb = { timestamp: Date.now(), data: db };
-      localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
-      return db;
+      console.error("All proxies failed to load Corp DB.");
+      return {};
     } catch (err) {
-      console.error("Corp DB Init Error (Retry with alternative):", err);
-      // 실패 시 기본 하드코딩 맵이라도 사용하도록 빈 객체 반환 방지
+      console.error("Corp DB Critical Error:", err);
       return {};
     }
   },
@@ -203,9 +220,32 @@ const DART_API = {
     const key = this.getGeminiKey();
     if (!key) return null;
 
-    // 1. 최신 Flash 모델 시도 -> 2. 범용 Pro 모델 폴백
-    const models = ['gemini-1.5-flash', 'gemini-pro'];
-    const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
+    try {
+      // 1. 가용 모델 리스트 조회 (권한 및 유효 모델 확인)
+      const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+      const listRes = await fetch(listUrl);
+      if (!listRes.ok) {
+        const err = await listRes.json();
+        throw new Error(`API 권한 오류 (${listRes.status}): ${err.error?.message || '접근 거부'}`);
+      }
+      
+      const listData = await listRes.json();
+      const availableModels = listData.models || [];
+      
+      // generateContent를 지원하는 가장 적합한 모델 찾기
+      const targetModel = availableModels.find(m => 
+        (m.name.includes('gemini-1.5-flash') || m.name.includes('gemini-pro')) &&
+        m.supportedGenerationMethods.includes('generateContent')
+      );
+
+      if (!targetModel) {
+        throw new Error("현재 API 키로 사용할 수 있는 Gemini 모델을 찾을 수 없습니다. Google AI Studio에서 모델 권한을 확인하세요.");
+      }
+
+      const modelId = targetModel.name.split('/').pop();
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`;
+      
+      const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
 반드시 다음 JSON 형식으로만 응답하세요:
 { "insight": "공시의 핵심 의미 요약", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
 
@@ -213,44 +253,26 @@ const DART_API = {
 기업명: ${corpName}
 공시제목: ${reportNm}`;
 
-    const body = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
-    });
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
 
-    for (const model of models) {
-      // v1과 v1beta 두 가지 엔드포인트를 모두 시도
-      const versions = ['v1beta', 'v1'];
-      
-      for (const ver of versions) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${key}`;
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: body
-          });
-          
-          if (res.ok) {
-            const data = await res.json();
-            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-              const text = data.candidates[0].content.parts[0].text;
-              const cleanedText = text.replace(/```json|```/g, '').trim();
-              return JSON.parse(cleanedText);
-            }
-          } else {
-            const errData = await res.json();
-            // 404가 아니면(예: 429 할당량 초과 등) 상세 에러를 던짐
-            if (res.status !== 404) {
-              throw new Error(`[${model}/${ver}] ${res.status}: ${errData.error?.message || 'Unknown'}`);
-            }
-            console.warn(`Gemini [${model}/${ver}] not found (404). Trying next...`);
-          }
-        } catch (err) {
-          console.error(`Gemini [${model}/${ver}] Attempt Failed:`, err);
-          // 할당량 초과(429) 등의 경우 즉시 중단하고 에러 보고
-          if (err.message.includes('429')) throw err;
-        }
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(`분석 요청 실패 (${res.status}): ${errData.error?.message || 'Unknown'}`);
       }
+
+      const data = await res.json();
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const text = data.candidates[0].content.parts[0].text;
+        const cleanedText = text.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleanedText);
+      }
+    } catch (err) {
+      console.error('Gemini Analysis Critical Error:', err);
+      throw err; // 상세 에러를 UI로 전달
     }
     return null;
   },

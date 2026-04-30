@@ -224,13 +224,12 @@ async function testAiConnection() {
       resEl.style.color = 'var(--success)';
       resEl.innerHTML = `<strong>연결 성공!</strong><br>AI 인사이트: ${result.insight}`;
     } else {
-      throw new Error('응답 데이터 형식이 올바르지 않습니다.');
+      throw new Error('응답 데이터는 성공했으나 형식이 올바르지 않습니다.');
     }
   } catch (err) {
     resEl.style.background = 'var(--error-container)';
     resEl.style.color = 'var(--error)';
-    const detail = typeof err === 'object' ? JSON.stringify(err) : err;
-    resEl.innerHTML = `<strong>연결 실패</strong><br>사유: ${err.message}<br><div style="font-size:10px; margin-top:5px; opacity:0.8; word-break:break-all;">상세: ${detail}</div>`;
+    resEl.innerHTML = `<strong>연결 실패</strong><br>사유: ${err.message}`;
     console.error('AI Test Failure:', err);
   } finally {
     btn.disabled = false;
