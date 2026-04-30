@@ -232,14 +232,19 @@ const DART_API = {
       const listData = await listRes.json();
       const availableModels = listData.models || [];
       
-      // generateContent를 지원하는 가장 적합한 모델 찾기
-      const targetModel = availableModels.find(m => 
-        (m.name.includes('gemini-1.5-flash') || m.name.includes('gemini-pro')) &&
-        m.supportedGenerationMethods.includes('generateContent')
-      );
+      // 무료 티어 친화적인 모델 우선순위: 1.5 Flash -> 1.5 Pro -> 1.0 Pro
+      const priority = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+      let targetModel = null;
+      
+      for (const pName of priority) {
+        targetModel = availableModels.find(m => 
+          m.name.includes(pName) && m.supportedGenerationMethods.includes('generateContent')
+        );
+        if (targetModel) break;
+      }
 
       if (!targetModel) {
-        throw new Error("현재 API 키로 사용할 수 있는 Gemini 모델을 찾을 수 없습니다. Google AI Studio에서 모델 권한을 확인하세요.");
+        throw new Error("가용 모델을 찾을 수 없습니다. Google AI Studio에서 Gemini API가 활성화되었는지 확인하세요.");
       }
 
       const modelId = targetModel.name.split('/').pop();
@@ -261,7 +266,11 @@ const DART_API = {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(`분석 요청 실패 (${res.status}): ${errData.error?.message || 'Unknown'}`);
+        const msg = errData.error?.message || '';
+        if (res.status === 429 && msg.includes('limit: 0')) {
+          throw new Error(`할당량 부족 (429): 현재 모델(${modelId})에 대한 무료 쿼터가 없습니다. Flash 모델로 변경하거나 결제 정보를 등록하세요.`);
+        }
+        throw new Error(`분석 요청 실패 (${res.status}): ${msg || 'Unknown'}`);
       }
 
       const data = await res.json();
