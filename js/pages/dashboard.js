@@ -318,7 +318,9 @@ async function initDashboard() {
     if (groups.some(g => g.list.length > 0)) {
       // 상단 인사이트 (관심 종목별 최신 공시 하나씩 모두 표시)
       const insightContainer = document.getElementById(insightContainerId);
-      insightContainer.innerHTML = ''; // 초기화
+      if (insightContainer) {
+        insightContainer.innerHTML = ''; // 초기화
+      }
       
       const activeGroups = groups.filter(g => g.list.length > 0);
       for (let i = 0; i < activeGroups.length; i++) {
@@ -327,12 +329,13 @@ async function initDashboard() {
         const div = document.createElement('div');
         div.id = divId;
         div.style.marginBottom = "12px";
-        insightContainer.appendChild(div);
+        if (insightContainer) insightContainer.appendChild(div);
         renderInsight(divId, group.list[0]);
       }
       
       // 기업별 카드 렌더링
-      feedEl.innerHTML = activeGroups.map(group => `
+      if (feedEl) {
+        feedEl.innerHTML = activeGroups.map(group => `
         <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
           <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:12px;">
