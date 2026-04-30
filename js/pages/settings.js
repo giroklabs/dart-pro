@@ -49,8 +49,10 @@ function renderSettings() {
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn-primary" onclick="saveGeminiKey()">Gemini 키 저장</button>
+          <button class="btn-secondary" id="btn-test-ai" onclick="testAiConnection()">연결 테스트</button>
           ${geminiKey ? '<button class="btn-secondary" onclick="clearGeminiKey()">삭제</button>' : ''}
         </div>
+        <div id="ai-test-result" style="margin-top:12px; font-size:12px; display:none; padding:10px; border-radius:4px;"></div>
       </div>
 
       <!-- Watchlist -->
@@ -124,6 +126,38 @@ function clearGeminiKey() {
   window.router();
 }
 
+async function testAiConnection() {
+  const btn = document.getElementById('btn-test-ai');
+  const resEl = document.getElementById('ai-test-result');
+  const api = window.DART_API;
+  
+  btn.disabled = true;
+  btn.textContent = '테스트 중...';
+  resEl.style.display = 'block';
+  resEl.style.background = 'var(--surface-container)';
+  resEl.style.color = 'var(--on-surface)';
+  resEl.textContent = 'Gemini API에 연결을 시도하고 있습니다...';
+
+  try {
+    const result = await api.getGeminiAnalysis('삼성전자', '테스트 공시입니다.');
+    if (result && result.insight) {
+      resEl.style.background = 'var(--success-bg)';
+      resEl.style.color = 'var(--success)';
+      resEl.innerHTML = `<strong>연결 성공!</strong><br>AI 인사이트: ${result.insight}`;
+    } else {
+      throw new Error('응답 데이터 형식이 올바르지 않습니다.');
+    }
+  } catch (err) {
+    resEl.style.background = 'var(--error-container)';
+    resEl.style.color = 'var(--error)';
+    resEl.innerHTML = `<strong>연결 실패</strong><br>사유: ${err.message}<br><small>콘솔(F12)에서 상세 내용을 확인하세요.</small>`;
+    console.error('AI Test Failure:', err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '연결 테스트';
+  }
+}
+
 function showToast(msg) {
   let toast = document.getElementById('app-toast');
   if (!toast) {
@@ -143,3 +177,5 @@ window.clearApiKey = clearApiKey;
 window.showToast = showToast;
 window.addToWatchlist = addToWatchlist;
 window.removeFromWatchlist = removeFromWatchlist;
+window.testAiConnection = testAiConnection;
+window.clearGeminiKey = clearGeminiKey;

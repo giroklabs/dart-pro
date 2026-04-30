@@ -195,26 +195,46 @@ function summarizeDisclosure(item, aiData = null) {
     impact = "가치 변동";
     typeCls = "insight-warning";
     icon = "add_chart";
-  } else if (title.includes("소유상황")) {
-    insight = "<strong>내부자 지분 변동:</strong> 임원 및 주요 주주의 주식 보유 현황에 변화가 있습니다.";
+  } else if (title.includes("풍문") || title.includes("해명")) {
+    insight = "<strong>시장 루머/보도 해명:</strong> 기업 가치에 영향을 줄 수 있는 보도에 대한 공식 답변입니다.";
     points = [
-      "내부자의 매수/매도 방향성(Buy/Sell) 확인",
-      "경영진의 자사주 매입 시 주가 부양 의지로 해석 가능",
-      "주요 주주의 지분율 변화에 따른 경영권 안정성 검토"
+      "해당 보도 내용의 사실 여부 및 구체적 진행 상황 확인",
+      "'미확정' 공시일 경우 향후 재공시 예정일 주시",
+      "주가 급등락의 원인이 된 루머의 실체적 진실 파악"
+    ];
+    impact = "변동성 유의";
+    typeCls = "insight-warning";
+    icon = "record_voice_over";
+  } else if (title.includes("출자") || title.includes("취득")) {
+    insight = "<strong>지분 취득/타법인 출자:</strong> 사업 확장 또는 파트너십 강화를 위한 자금 투입입니다.";
+    points = [
+      "출자 목적(신규 사업 진출, 경영권 확보 등) 확인",
+      "자기자본 대비 투자 금액의 적정성 검토",
+      "상대 기업과의 시너지 및 향후 수익성 기여도 기대"
+    ];
+    impact = "사업 확장";
+    typeCls = "insight-info";
+    icon = "account_balance_wallet";
+  } else if (title.includes("소유상황") || title.includes("장내매수")) {
+    insight = "<strong>내부자 지분 변동:</strong> 경영진 및 대주주가 자사 주식을 매매했습니다.";
+    points = [
+      "매수(Buy)인 경우 책임 경영 의지 및 주가 저평가 시그널",
+      "변동 수량 및 지분율이 경영권에 미치는 영향 확인",
+      "단발성 매매인지 지속적인 매입/매도인지 추세 파악"
     ];
     impact = "내부자 시그널";
-    typeCls = "insight-info";
+    typeCls = "insight-success";
     icon = "person_search";
   } else if (title.includes("기업설명회") || title.includes("IR")) {
-    insight = "<strong>IR/기업설명회 개최:</strong> 시장과의 소통 및 향후 비전 공유가 예정되어 있습니다.";
+    insight = "<strong>IR/기업설명회 개최:</strong> 투자자 소통 및 향후 비전 공유가 예정되어 있습니다.";
     points = [
-      "신규 사업 전략 및 실적 가이드라인 제시 여부",
-      "기관 투자자 대상 질의응답을 통한 시장 의구심 해소",
-      "설명회 이후 증권사 리포트 및 목표주가 변화 주시"
+      "신규 사업 전략 및 실적 가이드라인(Guidance) 제시 여부",
+      "시장과의 소통 강화를 통한 저평가 해소 기대",
+      "설명회 이후 발표될 증권사 분석 리포트 주시"
     ];
     impact = "시장 소통";
     typeCls = "insight-info";
-    icon = "record_voice_over";
+    icon = "campaign";
   } else if (title.includes("최대주주") || title.includes("경영권")) {
     insight = "<strong>지배구조 변동:</strong> 경영권 및 소유 구조에 큰 변화가 감지되었습니다.";
     points = [
