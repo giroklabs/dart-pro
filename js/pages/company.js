@@ -28,12 +28,18 @@ function renderCompany() {
 
 async function doCompanySearch() {
   const api = window.DART_API;
-  const corpCode = document.getElementById('company-corp-code')?.value.trim();
+  let corpCode = document.getElementById('company-corp-code')?.value.trim();
   const resultEl = document.getElementById('company-result');
   const discEl = document.getElementById('company-disclosures');
 
-  if (!corpCode || corpCode.length !== 8) {
-    resultEl.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">warning</span><p>8자리 고유번호를 입력해주세요.</p></div>';
+  if (!corpCode) return;
+
+  // 기업명인 경우 고유번호로 변환 시도
+  const originalInput = corpCode;
+  corpCode = api.findCorpCode(corpCode);
+
+  if (corpCode.length !== 8) {
+    resultEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">warning</span><p>'${originalInput}'에 대한 고유번호를 찾을 수 없습니다. 8자리 번호를 직접 입력해주세요.</p></div>`;
     return;
   }
 

@@ -17,12 +17,16 @@ const DART_API = {
 
     params.crtfc_key = key;
     const qs = new URLSearchParams(params).toString();
-    const url = `${this.PROXY}${encodeURIComponent(`${this.BASE}/${endpoint}?${qs}`)}`;
+    const targetUrl = `${this.BASE}/${endpoint}?${qs}`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`프록시 에러: ${res.status}`);
 
-    const data = await res.json();
+    const wrapper = await res.json();
+    if (!wrapper.contents) throw new Error('응답 데이터가 비어있습니다.');
+    
+    const data = JSON.parse(wrapper.contents);
     if (data.status && data.status !== '000') {
       const messages = {
         '010': '등록되지 않은 키입니다.',
@@ -35,6 +39,16 @@ const DART_API = {
       throw new Error(messages[data.status] || data.message || '알 수 없는 오류');
     }
     return data;
+  },
+
+  // 기업명으로 고유번호 찾기 유틸
+  findCorpCode(name) {
+    const CORP_MAP = {
+      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742",
+      "카카오": "00258801", "네이버": "00266961", "LG에너지솔루션": "01534184",
+      "LG전자": "00106641", "삼성SDI": "00126362", "기아": "00106395", "셀트리온": "00305884"
+    };
+    return CORP_MAP[name] || name; // 매핑 없으면 입력값 그대로 반환
   },
 
   // 1. 공시검색
