@@ -394,7 +394,41 @@ table { border-collapse: collapse; width: 100%; }
 }
 .toast.show { transform: translateY(0); opacity: 1; }
 
-/* Settings */
+/* Insight Banner */
+.insight-banner {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px; border-radius: var(--r-lg);
+  margin-bottom: var(--sp-xl); border: 1px solid transparent;
+  animation: slideDown 0.4s ease;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+.insight-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: white;
+}
+.insight-content { flex: 1; }
+.insight-label { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 2px; }
+.insight-text { font-size: 14px; line-height: 1.5; color: var(--on-surface); }
+
+.insight-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.insight-info .insight-icon { color: #3b82f6; }
+.insight-info .insight-label { color: #3b82f6; }
+
+.insight-success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.insight-success .insight-icon { color: #22c55e; }
+.insight-success .insight-label { color: #22c55e; }
+
+.insight-warning { background: #fffbeb; border-color: #fef3c7; color: #92400e; }
+.insight-warning .insight-icon { color: #f59e0b; }
+.insight-warning .insight-label { color: #f59e0b; }
+
+.insight-major { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.insight-major .insight-icon { color: #ef4444; }
+.insight-major .insight-label { color: #ef4444; }
+
+.insight-default { background: var(--surface-container-low); border-color: var(--outline-variant); }
 .settings-section { max-width: 560px; }
 .settings-section .card { margin-bottom: var(--sp-lg); }
 .api-key-display {

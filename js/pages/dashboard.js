@@ -23,6 +23,7 @@ async function renderDashboard() {
       <h2>대시보드</h2>
       <p>DART 전자공시 실시간 모니터링</p>
     </div>
+    <div id="quick-insight-container"></div>
     <div class="stat-grid">
       <div class="card card-static" id="stat-total">
         <p class="stat-label">오늘의 공시</p>
@@ -73,6 +74,42 @@ async function renderDashboard() {
   `;
 }
 
+function summarizeDisclosure(item) {
+  const title = item.report_nm || '';
+  let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
+  let typeCls = "insight-default";
+  let icon = "campaign";
+
+  if (title.includes("배당")) {
+    insight = "<strong>현금/현물 배당 결정:</strong> 주당 배당금 및 배당 기준일을 확인하여 투자 수익률을 점검하세요.";
+    typeCls = "insight-success";
+    icon = "payments";
+  } else if (title.includes("분기보고서") || title.includes("사업보고서")) {
+    insight = "<strong>정기 실적 발표:</strong> 기업의 매출액, 영업이익 실적을 이전 분기/전년 대비 비교 분석이 필요합니다.";
+    typeCls = "insight-info";
+    icon = "monitoring";
+  } else if (title.includes("유상증자") || title.includes("무상증자")) {
+    insight = "<strong>증자 결정:</strong> 발행 주식 수 변동에 따른 주가 희석 또는 자산 가치 변화를 유의하세요.";
+    typeCls = "insight-warning";
+    icon = "add_chart";
+  } else if (title.includes("주요사항보고서")) {
+    insight = "<strong>경영 주요사항:</strong> 기업 운영에 중대한 영향을 미치는 결정이 포함되어 있습니다.";
+    typeCls = "insight-major";
+    icon = "priority_high";
+  }
+
+  return `
+    <div class="insight-banner ${typeCls}">
+      <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
+      <div class="insight-content">
+        <div class="insight-label">AI QUICK INSIGHT</div>
+        <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
+      </div>
+      <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+    </div>
+  `;
+}
+
 async function initDashboard() {
   const api = window.DART_API;
   if (!api.getKey()) return;
@@ -80,37 +117,44 @@ async function initDashboard() {
   try {
     const today = new Date();
     const endDe = fmt(today);
-    const bgnDe7 = fmt(new Date(today.getTime() - 7 * 86400000));
+    const bgnDe7 = fmt(new Date(today.getTime() - 6 * 86400000));
     const bgnDeToday = endDe;
 
-    // 오늘 공시
+    // 최근 공시 피드 (인사이트용 데이터 포함)
+    const feedData = await api.searchDisclosures({ bgn_de: bgnDe7, end_de: endDe, page_count: 20 });
+    
+    // 1. 인사이트 생성 (가장 중요한 공시 하나 선정 - 주요사항보고서 또는 첫번째)
+    const insightContainer = document.getElementById('quick-insight-container');
+    if (feedData.list && feedData.list.length > 0) {
+      const target = feedData.list.find(i => i.report_nm.includes('배당') || i.report_nm.includes('보고서')) || feedData.list[0];
+      insightContainer.innerHTML = summarizeDisclosure(target);
+    }
+
+    // 2. 통계 업데이트
     const todayData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, page_count: 1 });
     document.getElementById('stat-today-count').textContent = todayData.total_count || 0;
     document.getElementById('stat-today-label').textContent = api.formatDate(endDe);
 
-    // 최근 7일 정기공시
     const regularData = await api.searchDisclosures({ bgn_de: bgnDe7, end_de: endDe, pblntf_ty: 'A', page_count: 1 });
     document.getElementById('stat-regular').textContent = regularData.total_count || 0;
 
-    // 유가/코스닥 최근 공시
     const kospiData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'Y', page_count: 1 });
     document.getElementById('stat-kospi').textContent = kospiData.total_count || 0;
 
     const kosdaqData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 });
     document.getElementById('stat-kosdaq').textContent = kosdaqData.total_count || 0;
 
-    // 최근 공시 피드
-    const feedData = await api.searchDisclosures({ bgn_de: bgnDe7, end_de: endDe, page_count: 10 });
+    // 3. 피드 리스트 렌더링
     const feedEl = document.getElementById('dashboard-feed');
     if (!feedData.list || feedData.list.length === 0) {
       feedEl.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>최근 공시가 없습니다.</p></div>';
-      return;
+    } else {
+      feedEl.innerHTML = feedData.list.slice(0, 10).map(item => renderFeedCard(item)).join('');
     }
-    feedEl.innerHTML = feedData.list.map(item => renderFeedCard(item)).join('');
 
-    // 유형별 통계
     renderTypeStats(feedData.list);
   } catch (err) {
+    console.error(err);
     document.getElementById('dashboard-feed').innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
   }
 }
