@@ -105,54 +105,46 @@ const DART_API = {
       const key = this.getKey();
       const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
       
-    // 멀티 프록시 폴백 시스템
-    const proxies = [
-      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
-    ];
+      const proxies = [
+        u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+        u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+      ];
 
-    for (const getProxyUrl of proxies) {
-      try {
-        const proxyUrl = getProxyUrl(url);
-        const res = await fetch(proxyUrl);
-        if (!res.ok) continue;
-        
-        const zipData = await res.arrayBuffer();
-        // ZIP 파일은 최소 수만 바이트 이상이어야 함 (에러 HTML 방지)
-        if (zipData.byteLength < 5000) {
-          console.warn(`Proxy ${proxyUrl} returned too small data, likely error page.`);
-          continue;
-        }
+      for (const getProxyUrl of proxies) {
+        try {
+          const proxyUrl = getProxyUrl(url);
+          const res = await fetch(proxyUrl);
+          if (!res.ok) continue;
+          
+          const zipData = await res.arrayBuffer();
+          if (zipData.byteLength < 5000) continue;
 
-        const zip = await JSZip.loadAsync(zipData);
-        const xmlFile = zip.file("CORPCODE.xml");
-        if (!xmlFile) continue;
-        
-        const xmlText = await xmlFile.async("string");
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, "text/xml");
-        const list = xml.getElementsByTagName("list");
-        
-        const db = {};
-        for (let i = 0; i < list.length; i++) {
-          const name = list[i].getElementsByTagName("corp_name")[0].textContent;
-          const code = list[i].getElementsByTagName("corp_code")[0].textContent;
-          db[name] = code;
+          const zip = await JSZip.loadAsync(zipData);
+          const xmlFile = zip.file("CORPCODE.xml");
+          if (!xmlFile) continue;
+          
+          const xmlText = await xmlFile.async("string");
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(xmlText, "text/xml");
+          const list = xml.getElementsByTagName("list");
+          
+          const db = {};
+          for (let i = 0; i < list.length; i++) {
+            const name = list[i].getElementsByTagName("corp_name")[0].textContent;
+            const code = list[i].getElementsByTagName("corp_code")[0].textContent;
+            db[name] = code;
+          }
+          
+          this._corpDb = { timestamp: Date.now(), data: db };
+          localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
+          return db;
+        } catch (err) {
+          console.warn(`Proxy Failed: ${err.message}`);
         }
-        
-        this._corpDb = { timestamp: Date.now(), data: db };
-        localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
-        console.log(`Corp DB Successfully Loaded via: ${proxyUrl}`);
-        return db;
-      } catch (err) {
-        console.warn(`Proxy Attempt Failed (${getProxyUrl(url)}):`, err.message);
       }
-    }
-      
-      console.error("All proxies failed to load Corp DB.");
       return {};
     } catch (err) {
-      console.error("Corp DB Critical Error:", err);
+      console.error("Critical DB Error:", err);
       return {};
     }
   },
