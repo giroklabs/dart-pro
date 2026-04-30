@@ -232,19 +232,22 @@ const DART_API = {
       const listData = await listRes.json();
       const availableModels = listData.models || [];
       
-      // 무료 티어 친화적인 모델 우선순위: 1.5 Flash -> 1.5 Pro -> 1.0 Pro
-      const priority = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
-      let targetModel = null;
-      
-      for (const pName of priority) {
+      // 사용자 요청에 따라 Flash 모델을 최우선적으로 검색
+      let targetModel = availableModels.find(m => 
+        m.name.toLowerCase().includes('flash') && 
+        m.supportedGenerationMethods.includes('generateContent')
+      );
+
+      // 만약 Flash가 없다면 Pro 계열 중 가용한 것을 차선책으로 검색
+      if (!targetModel) {
         targetModel = availableModels.find(m => 
-          m.name.includes(pName) && m.supportedGenerationMethods.includes('generateContent')
+          m.name.toLowerCase().includes('pro') && 
+          m.supportedGenerationMethods.includes('generateContent')
         );
-        if (targetModel) break;
       }
 
       if (!targetModel) {
-        throw new Error("가용 모델을 찾을 수 없습니다. Google AI Studio에서 Gemini API가 활성화되었는지 확인하세요.");
+        throw new Error("Gemini Flash 모델을 찾을 수 없습니다. API 키의 모델 권한을 확인하세요.");
       }
 
       const modelId = targetModel.name.split('/').pop();
