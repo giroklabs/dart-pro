@@ -170,40 +170,64 @@ const DART_API = {
     const key = this.getKey();
     if (!key) throw new Error('API 키가 필요합니다.');
     
-    if (progressCb) progressCb('DART에서 데이터 다운로드 중...');
     const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error('다운로드 실패');
-    
-    const zipData = await res.arrayBuffer();
-    if (progressCb) progressCb('압축 해제 중...');
-    const zip = await JSZip.loadAsync(zipData);
-    const xmlText = await zip.file("CORPCODE.xml").async("string");
-    
-    if (progressCb) progressCb('데이터 분석 및 인덱싱 중...');
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, "text/xml");
-    const list = xml.getElementsByTagName("list");
-    
-    const db = await this._getDb();
-    const tx = db.transaction('corps', 'readwrite');
-    const store = tx.objectStore('corps');
-    store.clear();
+    const proxies = [
+      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+      u => `https://thingproxy.freeboard.io/fetch/${u}` // 차선책
+    ];
 
-    for (let i = 0; i < list.length; i++) {
-      const name = list[i].getElementsByTagName("corp_name")[0].textContent;
-      const code = list[i].getElementsByTagName("corp_code")[0].textContent;
-      store.put({ name, code });
+    let lastError = null;
+    for (const getProxyUrl of proxies) {
+      try {
+        if (progressCb) progressCb(`${getProxyUrl('').split('/')[2]} 프록시 연결 중...`);
+        const proxyUrl = getProxyUrl(url);
+        const res = await fetch(proxyUrl);
+        
+        if (!res.ok) {
+          console.warn(`Proxy ${proxyUrl} failed with status ${res.status}`);
+          continue;
+        }
+        
+        const zipData = await res.arrayBuffer();
+        if (zipData.byteLength < 10000) {
+          console.warn(`Proxy returned too small data (${zipData.byteLength} bytes)`);
+          continue;
+        }
+
+        if (progressCb) progressCb('압축 해제 및 데이터 분석 중...');
+        const zip = await JSZip.loadAsync(zipData);
+        const xmlText = await zip.file("CORPCODE.xml").async("string");
+        
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, "text/xml");
+        const list = xml.getElementsByTagName("list");
+        
+        if (progressCb) progressCb(`인덱싱 중... (총 ${list.length.toLocaleString()}개)`);
+        const db = await this._getDb();
+        const tx = db.transaction('corps', 'readwrite');
+        const store = tx.objectStore('corps');
+        store.clear();
+
+        for (let i = 0; i < list.length; i++) {
+          const name = list[i].getElementsByTagName("corp_name")[0].textContent;
+          const code = list[i].getElementsByTagName("corp_code")[0].textContent;
+          store.put({ name, code });
+        }
+
+        return new Promise((resolve) => {
+          tx.oncomplete = () => {
+            localStorage.setItem('dart_db_synced', Date.now());
+            resolve(list.length);
+          };
+        });
+      } catch (err) {
+        console.error(`Sync attempt failed: ${err.message}`);
+        lastError = err;
+      }
     }
-
-    return new Promise((resolve) => {
-      tx.oncomplete = () => {
-        localStorage.setItem('dart_db_synced', Date.now());
-        resolve(list.length);
-      };
-    });
+    
+    throw new Error(`모든 프록시 시도 실패: ${lastError?.message || '알 수 없는 오류'}`);
   },
 
   async findCorpCode(name) {
