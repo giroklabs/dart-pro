@@ -22,9 +22,16 @@ const DART_API = {
     const key = this.getKey();
     if (!key) throw new Error('API 키가 설정되지 않았습니다.');
 
-    params.crtfc_key = key;
-    const qs = new URLSearchParams(params).toString();
-    const targetUrl = `${this.BASE}/${endpoint}?${qs}`;
+    // 파라미터 정제 (undefined, null, 빈 문자열 제거)
+    const cleanParams = { crtfc_key: key };
+    Object.keys(params).forEach(k => {
+      if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+        cleanParams[k] = params[k];
+      }
+    });
+
+    const query = new URLSearchParams(cleanParams).toString();
+    const targetUrl = `${this.BASE}/${endpoint}?${query}`;
 
     // 프록시 목록 (안정성 순서)
     const proxies = [
@@ -210,15 +217,17 @@ const DART_API = {
       const sanitized = params.corp_code
         .split(',')
         .map(c => c.trim())
-        .filter(c => /^[0-9]{8}$/.test(c)) // 8자리 숫자만 허용
+        .filter(c => /^[0-9]{8}$/.test(c))
         .join(',');
       
       if (sanitized) {
         params.corp_code = sanitized;
       } else {
-        // 유효한 코드가 하나도 없으면 파라미터를 아예 삭제 (DART 에러 방지)
         delete params.corp_code;
       }
+    } else {
+      // corp_code가 아예 없거나 null/undefined인 경우 확실히 삭제
+      delete params.corp_code;
     }
 
     params.sort = opts.sort || 'date';
