@@ -301,3 +301,37 @@ window.testAiConnection = testAiConnection;
 window.clearGeminiKey = clearGeminiKey;
 window.saveGeminiKey = saveGeminiKey;
 window.handleSearch = handleSearch;
+
+async function syncFullDatabase() {
+  const btn = document.getElementById('btn-sync-db');
+  const statusEl = document.getElementById('db-sync-status');
+  const api = window.DART_API;
+
+  btn.disabled = true;
+  statusEl.style.display = 'block';
+  
+  try {
+    const count = await api.syncFullDb((msg) => {
+      statusEl.textContent = msg;
+    });
+    statusEl.textContent = `동기화 완료! 총 ${count.toLocaleString()}개 기업이 저장되었습니다.`;
+    showToast('전체 기업 DB 동기화 성공');
+    setTimeout(() => window.router(), 1500);
+  } catch (err) {
+    statusEl.textContent = `동기화 실패: ${err.message}`;
+    showToast('DB 동기화 중 오류 발생');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function clearFullDatabase() {
+  if (!confirm('로컬 기업 DB를 초기화하시겠습니까?')) return;
+  await window.DART_API.clearFullDb();
+  showToast('DB가 초기화되었습니다.');
+  window.router();
+}
+
+window.syncFullDatabase = syncFullDatabase;
+window.clearFullDatabase = clearFullDatabase;

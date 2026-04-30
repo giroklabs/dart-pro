@@ -149,68 +149,128 @@ const DART_API = {
     }
   },
 
-  // 기업명으로 고유번호 찾기 유틸 (전수 검색 지원 및 대규모 내장 DB)
-  findCorpCode(name) {
-    // 국내 시가총액 상위 및 주요 기업 200개+ 내장 (서버 실패 대비)
-    const CORP_MAP = {
-      "삼성전자": "00126380", "SK하이닉스": "00164779", "LG에너지솔루션": "01518337", "삼성바이오로직스": "00877059",
-      "현대자동차": "00164742", "현대차": "00164742", "기아": "00106641", "셀트리온": "00245056", "POSCO홀딩스": "00143393",
-      "KB금융": "00689412", "신한지주": "00388837", "NAVER": "00266961", "네이버": "00266961", "삼성SDI": "00126362",
-      "LG화학": "00356379", "카카오": "00258838", "현대모비스": "00123505", "포스코퓨처엠": "00115047", "하나금융지주": "00570387",
-      "삼성생명": "00126335", "에코프로비엠": "01138407", "에코프로": "00305884", "메리츠금융지주": "00863001", "삼성물산": "00126344",
-      "현대글로비스": "00539159", "LG전자": "00106641", "HMM": "00155079", "SK": "00115162", "삼성화재": "00126405",
-      "KT&G": "00224163", "한국전력": "00123019", "삼성전기": "00126317", "두산에너빌리티": "00114002", "우리금융지주": "01358788",
-      "HD현대중공업": "01375323", "고려아연": "00119858", "KT": "00190388", "대한항공": "00105305", "한화에어로스페이스": "00152434",
-      "삼성에스디에스": "00126353", "포스코인터내셔널": "00112101", "SK이노베이션": "00780214", "S-Oil": "00114677", "에스오일": "00114677",
-      "LG": "00148112", "크래프톤": "00778176", "아모레퍼시픽": "00130609", "하이브": "00713706", "SK스퀘어": "01582235",
-      "현대제철": "00136269", "엔씨소프트": "00250687", "현대건설": "00123499", "코웨이": "00158650", "금호석유": "00120289",
-      "미래에셋증권": "00155255", "미래에셋": "00155255", "미래에셋생명": "00366400", "HLB": "00116815", "에이치엘비": "00116815",
-      "두산로보틱스": "01130618", "유한양행": "00121701", "한미약품": "00826967", "CJ제일제당": "00111166", "오리온": "01200052",
-      "롯데쇼핑": "00140226", "이마트": "00877040", "한진칼": "01004146", "넷마블": "00407138", "한온시스템": "00155103",
-      "한국타이어앤테크놀로지": "01004155", "한솔케미칼": "00153099", "팬오션": "00148282", "현대백화점": "00454376"
-      // ... 필요 시 더 확장 가능
-    };
-    
-    const q = name.replace(/\s/g, '').toLowerCase();
-    
-    // 1. 내장 맵 우선 확인 (완전 일치 또는 포함)
-    for (const [key, code] of Object.entries(CORP_MAP)) {
-      if (key.toLowerCase() === q || key.replace(/\s/g, '').toLowerCase() === q) return code;
-    }
-    
-    // 2. 다운로드된 전수 DB 확인
-    if (this._corpDb && this._corpDb.data) {
-      if (this._corpDb.data[name]) return this._corpDb.data[name];
-      const keys = Object.keys(this._corpDb.data);
-      const matched = keys.find(k => k.replace(/\s/g, '').toLowerCase().includes(q));
-      if (matched) return this._corpDb.data[matched];
-    }
-    
-    return null; // 찾지 못함
+  // --- IndexedDB 기반 대용량 DB 관리 ---
+  _db: null,
+  async _getDb() {
+    if (this._db) return this._db;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('dart_pro_db', 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('corps')) {
+          db.createObjectStore('corps', { keyPath: 'name' });
+        }
+      };
+      req.onsuccess = (e) => { this._db = e.target.result; resolve(this._db); };
+      req.onerror = (e) => reject(e.target.error);
+    });
   },
 
-  searchCorpCodes(query, limit = 10) {
+  async syncFullDb(progressCb) {
+    const key = this.getKey();
+    if (!key) throw new Error('API 키가 필요합니다.');
+    
+    if (progressCb) progressCb('DART에서 데이터 다운로드 중...');
+    const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error('다운로드 실패');
+    
+    const zipData = await res.arrayBuffer();
+    if (progressCb) progressCb('압축 해제 중...');
+    const zip = await JSZip.loadAsync(zipData);
+    const xmlText = await zip.file("CORPCODE.xml").async("string");
+    
+    if (progressCb) progressCb('데이터 분석 및 인덱싱 중...');
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlText, "text/xml");
+    const list = xml.getElementsByTagName("list");
+    
+    const db = await this._getDb();
+    const tx = db.transaction('corps', 'readwrite');
+    const store = tx.objectStore('corps');
+    store.clear();
+
+    for (let i = 0; i < list.length; i++) {
+      const name = list[i].getElementsByTagName("corp_name")[0].textContent;
+      const code = list[i].getElementsByTagName("corp_code")[0].textContent;
+      store.put({ name, code });
+    }
+
+    return new Promise((resolve) => {
+      tx.oncomplete = () => {
+        localStorage.setItem('dart_db_synced', Date.now());
+        resolve(list.length);
+      };
+    });
+  },
+
+  async findCorpCode(name) {
+    const q = name.replace(/\s/g, '').toLowerCase();
+    
+    // 1. IndexedDB 먼저 확인
+    try {
+      const db = await this._getDb();
+      const tx = db.transaction('corps', 'readonly');
+      const store = tx.objectStore('corps');
+      const req = store.get(name);
+      const res = await new Promise(r => req.onsuccess = () => r(req.result));
+      if (res) return res.code;
+    } catch(e) {}
+
+    // 2. 내장 맵 및 캐시 확인
+    const CORP_MAP = { "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "미래에셋증권": "00155255", "HL만도": "00155219" };
+    if (CORP_MAP[name]) return CORP_MAP[name];
+    
+    return null;
+  },
+
+  async searchCorpCodes(query, limit = 10) {
     const results = [];
     const q = query.replace(/\s/g, '').toLowerCase();
     
-    // 1. 내장 DB 검색
-    const CORP_MAP = {
-        "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742",
-        "미래에셋증권": "00155255", "미래에셋": "00155255", "미래에셋생명": "00366400", "카카오": "00258838",
-        "네이버": "00266961", "에코프로": "00305884", "에코프로비엠": "01138407", "하이브": "00713706"
-        // ... (위 findCorpCode의 맵과 공유 가능하나 가독성을 위해 일부 표시)
-    };
-
-    // 2. 통합 DB 검색
-    const fullDb = this._corpDb?.data || CORP_MAP;
-    
-    for (const [name, code] of Object.entries(fullDb)) {
-      if (name.toLowerCase().includes(q) || code.includes(q)) {
-        results.push({ name, code });
-        if (results.length >= limit) break;
+    // IndexedDB 검색 (전수)
+    try {
+      const db = await this._getDb();
+      const tx = db.transaction('corps', 'readonly');
+      const store = tx.objectStore('corps');
+      const req = store.openCursor();
+      
+      await new Promise(resolve => {
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            const name = cursor.value.name;
+            if (name.toLowerCase().includes(q)) {
+              results.push({ name, code: cursor.value.code });
+            }
+            if (results.length < limit) cursor.continue();
+            else resolve();
+          } else resolve();
+        };
+      });
+    } catch(e) {
+      // 실패 시 기본 맵이라도 활용
+      const CORP_MAP = { "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "미래에셋": "00155255" };
+      for (const [name, code] of Object.entries(CORP_MAP)) {
+        if (name.includes(q)) results.push({ name, code });
       }
     }
     return results;
+  },
+
+  async getDbStatus() {
+    const synced = localStorage.getItem('dart_db_synced');
+    if (!synced) return { status: 'internal', count: 0 };
+    return { status: 'synced', timestamp: parseInt(synced) };
+  },
+
+  async clearFullDb() {
+    const db = await this._getDb();
+    const tx = db.transaction('corps', 'readwrite');
+    tx.objectStore('corps').clear();
+    localStorage.removeItem('dart_db_synced');
   },
 
   // 관심 종목 관리
