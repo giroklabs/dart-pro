@@ -42,15 +42,23 @@ const DART_API = {
         const result = await res.json();
         let data;
 
-        // allorigins는 contents 안에 JSON 문자열이 있음
         if (result.contents) {
           data = JSON.parse(result.contents);
         } else {
-          data = result; // codetabs 등은 바로 JSON 반환
+          data = result;
         }
 
-        return this._handleData(data);
+        // DART 서버에서 에러를 반환한 경우 (프록시 문제가 아님)
+        if (data.status && data.status !== '000') {
+          return this._handleData(data); // 여기서 에러 throw
+        }
+
+        return data;
       } catch (err) {
+        // DART 서버 에러(status !== '000')인 경우 루프 중단하고 즉시 throw
+        if (err.message.includes('DART 서버 응답 오류') || err.message.includes('부적절한 값')) {
+          throw err;
+        }
         lastError = err;
         continue;
       }
@@ -196,6 +204,18 @@ const DART_API = {
   // 1. 공시검색
   async searchDisclosures(opts = {}) {
     const params = { ...opts };
+    
+    // corp_code 유효성 검사 및 정제
+    if (params.corp_code) {
+      params.corp_code = params.corp_code
+        .split(',')
+        .map(c => c.trim())
+        .filter(c => /^[0-9]{8}$/.test(c)) // 8자리 숫자만 허용
+        .join(',');
+      
+      if (!params.corp_code) throw new Error('유효한 고유번호가 없습니다. 관심 종목 설정을 확인해주세요.');
+    }
+
     params.sort = opts.sort || 'date';
     params.sort_mth = opts.sort_mth || 'desc';
     params.page_no = opts.page_no || 1;
