@@ -1,0 +1,12 @@
+{
+  "name": "dart-pro",
+  "version": "1.0.0",
+  "description": "Personal DART Disclosure Monitoring Web App",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx servor ./ index.html 3000 --browse"
+  },
+  "keywords": [],
+  "author": "giroklabs",
+  "license": "MIT"
+}
