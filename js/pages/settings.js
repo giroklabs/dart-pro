@@ -56,7 +56,7 @@ function renderSettings() {
       </div>
 
       <!-- Watchlist -->
-      <div class="card card-static">
+      <div class="card card-static" style="margin-bottom:var(--sp-lg);">
         <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">관심 종목 (보유 기업)</h3>
         <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
           대시보드에서 실시간 요약을 받아볼 기업을 검색하여 추가하세요.
@@ -71,6 +71,22 @@ function renderSettings() {
         </div>
         <div id="watchlist-display" style="margin-top:var(--sp-md);">
           ${renderWatchlistTable()}
+        </div>
+      </div>
+
+      <!-- DB Management -->
+      <div class="card card-static">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-md);">
+          <h3 class="t-headline-sm">기업 데이터베이스 관리</h3>
+          <span class="badge badge-secondary" id="db-count-badge">내장 데이터 모드</span>
+        </div>
+        <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
+          DART에 등록된 모든 기업(약 10만 개+)의 최신 고유번호 데이터를 로컬에 동기화합니다. 검색되지 않는 기업이 있을 때 실행하세요.
+        </p>
+        <div id="db-sync-status" style="margin-bottom:12px; font-size:12px; color:var(--secondary); display:none;"></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-primary" id="btn-sync-db" onclick="syncFullDatabase()">전체 기업 데이터 동기화</button>
+          <button class="btn-secondary" onclick="clearFullDatabase()">DB 초기화</button>
         </div>
       </div>
     </div>
