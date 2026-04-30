@@ -207,13 +207,18 @@ const DART_API = {
     
     // corp_code 유효성 검사 및 정제
     if (params.corp_code) {
-      params.corp_code = params.corp_code
+      const sanitized = params.corp_code
         .split(',')
         .map(c => c.trim())
         .filter(c => /^[0-9]{8}$/.test(c)) // 8자리 숫자만 허용
         .join(',');
       
-      if (!params.corp_code) throw new Error('유효한 고유번호가 없습니다. 관심 종목 설정을 확인해주세요.');
+      if (sanitized) {
+        params.corp_code = sanitized;
+      } else {
+        // 유효한 코드가 하나도 없으면 파라미터를 아예 삭제 (DART 에러 방지)
+        delete params.corp_code;
+      }
     }
 
     params.sort = opts.sort || 'date';
