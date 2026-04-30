@@ -252,13 +252,23 @@ async function initDashboard() {
 
     // 3. 렌더링
     if (groups.some(g => g.list.length > 0)) {
-      // 상단 인사이트 (전체 중 가장 최신 것 하나)
-      const allDisclosures = groups.flatMap(g => g.list);
-      allDisclosures.sort((a, b) => b.rcept_no.localeCompare(a.rcept_no));
-      renderInsight(insightContainerId, allDisclosures[0]);
+      // 상단 인사이트 (관심 종목별 최신 공시 하나씩 모두 표시)
+      const insightContainer = document.getElementById(insightContainerId);
+      insightContainer.innerHTML = ''; // 초기화
+      
+      const activeGroups = groups.filter(g => g.list.length > 0);
+      for (let i = 0; i < activeGroups.length; i++) {
+        const group = activeGroups[i];
+        const divId = `insight-item-${i}`;
+        const div = document.createElement('div');
+        div.id = divId;
+        div.style.marginBottom = "12px";
+        insightContainer.appendChild(div);
+        renderInsight(divId, group.list[0]);
+      }
       
       // 기업별 카드 렌더링
-      feedEl.innerHTML = groups.filter(g => g.list.length > 0).map(group => `
+      feedEl.innerHTML = activeGroups.map(group => `
         <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
           <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:12px;">
