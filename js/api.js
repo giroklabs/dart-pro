@@ -3,7 +3,7 @@ const DART_API = {
   BASE: 'https://opendart.fss.or.kr/api',
 
   getKey() {
-    return localStorage.getItem('dart_api_key') || '144e480379d207a694b74e3d7711dcad6d37a4ea';
+    return localStorage.getItem('dart_api_key') || '';
   },
 
   getGeminiKey() {

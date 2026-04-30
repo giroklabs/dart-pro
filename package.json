@@ -4,7 +4,8 @@
   "description": "Personal DART Disclosure Monitoring Web App",
   "main": "index.html",
   "scripts": {
-    "start": "npx servor ./ index.html 3000 --browse"
+    "start": "npx servor ./ index.html 3000 --browse",
+    "dev": "python3 -m http.server 3000"
   },
   "keywords": [],
   "author": "giroklabs",
