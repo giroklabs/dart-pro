@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DART | Portfolio Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#f7f9fb",
+                    "on-secondary-fixed": "#001a42",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f2f4f6",
+                    "secondary-fixed": "#d8e2ff",
+                    "inverse-primary": "#bec6e0",
+                    "secondary": "#0058be",
+                    "on-background": "#191c1e",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#2d3133",
+                    "on-primary-fixed": "#131b2e",
+                    "secondary-fixed-dim": "#adc6ff",
+                    "primary-container": "#131b2e",
+                    "primary-fixed-dim": "#bec6e0",
+                    "tertiary": "#000000",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-fixed": "#0b1c30",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "tertiary-fixed": "#d3e4fe",
+                    "background": "#f7f9fb",
+                    "surface-container": "#eceef0",
+                    "primary": "#000000",
+                    "surface-dim": "#d8dadc",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#f7f9fb",
+                    "outline-variant": "#c6c6cd",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#45464d",
+                    "on-tertiary-container": "#75859d",
+                    "outline": "#76777d",
+                    "primary-fixed": "#dae2fd",
+                    "on-tertiary-fixed-variant": "#38485d",
+                    "on-secondary-container": "#fefcff",
+                    "on-primary-container": "#7c839b",
+                    "on-secondary-fixed-variant": "#004395",
+                    "surface-container-highest": "#e0e3e5",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#b7c8e1",
+                    "surface-container-high": "#e6e8ea",
+                    "secondary-container": "#2170e4",
+                    "tertiary-container": "#0b1c30",
+                    "on-secondary": "#ffffff",
+                    "surface-tint": "#565e74",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-surface": "#191c1e",
+                    "on-tertiary": "#ffffff",
+                    "surface-variant": "#e0e3e5"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "container-margin": "40px",
+                    "column-gutter": "24px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "base": "4px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Manrope"],
+                    "label-sm": ["Inter"],
+                    "headline-md": ["Manrope"],
+                    "body-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "data-mono": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-xl": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #f7f9fb;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- SideNavBar Integration -->
+<aside class="fixed left-0 top-0 h-full w-64 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col gap-1 p-4 z-50">
+<div class="mb-8 px-2 flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-white font-black text-lg">D</div>
+<div>
+<h1 class="text-lg font-black text-slate-900 dark:text-white leading-none">DART</h1>
+<p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mt-1">Institutional Disclosure</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-md shadow-sm transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span class="font-manrope text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 rounded-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="list_alt">list_alt</span>
+<span class="font-manrope text-sm font-medium">Holdings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 rounded-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="analytics">analytics</span>
+<span class="font-manrope text-sm font-medium">Disclosures</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 rounded-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings_input_component">settings_input_component</span>
+<span class="font-manrope text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
+<button class="w-full py-2.5 bg-primary text-white font-manrope text-sm font-bold rounded hover:opacity-90 transition-opacity">
+                Generate Report
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen">
+<!-- TopAppBar Integration -->
+<header class="sticky top-0 flex justify-between items-center h-16 px-6 w-full bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-40">
+<div class="flex items-center gap-4 flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]" data-icon="search">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="Search portfolio, tickers, or disclosures..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4 border-r border-slate-200 dark:border-slate-800 pr-6">
+<button class="text-slate-600 hover:text-slate-900 relative">
+<span class="material-symbols-outlined text-[22px]" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-blue-600 rounded-full border-2 border-white"></span>
+</button>
+<button class="text-slate-600 hover:text-slate-900">
+<span class="material-symbols-outlined text-[22px]" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+<div class="flex items-center gap-3 cursor-pointer">
+<img alt="User profile" class="w-8 h-8 rounded-full object-cover" data-alt="A professional headshot of a financial executive in a crisp white shirt, captured with shallow depth of field in a brightly lit modern office environment. The lighting is soft and natural, emphasizing a clean corporate aesthetic with a professional and approachable mood. The color palette is dominated by neutral tones and soft whites." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDbRtaG70glCBCQEEcNjNFp95-Z9MFD5o35JH9TvF3xIJ5KPh5joGenOJdotA5LnwEEYFsjD8kb5wJ8BA4XFCbztzPotwu3-L9sCB6eBAI1oSEmmzVtVtV491OkX4fSf8K_dLrCYamgCaNUudr4V8WmAQtnhMJzrksxVRANBvgQCNNYo1OI0trLSngCuGHWFmBax_4m1EzD1ykVz3u10s3T874MXF4-LBpOfR4Wi29GThwoElZkzw0wWXM2q1XXkN1SU7_4bjMLFkF"/>
+<span class="font-manrope text-sm font-bold text-slate-900">Alex Chen</span>
+</div>
+</div>
+</header>
+<div class="p-8 max-w-[1200px] mx-auto">
+<!-- Page Header -->
+<div class="mb-10">
+<h2 class="font-headline-xl text-headline-xl text-on-surface mb-1">Portfolio Dashboard</h2>
+<p class="text-on-surface-variant font-body-md">Real-time summarization and institutional monitoring of your core holdings.</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-xl">
+<!-- Quick Stats Section -->
+<section class="col-span-12 grid grid-cols-4 gap-lg mb-8">
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant shadow-sm transition-all hover:bg-slate-50">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">Total Value</p>
+<h3 class="font-headline-xl text-headline-xl text-on-surface">$1,420,840</h3>
+<div class="flex items-center gap-1 mt-2 text-green-600 font-data-mono text-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="trending_up">trending_up</span>
+<span>+4.2%</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant shadow-sm transition-all hover:bg-slate-50">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">Active Disclosures</p>
+<h3 class="font-headline-xl text-headline-xl text-on-surface">12</h3>
+<div class="flex items-center gap-1 mt-2 text-blue-600 font-data-mono text-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="visibility">visibility</span>
+<span>3 Unread</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant shadow-sm transition-all hover:bg-slate-50">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">Risk Exposure</p>
+<h3 class="font-headline-xl text-headline-xl text-on-surface">Low</h3>
+<div class="flex items-center gap-1 mt-2 text-slate-500 font-data-mono text-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="verified_user">verified_user</span>
+<span>Institutional Grade</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant shadow-sm transition-all hover:bg-slate-50">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">Performance YTD</p>
+<h3 class="font-headline-xl text-headline-xl text-on-surface">+18.5%</h3>
+<div class="flex items-center gap-1 mt-2 text-green-600 font-data-mono text-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="north_east">north_east</span>
+<span>Beat SPX by 2%</span>
+</div>
+</div>
+</section>
+<!-- Recent Disclosures Feed -->
+<div class="col-span-8 flex flex-col gap-md">
+<div class="flex justify-between items-center mb-2">
+<h3 class="font-headline-md text-headline-md text-on-surface">Recent Disclosures</h3>
+<button class="text-secondary font-label-sm text-label-sm hover:underline">View All Archive</button>
+</div>
+<!-- Feed Card 1 -->
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant hover:border-secondary transition-colors cursor-pointer group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-slate-100 flex items-center justify-center font-bold text-slate-600 border border-slate-200">NVDA</div>
+<div>
+<h4 class="font-headline-md text-sm text-on-surface">NVIDIA Corporation</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Form 8-K • Current Report</p>
+</div>
+</div>
+<span class="font-data-mono text-xs text-on-surface-variant bg-surface-container px-2 py-1 rounded">Oct 24, 2023</span>
+</div>
+<h5 class="font-headline-md text-md text-on-surface mb-3">Announcement of Strategic Partnership in Sovereign AI Infrastructure</h5>
+<p class="font-body-md text-on-surface-variant line-clamp-2 mb-4 leading-relaxed">
+                            NVIDIA has entered a multi-year agreement to provide H100 GPU clusters for national data centers. The partnership is expected to contribute approximately $2.4B in recurring revenue over the next three fiscal quarters. AI summarization indicates low execution risk with high margin potential.
+                        </p>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[11px] font-bold uppercase tracking-tight">
+<span class="material-symbols-outlined text-[14px]" data-icon="auto_awesome" data-weight="fill">auto_awesome</span>
+                                Bullish Sentiment
+                            </div>
+<div class="flex items-center gap-1 text-on-tertiary-container text-xs font-medium">
+<span class="material-symbols-outlined text-[16px]" data-icon="timer">timer</span>
+                                2 min read
+                            </div>
+</div>
+</div>
+<!-- Feed Card 2 -->
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant hover:border-secondary transition-colors cursor-pointer group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-slate-100 flex items-center justify-center font-bold text-slate-600 border border-slate-200">TSLA</div>
+<div>
+<h4 class="font-headline-md text-sm text-on-surface">Tesla, Inc.</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Form 10-Q • Quarterly Report</p>
+</div>
+</div>
+<span class="font-data-mono text-xs text-on-surface-variant bg-surface-container px-2 py-1 rounded">Oct 22, 2023</span>
+</div>
+<h5 class="font-headline-md text-md text-on-surface mb-3">Q3 2023 Financial Results &amp; Production Update</h5>
+<p class="font-body-md text-on-surface-variant line-clamp-2 mb-4 leading-relaxed">
+                            Tesla reported a slight contraction in automotive margins due to price adjustments in the Chinese market. However, energy storage deployments increased by 75% year-over-year. Summarization highlights shift in growth focus towards AI and robotics segments.
+                        </p>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-[11px] font-bold uppercase tracking-tight">
+<span class="material-symbols-outlined text-[14px]" data-icon="auto_awesome" data-weight="fill">auto_awesome</span>
+                                Neutral Sentiment
+                            </div>
+<div class="flex items-center gap-1 text-on-tertiary-container text-xs font-medium">
+<span class="material-symbols-outlined text-[16px]" data-icon="timer">timer</span>
+                                5 min read
+                            </div>
+</div>
+</div>
+<!-- Feed Card 3 -->
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant hover:border-secondary transition-colors cursor-pointer group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-slate-100 flex items-center justify-center font-bold text-slate-600 border border-slate-200">AAPL</div>
+<div>
+<h4 class="font-headline-md text-sm text-on-surface">Apple Inc.</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Form 4 • Statement of Changes</p>
+</div>
+</div>
+<span class="font-data-mono text-xs text-on-surface-variant bg-surface-container px-2 py-1 rounded">Oct 20, 2023</span>
+</div>
+<h5 class="font-headline-md text-md text-on-surface mb-3">Insider Trading Notification - Executive Officer Disposition</h5>
+<p class="font-body-md text-on-surface-variant line-clamp-2 mb-4 leading-relaxed">
+                            A scheduled sale of 50,000 shares by the CFO under a 10b5-1 plan. Analysis shows this is a routine transaction and does not indicate a shift in internal confidence or near-term performance expectations. 
+                        </p>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[11px] font-bold uppercase tracking-tight">
+<span class="material-symbols-outlined text-[14px]" data-icon="info" data-weight="fill">info</span>
+                                Routine Filing
+                            </div>
+<div class="flex items-center gap-1 text-on-tertiary-container text-xs font-medium">
+<span class="material-symbols-outlined text-[16px]" data-icon="timer">timer</span>
+                                1 min read
+                            </div>
+</div>
+</div>
+</div>
+<!-- Right Column: Top Holdings & Market Mood -->
+<div class="col-span-4 flex flex-col gap-xl">
+<!-- Performance Chart Miniature -->
+<div class="bg-surface-container-lowest p-lg rounded-lg border border-outline-variant shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-sm text-on-surface">Portfolio Growth</h3>
+<span class="text-xs text-green-600 font-bold">+12.4% (30D)</span>
+</div>
+<div class="h-32 w-full flex items-end gap-1 px-2">
+<div class="flex-1 bg-slate-100 h-[40%] rounded-t-sm"></div>
+<div class="flex-1 bg-slate-100 h-[55%] rounded-t-sm"></div>
+<div class="flex-1 bg-slate-100 h-[45%] rounded-t-sm"></div>
+<div class="flex-1 bg-slate-200 h-[65%] rounded-t-sm"></div>
+<div class="flex-1 bg-slate-200 h-[60%] rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 h-[80%] rounded-t-sm"></div>
+<div class="flex-1 bg-secondary h-[95%] rounded-t-sm"></div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+<span>Sep 20</span>
+<span>Oct 24</span>
+</div>
+</div>
+<!-- Top Holdings Table -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm overflow-hidden">
+<div class="p-4 border-b border-outline-variant bg-slate-50">
+<h3 class="font-headline-md text-sm text-on-surface">Top Holdings</h3>
+</div>
+<table class="w-full text-sm">
+<thead>
+<tr class="bg-slate-50/50 text-[10px] uppercase text-on-surface-variant tracking-wider font-bold">
+<th class="text-left px-4 py-3">Ticker</th>
+<th class="text-right px-4 py-3">Allocation</th>
+<th class="text-right px-4 py-3">P&amp;L</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 font-bold">NVDA</td>
+<td class="px-4 py-3 text-right font-data-mono">24.5%</td>
+<td class="px-4 py-3 text-right font-data-mono text-green-600">+12.4%</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 font-bold">AAPL</td>
+<td class="px-4 py-3 text-right font-data-mono">18.2%</td>
+<td class="px-4 py-3 text-right font-data-mono text-green-600">+4.1%</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 font-bold">MSFT</td>
+<td class="px-4 py-3 text-right font-data-mono">15.0%</td>
+<td class="px-4 py-3 text-right font-data-mono text-red-600">-1.2%</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 font-bold">TSLA</td>
+<td class="px-4 py-3 text-right font-data-mono">12.8%</td>
+<td class="px-4 py-3 text-right font-data-mono text-green-600">+8.9%</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- AI Insights Mini-Banner -->
+<div class="bg-primary-container p-lg rounded-lg text-white">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-secondary-fixed text-[20px]" data-icon="smart_toy" data-weight="fill">smart_toy</span>
+<span class="font-manrope text-sm font-bold uppercase tracking-widest text-secondary-fixed">AI Market Mood</span>
+</div>
+<p class="font-body-md text-sm text-primary-fixed-dim mb-4 leading-relaxed">
+                            Summarization engine detects increasing regulatory chatter regarding semi-conductors. Suggest hedging portfolio exposure in NVDA by 5%.
+                        </p>
+<button class="w-full py-2 bg-secondary text-white font-manrope text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">
+                            Analyze Regulation Impact
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
