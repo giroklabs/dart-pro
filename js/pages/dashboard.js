@@ -30,40 +30,29 @@ async function renderDashboard() {
       </div>
       <div id="dashboard-feed"></div>
     </div>
-    <div class="stat-grid" style="margin-top:var(--sp-xl);">
+    
+    <div class="section-header" style="margin-top:var(--sp-xl);">
+      <h3 class="section-title">시장 현황 (오늘)</h3>
+    </div>
+    <div class="stat-grid">
       <div class="card card-static" id="stat-total">
         <p class="stat-label">오늘의 공시</p>
         <div class="stat-value" id="stat-today-count">-</div>
-        <div class="stat-meta info"><span class="material-symbols-outlined">update</span><span id="stat-today-label">조회 중...</span></div>
+        <p class="stat-sub" id="stat-today-label">조회 중...</p>
       </div>
       <div class="card card-static">
         <p class="stat-label">유가증권</p>
         <div class="stat-value" id="stat-kospi">-</div>
-        <div class="stat-meta neutral"><span class="material-symbols-outlined">monitoring</span><span>KOSPI</span></div>
+        <p class="stat-sub"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;">trending_up</span> KOSPI</p>
       </div>
       <div class="card card-static">
         <p class="stat-label">코스닥</p>
         <div class="stat-value" id="stat-kosdaq">-</div>
-        <div class="stat-meta neutral"><span class="material-symbols-outlined">monitoring</span><span>KOSDAQ</span></div>
+        <p class="stat-sub"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;">trending_up</span> KOSDAQ</p>
       </div>
       <div class="card card-static">
         <p class="stat-label">정기공시</p>
         <div class="stat-value" id="stat-regular">-</div>
-        <div class="stat-meta positive"><span class="material-symbols-outlined">verified</span><span>최근 7일</span></div>
-      </div>
-    </div>
-    <div class="content-grid">
-      <div class="content-main">
-        <div class="section-header">
-          <h3 class="section-title">최근 공시</h3>
-          <button class="btn-text" onclick="location.hash='#/disclosures'">전체 보기 →</button>
-        </div>
-        <div id="dashboard-feed"><div class="loading"><div class="spinner"></div>공시 정보를 불러오는 중...</div></div>
-      </div>
-      <div class="content-aside">
-        <div class="card card-static" style="padding:0;overflow:hidden;">
-          <div style="padding:16px;border-bottom:1px solid var(--outline-variant);background:var(--surface-container-low);">
-            <h3 class="t-headline-sm">공시 유형별 현황</h3>
           </div>
           <div id="type-stats" style="padding:16px;"><div class="loading"><div class="spinner"></div></div></div>
         </div>
@@ -222,7 +211,6 @@ async function initDashboard() {
   const insightContainerId = 'quick-insight-container';
   const watchlist = api.getWatchlist();
 
-  // 관심 종목이 없는 경우
   if (watchlist.length === 0) {
     feedEl.innerHTML = `
       <div class="empty-state">
@@ -238,26 +226,32 @@ async function initDashboard() {
   try {
     const today = new Date();
     const endDe = fmt(today);
-    const bgnDe30 = fmt(new Date(today.getTime() - 29 * 86400000)); // 관심 종목은 최근 30일까지 조회
+    const bgnDe30 = fmt(new Date(today.getTime() - 29 * 86400000));
     const bgnDeToday = endDe;
     
-    const codes = watchlist.map(i => i.code).join(',');
-
-    // 1. 관심 종목 공시 데이터만 가져오기
-    const feedData = await api.searchDisclosures({ 
-      corp_code: codes, 
-      bgn_de: bgnDe30, 
-      end_de: endDe, 
-      page_count: 20 
-    });
+    // 1. 각 종목별로 개별 호출 (DART API 제한 때문)
+    const requests = watchlist.map(item => 
+      api.searchDisclosures({ corp_code: item.code, bgn_de: bgnDe30, end_de: endDe, page_count: 10 })
+    );
     
-    // 2. 인사이트 생성 (관심 종목 중 가장 최신 또는 중요한 것)
-    if (feedData.list && feedData.list.length > 0) {
-      const target = feedData.list.find(i => i.report_nm.includes('배당') || i.report_nm.includes('보고서')) || feedData.list[0];
+    const responses = await Promise.all(requests);
+    
+    // 2. 데이터 병합 및 정렬
+    let allList = [];
+    responses.forEach(res => {
+      if (res.list) allList = allList.concat(res.list);
+    });
+
+    // 최신 접수번호/시간 순으로 정렬
+    allList.sort((a, b) => b.rcept_no.localeCompare(a.rcept_no));
+
+    // 3. 렌더링
+    if (allList.length > 0) {
+      // 인사이트 (가장 최신 것 하나)
+      const target = allList.find(i => i.report_nm.includes('배당') || i.report_nm.includes('보고서')) || allList[0];
       renderInsight(insightContainerId, target);
       
-      // 3. 메인 피드 렌더링
-      feedEl.innerHTML = feedData.list.map(item => renderFeedCard(item)).join('');
+      feedEl.innerHTML = allList.map(item => renderFeedCard(item)).join('');
     } else {
       feedEl.innerHTML = `
         <div class="empty-state">
@@ -267,7 +261,7 @@ async function initDashboard() {
       `;
     }
 
-    // 4. 하단 통계 (참고용 시장 데이터)
+    // 4. 시장 현황 업데이트 (전체 데이터)
     const todayData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, page_count: 1 });
     document.getElementById('stat-today-count').textContent = todayData.total_count || 0;
     document.getElementById('stat-today-label').textContent = api.formatDate(endDe);
@@ -281,7 +275,7 @@ async function initDashboard() {
     const kosdaqData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 });
     document.getElementById('stat-kosdaq').textContent = kosdaqData.total_count || 0;
 
-    renderTypeStats(feedData.list || []);
+    renderTypeStats(allList);
   } catch (err) {
     console.error(err);
     feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
