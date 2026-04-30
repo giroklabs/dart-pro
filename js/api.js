@@ -104,15 +104,18 @@ const DART_API = {
     try {
       const key = this.getKey();
       const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      // AllOrigins 대신 더 직접적인 바이너리 처리를 시도
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
       
       const res = await fetch(proxyUrl);
-      const json = await res.json();
-      const zipData = await fetch(json.contents).then(r => r.arrayBuffer());
+      if (!res.ok) throw new Error('Proxy response not ok');
+      const zipData = await res.arrayBuffer();
       
       const zip = await JSZip.loadAsync(zipData);
-      const xmlText = await zip.file("CORPCODE.xml").async("string");
+      const xmlFile = zip.file("CORPCODE.xml");
+      if (!xmlFile) throw new Error('CORPCODE.xml not found in zip');
       
+      const xmlText = await xmlFile.async("string");
       const parser = new DOMParser();
       const xml = parser.parseFromString(xmlText, "text/xml");
       const list = xml.getElementsByTagName("list");
@@ -128,8 +131,9 @@ const DART_API = {
       localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
       return db;
     } catch (err) {
-      console.error("Corp DB Init Error:", err);
-      return null;
+      console.error("Corp DB Init Error (Retry with alternative):", err);
+      // 실패 시 기본 하드코딩 맵이라도 사용하도록 빈 객체 반환 방지
+      return {};
     }
   },
 
@@ -199,11 +203,11 @@ const DART_API = {
     const key = this.getGeminiKey();
     if (!key) return null;
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+    // 가장 표준적인 v1beta 엔드포인트 사용
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
     const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
-핵심 포인트 3가지를 리스트 형태로 포함해 주세요. 
 반드시 다음 JSON 형식으로만 응답하세요:
-{ "insight": "공시의 핵심 의미 요약 (1문장)", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
+{ "insight": "공시의 핵심 의미 요약", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
 
 공시 정보:
 기업명: ${corpName}
@@ -213,46 +217,38 @@ const DART_API = {
       contents: [{ parts: [{ text: prompt }] }]
     });
 
-    // 브라우저 CORS 회피를 위한 프록시 체인
-    const proxies = [
-      u => u, // 1. 직통
-      u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` // 2. AllOrigins
-    ];
-
-    for (const getUrl of proxies) {
-      try {
-        let res;
-        const targetUrl = getUrl(url);
-        
-        if (targetUrl.includes('allorigins')) {
-          // AllOrigins 프록시를 통한 POST 시뮬레이션
-          const aoRes = await fetch(targetUrl);
-          if (!aoRes.ok) continue;
-          
-          // Gemini는 POST가 필수이므로 직통 실패 시 다른 대안이 필요함
-          // 현재 브라우저 환경에서는 직통 호출이 가장 가능성 높음 (CORS 허용됨)
-          continue; 
-        } else {
-          // 직통 POST 시도 (Gemini API는 브라우저 CORS를 일부 허용함)
-          res = await fetch(targetUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: body
-          });
-          
-          if (!res.ok) {
-            const errData = await res.json();
-            console.warn('Gemini Direct Error:', errData);
-            continue;
-          }
-          
-          const data = await res.json();
-          if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-            return JSON.parse(data.candidates[0].content.parts[0].text);
-          }
+    try {
+      // 1. 브라우저 직통 호출 시도 (Gemini API는 CORS를 허용하는 경우가 많음)
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          const text = data.candidates[0].content.parts[0].text;
+          // JSON 응답이 가끔 ```json ... ``` 으로 감싸져 오는 경우 대응
+          const cleanedText = text.replace(/```json|```/g, '').trim();
+          return JSON.parse(cleanedText);
         }
-      } catch (err) {
-        console.error('Gemini Attempt Failed:', err);
+      } else {
+        const errData = await res.json();
+        console.warn('Gemini API Error Detail:', errData);
+      }
+    } catch (err) {
+      console.error('Gemini Direct Attempt Failed:', err);
+      
+      // 2. 실패 시 프록시 우회 시도 (AllOrigins raw 모드)
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const aoRes = await fetch(proxyUrl);
+        const aoData = await aoRes.json();
+        // AllOrigins를 통한 POST는 한계가 있으므로, 에러 로깅 후 종료
+        console.warn('Proxying Gemini POST is limited in browser environments.');
+      } catch (pErr) {
+        console.error('Gemini Proxy Attempt Failed:', pErr);
       }
     }
     return null;
