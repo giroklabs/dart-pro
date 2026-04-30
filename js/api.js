@@ -1,7 +1,7 @@
 // DART OpenAPI Wrapper with CORS Proxy
 const DART_API = {
   BASE: 'https://opendart.fss.or.kr/api',
-  PROXY: 'https://corsproxy.io/?url=',
+  PROXY: 'https://api.allorigins.win/raw?url=',
 
   getKey() {
     return localStorage.getItem('dart_api_key') || '';
