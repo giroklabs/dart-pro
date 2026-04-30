@@ -24,8 +24,13 @@ async function renderDashboard() {
       <p>DART 전자공시 실시간 모니터링</p>
     </div>
     <div id="quick-insight-container"></div>
-    <div id="watchlist-news-container"></div>
-    <div class="stat-grid">
+    <div id="dashboard-main-content">
+      <div class="section-header">
+        <h3 class="section-title">관심 종목 리얼타임 피드</h3>
+      </div>
+      <div id="dashboard-feed"></div>
+    </div>
+    <div class="stat-grid" style="margin-top:var(--sp-xl);">
       <div class="card card-static" id="stat-total">
         <p class="stat-label">오늘의 공시</p>
         <div class="stat-value" id="stat-today-count">-</div>
@@ -213,53 +218,61 @@ async function initDashboard() {
   const api = window.DART_API;
   if (!api.getKey()) return;
 
+  const feedEl = document.getElementById('dashboard-feed');
+  const insightContainerId = 'quick-insight-container';
+  const watchlist = api.getWatchlist();
+
+  // 관심 종목이 없는 경우
+  if (watchlist.length === 0) {
+    feedEl.innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size:48px;opacity:0.3;">domain_disabled</span>
+        <h3>등록된 관심 종목이 없습니다.</h3>
+        <p>설정 메뉴에서 모니터링할 기업을 추가해 주세요.</p>
+        <button class="btn-primary" style="margin-top:16px;" onclick="location.hash='#/settings'">설정으로 이동</button>
+      </div>
+    `;
+    return;
+  }
+
   try {
     const today = new Date();
     const endDe = fmt(today);
-    const bgnDe7 = fmt(new Date(today.getTime() - 6 * 86400000));
+    const bgnDe30 = fmt(new Date(today.getTime() - 29 * 86400000)); // 관심 종목은 최근 30일까지 조회
     const bgnDeToday = endDe;
-
-    // 1. 전체 최근 공시 피드
-    const feedData = await api.searchDisclosures({ bgn_de: bgnDe7, end_de: endDe, page_count: 20 });
     
-    // 2. 전체 공시 인사이트 생성
-    const insightContainerId = 'quick-insight-container';
+    const codes = watchlist.map(i => i.code).join(',');
+
+    // 1. 관심 종목 공시 데이터만 가져오기
+    const feedData = await api.searchDisclosures({ 
+      corp_code: codes, 
+      bgn_de: bgnDe30, 
+      end_de: endDe, 
+      page_count: 20 
+    });
+    
+    // 2. 인사이트 생성 (관심 종목 중 가장 최신 또는 중요한 것)
     if (feedData.list && feedData.list.length > 0) {
       const target = feedData.list.find(i => i.report_nm.includes('배당') || i.report_nm.includes('보고서')) || feedData.list[0];
       renderInsight(insightContainerId, target);
-    }
-
-    // 3. 관심 종목 뉴스 (보유 기업 요약)
-    const watchlist = api.getWatchlist();
-    const watchContainer = document.getElementById('watchlist-news-container');
-    if (watchlist.length > 0) {
-      const codes = watchlist.map(i => i.code).join(',');
-      const watchData = await api.searchDisclosures({ corp_code: codes, bgn_de: bgnDe7, end_de: endDe, page_count: 5 });
       
-      if (watchData.list && watchData.list.length > 0) {
-        watchContainer.innerHTML = `
-          <div class="section-header" style="margin-top:var(--sp-md);"><h3 class="section-title">보유 기업 최신 소식</h3></div>
-          <div id="watchlist-news-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:var(--sp-xl);">
-          </div>
-        `;
-        const listContainer = document.getElementById('watchlist-news-list');
-        for (let i = 0; i < watchData.list.length; i++) {
-          const item = watchData.list[i];
-          const divId = `watch-item-${i}`;
-          const div = document.createElement('div');
-          div.id = divId;
-          listContainer.appendChild(div);
-          renderInsight(divId, item);
-        }
-      }
+      // 3. 메인 피드 렌더링
+      feedEl.innerHTML = feedData.list.map(item => renderFeedCard(item)).join('');
+    } else {
+      feedEl.innerHTML = `
+        <div class="empty-state">
+          <span class="material-symbols-outlined">inbox</span>
+          <p>관심 종목에 대한 최근 30일간의 공시가 없습니다.</p>
+        </div>
+      `;
     }
 
-    // 4. 통계 업데이트
+    // 4. 하단 통계 (참고용 시장 데이터)
     const todayData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, page_count: 1 });
     document.getElementById('stat-today-count').textContent = todayData.total_count || 0;
     document.getElementById('stat-today-label').textContent = api.formatDate(endDe);
 
-    const regularData = await api.searchDisclosures({ bgn_de: bgnDe7, end_de: endDe, pblntf_ty: 'A', page_count: 1 });
+    const regularData = await api.searchDisclosures({ bgn_de: bgnDe30, end_de: endDe, pblntf_ty: 'A', page_count: 1 });
     document.getElementById('stat-regular').textContent = regularData.total_count || 0;
 
     const kospiData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'Y', page_count: 1 });
@@ -268,18 +281,10 @@ async function initDashboard() {
     const kosdaqData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 });
     document.getElementById('stat-kosdaq').textContent = kosdaqData.total_count || 0;
 
-    // 5. 피드 리스트 렌더링
-    const feedEl = document.getElementById('dashboard-feed');
-    if (!feedData.list || feedData.list.length === 0) {
-      feedEl.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>최근 공시가 없습니다.</p></div>';
-    } else {
-      feedEl.innerHTML = feedData.list.slice(0, 10).map(item => renderFeedCard(item)).join('');
-    }
-
-    renderTypeStats(feedData.list);
+    renderTypeStats(feedData.list || []);
   } catch (err) {
     console.error(err);
-    document.getElementById('dashboard-feed').innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
+    feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
   }
 }
 
