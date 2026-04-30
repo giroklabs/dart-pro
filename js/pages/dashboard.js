@@ -75,8 +75,49 @@ async function renderDashboard() {
   `;
 }
 
-function summarizeDisclosure(item) {
+async function renderInsight(containerId, item) {
+  const api = window.DART_API;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // 기본 규칙 기반 요약 먼저 표시 (로딩 대용)
+  container.innerHTML = summarizeDisclosure(item);
+
+  // Gemini 키가 있으면 실시간 분석 시도
+  if (api.getGeminiKey()) {
+    const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
+    if (aiData) {
+      container.innerHTML = summarizeDisclosure(item, aiData);
+    }
+  }
+}
+
+function summarizeDisclosure(item, aiData = null) {
   const title = item.report_nm || '';
+  
+  // Gemini 데이터가 있는 경우 우선 사용
+  if (aiData) {
+    return `
+      <div class="insight-banner insight-info ai-glow">
+        <div class="insight-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
+        <div class="insight-content">
+          <div class="insight-header">
+            <div class="insight-label">GEMINI 1.5 FLASH ANALYSIS</div>
+            <div class="insight-impact">${aiData.impact || '분석 중'}</div>
+          </div>
+          <div class="insight-text"><strong>${item.corp_name}</strong> - ${aiData.insight}</div>
+          <ul class="insight-points">
+            ${(aiData.points || []).map(p => `<li>${p}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="insight-actions">
+          <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // 기존 규칙 기반 요약 로직
   let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
   let points = ["접수번호: " + item.rcept_no, "제출일자: " + item.rcept_dt];
   let impact = "정보 확인";
@@ -169,27 +210,34 @@ async function initDashboard() {
     const feedData = await api.searchDisclosures({ bgn_de: bgnDe7, end_de: endDe, page_count: 20 });
     
     // 2. 전체 공시 인사이트 생성
-    const insightContainer = document.getElementById('quick-insight-container');
+    const insightContainerId = 'quick-insight-container';
     if (feedData.list && feedData.list.length > 0) {
       const target = feedData.list.find(i => i.report_nm.includes('배당') || i.report_nm.includes('보고서')) || feedData.list[0];
-      insightContainer.innerHTML = summarizeDisclosure(target);
+      renderInsight(insightContainerId, target);
     }
 
     // 3. 관심 종목 뉴스 (보유 기업 요약)
     const watchlist = api.getWatchlist();
     const watchContainer = document.getElementById('watchlist-news-container');
     if (watchlist.length > 0) {
-      // 관심 종목 코드 합치기
       const codes = watchlist.map(i => i.code).join(',');
       const watchData = await api.searchDisclosures({ corp_code: codes, bgn_de: bgnDe7, end_de: endDe, page_count: 5 });
       
       if (watchData.list && watchData.list.length > 0) {
         watchContainer.innerHTML = `
           <div class="section-header" style="margin-top:var(--sp-md);"><h3 class="section-title">보유 기업 최신 소식</h3></div>
-          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:var(--sp-xl);">
-            ${watchData.list.map(item => summarizeDisclosure(item)).join('')}
+          <div id="watchlist-news-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:var(--sp-xl);">
           </div>
         `;
+        const listContainer = document.getElementById('watchlist-news-list');
+        for (let i = 0; i < watchData.list.length; i++) {
+          const item = watchData.list[i];
+          const divId = `watch-item-${i}`;
+          const div = document.createElement('div');
+          div.id = divId;
+          listContainer.appendChild(div);
+          renderInsight(divId, item);
+        }
       }
     }
 

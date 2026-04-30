@@ -59,6 +59,18 @@ function renderSettings() {
           ${savedKey ? '<button class="btn-secondary" onclick="clearApiKey()">키 삭제</button>' : ''}
         </div>
       </div>
+
+      <div class="card card-static">
+        <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">Gemini 1.5 Flash 연동</h3>
+        <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
+          최신 공시 내용을 실시간으로 깊이 있게 분석하려면 Google Gemini API 키를 등록하세요.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Gemini API 키</label>
+          <input type="text" class="form-input" id="gemini-api-key" placeholder="AI 분석용 API 키 입력" value="${api.getGeminiKey()}" />
+        </div>
+        <button class="btn-primary" onclick="saveGeminiKey()">Gemini 키 저장</button>
+      </div>
     </div>
   `;
 }
@@ -90,6 +102,15 @@ async function addToWatchlist() {
 function removeFromWatchlist(code) {
   window.DART_API.removeWatch(code);
   showToast('삭제되었습니다.');
+  window.router();
+}
+
+function saveGeminiKey() {
+  const input = document.getElementById('gemini-api-key');
+  const key = input?.value.trim();
+  if (!key) { showToast('Gemini API 키를 입력해주세요.'); return; }
+  window.DART_API.setGeminiKey(key);
+  showToast('Gemini API 키가 저장되었습니다. 이제 AI 분석이 활성화됩니다.');
   window.router();
 }
 

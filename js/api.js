@@ -6,8 +6,16 @@ const DART_API = {
     return localStorage.getItem('dart_api_key') || '144e480379d207a694b74e3d7711dcad6d37a4ea';
   },
 
+  getGeminiKey() {
+    return localStorage.getItem('gemini_api_key') || '';
+  },
+
   setKey(key) {
     localStorage.setItem('dart_api_key', key);
+  },
+
+  setGeminiKey(key) {
+    localStorage.setItem('gemini_api_key', key);
   },
 
   async _fetch(endpoint, params = {}) {
@@ -93,6 +101,36 @@ const DART_API = {
   removeWatch(corpCode) {
     const list = this.getWatchlist().filter(i => i.code !== corpCode);
     localStorage.setItem('dart_watchlist', JSON.stringify(list));
+  },
+
+  async getGeminiAnalysis(corpName, reportNm) {
+    const key = this.getGeminiKey();
+    if (!key) return null;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
+핵심 포인트 3가지를 리스트 형태로 포함해 주세요. 
+형식: JSON { "insight": "...", "impact": "...", "points": ["...", "...", "..."] }
+
+공시 정보:
+기업명: ${corpName}
+공시제목: ${reportNm}`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+      const data = await res.json();
+      return JSON.parse(data.candidates[0].content.parts[0].text);
+    } catch (err) {
+      console.error('Gemini API Error:', err);
+      return null;
+    }
   },
 
   // 1. 공시검색
