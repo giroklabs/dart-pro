@@ -73,14 +73,74 @@ const DART_API = {
     return data;
   },
 
-  // 기업명으로 고유번호 찾기 유틸
+  // 기업 DB 초기화 (DART에서 전체 리스트 다운로드)
+  async initCorpCodes() {
+    if (this._corpDb) return this._corpDb;
+    
+    // 캐시 확인
+    const cached = localStorage.getItem('dart_corp_db');
+    if (cached) {
+      this._corpDb = JSON.parse(cached);
+      if (Date.now() - this._corpDb.timestamp < 86400000 * 7) { // 7일간 유효
+        return this._corpDb.data;
+      }
+    }
+
+    try {
+      const key = this.getKey();
+      const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      
+      const res = await fetch(proxyUrl);
+      const json = await res.json();
+      const zipData = await fetch(json.contents).then(r => r.arrayBuffer());
+      
+      const zip = await JSZip.loadAsync(zipData);
+      const xmlText = await zip.file("CORPCODE.xml").async("string");
+      
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, "text/xml");
+      const list = xml.getElementsByTagName("list");
+      
+      const db = {};
+      for (let i = 0; i < list.length; i++) {
+        const name = list[i].getElementsByTagName("corp_name")[0].textContent;
+        const code = list[i].getElementsByTagName("corp_code")[0].textContent;
+        db[name] = code;
+      }
+      
+      this._corpDb = { timestamp: Date.now(), data: db };
+      localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
+      return db;
+    } catch (err) {
+      console.error("Corp DB Init Error:", err);
+      return null;
+    }
+  },
+
+  // 기업명으로 고유번호 찾기 유틸 (전수 검색 지원)
   findCorpCode(name) {
     const CORP_MAP = {
-      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742",
+      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742",
       "카카오": "00258801", "네이버": "00266961", "LG에너지솔루션": "01534184",
       "LG전자": "00106641", "삼성SDI": "00126362", "기아": "00106395", "셀트리온": "00305884"
     };
-    return CORP_MAP[name] || name;
+    
+    // 1. 하드코딩된 맵 우선 확인
+    if (CORP_MAP[name]) return CORP_MAP[name];
+    
+    // 2. 다운로드된 전수 DB에서 확인
+    if (this._corpDb && this._corpDb.data) {
+      // 정확히 일치하는 경우
+      if (this._corpDb.data[name]) return this._corpDb.data[name];
+      
+      // 유사 검색 (포함 관계)
+      const keys = Object.keys(this._corpDb.data);
+      const matched = keys.find(k => k.includes(name) || name.includes(k));
+      if (matched) return this._corpDb.data[matched];
+    }
+    
+    return name; // 못 찾으면 입력값 그대로
   },
 
   // 관심 종목 관리

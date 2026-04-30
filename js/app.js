@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
     DART_API.setKey('REMOVED');
   }
 
+  // 기업 고유번호 DB 초기화 (배경 작업)
+  DART_API.initCorpCodes();
+
   window.router = router;
   window.addEventListener('hashchange', router);
   router();
