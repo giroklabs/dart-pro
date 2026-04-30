@@ -63,10 +63,11 @@ function renderSettings() {
         </p>
         <div class="search-box-container" style="position:relative;">
           <div class="form-group" style="display:flex;gap:8px;margin-bottom:0;">
-            <input type="text" class="form-input" id="watch-input" placeholder="기업명 입력 (예: 현대차)" autocomplete="off" style="flex:1;" />
+            <input type="text" class="form-input" id="watch-input" placeholder="기업명 입력 (예: 미래에셋, 하나)" autocomplete="off" style="flex:1;" />
+            <button class="btn-secondary" onclick="handleSearch()">검색</button>
             <button class="btn-primary" onclick="addToWatchlist()">추가</button>
           </div>
-          <div id="search-suggestions" class="suggestions-list" style="display:none;"></div>
+          <div id="search-suggestions" class="suggestions-list" style="display:none; margin-top:4px;"></div>
         </div>
         <div id="watchlist-display" style="margin-top:var(--sp-md);">
           ${renderWatchlistTable()}
@@ -156,6 +157,31 @@ async function addToWatchlist(providedCode) {
     window.router();
   } catch (err) {
     showToast('기업 정보를 불러올 수 없습니다.');
+  }
+}
+
+function handleSearch() {
+  const input = document.getElementById('watch-input');
+  const query = input?.value.trim();
+  if (!query) {
+    showToast('검색어를 입력해 주세요.');
+    return;
+  }
+  
+  const results = window.DART_API.searchCorpCodes(query);
+  const suggestions = document.getElementById('search-suggestions');
+  
+  if (results.length > 0) {
+    suggestions.innerHTML = results.map(res => `
+      <div class="suggestion-item" onclick="addToWatchlist('${res.code}')">
+        <span class="name">${res.name}</span>
+        <span class="code">${res.code}</span>
+      </div>
+    `).join('');
+    suggestions.style.display = 'block';
+  } else {
+    showToast('검색 결과가 없습니다.');
+    suggestions.style.display = 'none';
   }
 }
 
@@ -258,3 +284,4 @@ window.removeFromWatchlist = removeFromWatchlist;
 window.testAiConnection = testAiConnection;
 window.clearGeminiKey = clearGeminiKey;
 window.saveGeminiKey = saveGeminiKey;
+window.handleSearch = handleSearch;
