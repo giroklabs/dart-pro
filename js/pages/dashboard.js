@@ -78,35 +78,79 @@ async function renderDashboard() {
 function summarizeDisclosure(item) {
   const title = item.report_nm || '';
   let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
+  let points = ["접수번호: " + item.rcept_no, "제출일자: " + item.rcept_dt];
+  let impact = "정보 확인";
   let typeCls = "insight-default";
   let icon = "campaign";
 
   if (title.includes("배당")) {
-    insight = "<strong>현금/현물 배당 결정:</strong> 주당 배당금 및 배당 기준일을 확인하여 투자 수익률을 점검하세요.";
+    insight = "<strong>현금/현물 배당 결정:</strong> 주주 환원의 핵심 지표가 발표되었습니다.";
+    points = [
+      "과거 배당금 대비 증액 여부 확인",
+      "시가배당률이 은행 금리 및 업종 평균 대비 높은지 검토",
+      "배당 기준일 전 매수 여부 결정 필요"
+    ];
+    impact = "긍정적 (배당수익)";
     typeCls = "insight-success";
     icon = "payments";
   } else if (title.includes("분기보고서") || title.includes("사업보고서")) {
-    insight = "<strong>정기 실적 발표:</strong> 기업의 매출액, 영업이익 실적을 이전 분기/전년 대비 비교 분석이 필요합니다.";
+    insight = "<strong>정기 실적 발표:</strong> 기업의 성적표가 공개되었습니다.";
+    points = [
+      "매출액 및 영업이익의 전년 동기 대비(YoY) 성장성",
+      "컨센서스(시장 기대치) 상회 여부(어닝 서프라이즈)",
+      "영업이익률 개선 및 비용 구조 변화 확인"
+    ];
+    impact = "실적 변동";
     typeCls = "insight-info";
     icon = "monitoring";
+  } else if (title.includes("공급계약") || title.includes("수주")) {
+    insight = "<strong>신규 수주/공급계약:</strong> 매출 증대로 직결되는 직접적인 호재입니다.";
+    points = [
+      "계약 금액이 최근 매출액 대비 차지하는 비중(%)",
+      "계약 상대방의 신뢰도 및 계약 기간 확인",
+      "향후 실적 반영 시점(매출 인식) 추정"
+    ];
+    impact = "매출 증대";
+    typeCls = "insight-success";
+    icon = "contract_edit";
   } else if (title.includes("유상증자") || title.includes("무상증자")) {
-    insight = "<strong>증자 결정:</strong> 발행 주식 수 변동에 따른 주가 희석 또는 자산 가치 변화를 유의하세요.";
+    insight = "<strong>자본금 변동(증자):</strong> 주식 수 변화에 따른 가치 희석이 우려됩니다.";
+    points = [
+      "자금 조달 목적(시설투자-호재 vs 운영자산-악재)",
+      "발행가액 할인율 및 신주 배정 비율 확인",
+      "기존 주주 가치 희석 및 주가 단기 변동성 유의"
+    ];
+    impact = "가치 변동";
     typeCls = "insight-warning";
     icon = "add_chart";
-  } else if (title.includes("주요사항보고서")) {
-    insight = "<strong>경영 주요사항:</strong> 기업 운영에 중대한 영향을 미치는 결정이 포함되어 있습니다.";
+  } else if (title.includes("최대주주") || title.includes("경영권")) {
+    insight = "<strong>지배구조 변동:</strong> 경영권 및 소유 구조에 큰 변화가 감지되었습니다.";
+    points = [
+      "최대주주 변경의 원인(양수도, 증여 등)",
+      "새로운 주체의 경영 방침 및 사업 방향성 변화",
+      "오버행(잠재적 매도 물량) 리스크 존재 여부"
+    ];
+    impact = "주의 요망";
     typeCls = "insight-major";
-    icon = "priority_high";
+    icon = "group_work";
   }
 
   return `
     <div class="insight-banner ${typeCls}">
       <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
       <div class="insight-content">
-        <div class="insight-label">AI QUICK INSIGHT</div>
+        <div class="insight-header">
+          <div class="insight-label">AI PRO ANALYSIS</div>
+          <div class="insight-impact">${impact}</div>
+        </div>
         <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
+        <ul class="insight-points">
+          ${points.map(p => `<li>${p}</li>`).join('')}
+        </ul>
       </div>
-      <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+      <div class="insight-actions">
+        <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+      </div>
     </div>
   `;
 }
