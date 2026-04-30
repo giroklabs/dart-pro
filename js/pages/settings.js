@@ -229,7 +229,8 @@ async function testAiConnection() {
   } catch (err) {
     resEl.style.background = 'var(--error-container)';
     resEl.style.color = 'var(--error)';
-    resEl.innerHTML = `<strong>연결 실패</strong><br>사유: ${err.message}<br><small>콘솔(F12)에서 상세 내용을 확인하세요.</small>`;
+    const detail = typeof err === 'object' ? JSON.stringify(err) : err;
+    resEl.innerHTML = `<strong>연결 실패</strong><br>사유: ${err.message}<br><div style="font-size:10px; margin-top:5px; opacity:0.8; word-break:break-all;">상세: ${detail}</div>`;
     console.error('AI Test Failure:', err);
   } finally {
     btn.disabled = false;

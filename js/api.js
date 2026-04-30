@@ -203,8 +203,8 @@ const DART_API = {
     const key = this.getGeminiKey();
     if (!key) return null;
 
-    // 가장 표준적인 v1beta 엔드포인트 사용
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    // 1. 최신 Flash 모델 시도 -> 2. 범용 Pro 모델 폴백
+    const models = ['gemini-1.5-flash', 'gemini-pro'];
     const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
 반드시 다음 JSON 형식으로만 응답하세요:
 { "insight": "공시의 핵심 의미 요약", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
@@ -217,38 +217,39 @@ const DART_API = {
       contents: [{ parts: [{ text: prompt }] }]
     });
 
-    try {
-      // 1. 브라우저 직통 호출 시도 (Gemini API는 CORS를 허용하는 경우가 많음)
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: body
-      });
+    for (const model of models) {
+      // v1과 v1beta 두 가지 엔드포인트를 모두 시도
+      const versions = ['v1beta', 'v1'];
       
-      if (res.ok) {
-        const data = await res.json();
-        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          const text = data.candidates[0].content.parts[0].text;
-          // JSON 응답이 가끔 ```json ... ``` 으로 감싸져 오는 경우 대응
-          const cleanedText = text.replace(/```json|```/g, '').trim();
-          return JSON.parse(cleanedText);
+      for (const ver of versions) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${key}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: body
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+              const text = data.candidates[0].content.parts[0].text;
+              const cleanedText = text.replace(/```json|```/g, '').trim();
+              return JSON.parse(cleanedText);
+            }
+          } else {
+            const errData = await res.json();
+            // 404가 아니면(예: 429 할당량 초과 등) 상세 에러를 던짐
+            if (res.status !== 404) {
+              throw new Error(`[${model}/${ver}] ${res.status}: ${errData.error?.message || 'Unknown'}`);
+            }
+            console.warn(`Gemini [${model}/${ver}] not found (404). Trying next...`);
+          }
+        } catch (err) {
+          console.error(`Gemini [${model}/${ver}] Attempt Failed:`, err);
+          // 할당량 초과(429) 등의 경우 즉시 중단하고 에러 보고
+          if (err.message.includes('429')) throw err;
         }
-      } else {
-        const errData = await res.json();
-        console.warn('Gemini API Error Detail:', errData);
-      }
-    } catch (err) {
-      console.error('Gemini Direct Attempt Failed:', err);
-      
-      // 2. 실패 시 프록시 우회 시도 (AllOrigins raw 모드)
-      try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const aoRes = await fetch(proxyUrl);
-        const aoData = await aoRes.json();
-        // AllOrigins를 통한 POST는 한계가 있으므로, 에러 로깅 후 종료
-        console.warn('Proxying Gemini POST is limited in browser environments.');
-      } catch (pErr) {
-        console.error('Gemini Proxy Attempt Failed:', pErr);
       }
     }
     return null;
