@@ -155,7 +155,24 @@ const DART_API = {
       if (matched) return this._corpDb.data[matched];
     }
     
-    return name; // 못 찾으면 입력값 그대로
+    return name;
+  },
+
+  // 자동완성을 위한 다중 검색 결과 반환
+  searchCorpCodes(query, limit = 10) {
+    if (!this._corpDb || !this._corpDb.data) return [];
+    
+    const results = [];
+    const q = query.toLowerCase();
+    
+    for (const [name, code] of Object.entries(this._corpDb.data)) {
+      if (name.toLowerCase().includes(q) || code.includes(q)) {
+        results.push({ name, code });
+        if (results.length >= limit) break;
+      }
+    }
+    
+    return results;
   },
 
   // 관심 종목 관리

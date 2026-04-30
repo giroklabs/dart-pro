@@ -16,9 +16,12 @@ function renderSettings() {
         <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
           대시보드에서 최신 공시를 자동으로 요약해서 보여줄 기업을 등록하세요.
         </p>
-        <div class="form-group" style="display:flex;gap:8px;">
-          <input type="text" class="form-input" id="watch-input" placeholder="기업명 또는 고유번호 입력" />
-          <button class="btn-primary" onclick="addToWatchlist()">추가</button>
+        <div class="search-box-container" style="position:relative;">
+          <div class="form-group" style="display:flex;gap:8px;margin-bottom:0;">
+            <input type="text" class="form-input" id="watch-input" placeholder="기업명 또는 고유번호 입력" autocomplete="off" style="flex:1;" />
+            <button class="btn-primary" onclick="addToWatchlist()">추가</button>
+          </div>
+          <div id="search-suggestions" class="suggestions-list" style="display:none;"></div>
         </div>
         <div id="watchlist-display" style="margin-top:var(--sp-md);">
           ${watchlist.length > 0 ? `
@@ -75,29 +78,81 @@ function renderSettings() {
   `;
 }
 
-async function addToWatchlist() {
+async function addToWatchlist(providedCode) {
   const api = window.DART_API;
   const input = document.getElementById('watch-input');
-  let val = input?.value.trim();
-  if (!val) return;
+  
+  let code = providedCode;
+  if (!code) {
+    const val = input?.value.trim();
+    if (!val) return;
+    code = api.findCorpCode(val);
+  }
 
-  const code = api.findCorpCode(val);
-  if (code.length !== 8) {
+  if (!code || code.length !== 8) {
     showToast('8자리 고유번호를 찾을 수 없습니다.');
     return;
   }
 
-  // 기업 정보 가져오기 (이름 확인용)
   try {
     const info = await api.getCompanyInfo(code);
-    api.addWatch(code, info.corp_name);
-    showToast(`${info.corp_name}이(가) 추가되었습니다.`);
+    const added = api.addWatch(code, info.corp_name);
+    if (added) {
+      showToast(`${info.corp_name}이(가) 추가되었습니다.`);
+    } else {
+      showToast('이미 등록된 기업입니다.');
+    }
     input.value = '';
+    const suggestions = document.getElementById('search-suggestions');
+    if (suggestions) suggestions.style.display = 'none';
     window.router();
   } catch (err) {
     showToast('기업 정보를 불러올 수 없습니다.');
   }
 }
+
+// 자동완성 초기화
+function initAutocomplete() {
+  const input = document.getElementById('watch-input');
+  const suggestions = document.getElementById('search-suggestions');
+  if (!input || !suggestions) return;
+
+  input.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+      suggestions.style.display = 'none';
+      return;
+    }
+
+    const results = window.DART_API.searchCorpCodes(query);
+    if (results.length > 0) {
+      suggestions.innerHTML = results.map(res => `
+        <div class="suggestion-item" onclick="addToWatchlist('${res.code}')">
+          <span class="name">${res.name}</span>
+          <span class="code">${res.code}</span>
+        </div>
+      `).join('');
+      suggestions.style.display = 'block';
+    } else {
+      suggestions.style.display = 'none';
+    }
+  });
+
+  // 외부 클릭 시 닫기
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-box-container')) {
+      suggestions.style.display = 'none';
+    }
+  });
+}
+
+// renderSettings 내부에서 호출하기 위해 래핑
+const originalRenderSettings = renderSettings;
+window.renderSettings = () => {
+  const html = originalRenderSettings();
+  setTimeout(initAutocomplete, 0);
+  return html;
+};
 
 function removeFromWatchlist(code) {
   window.DART_API.removeWatch(code);
