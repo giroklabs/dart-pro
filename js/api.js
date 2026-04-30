@@ -75,6 +75,26 @@ const DART_API = {
     return CORP_MAP[name] || name;
   },
 
+  // 관심 종목 관리
+  getWatchlist() {
+    return JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
+  },
+
+  addWatch(corpCode, name) {
+    const list = this.getWatchlist();
+    if (!list.find(i => i.code === corpCode)) {
+      list.push({ code: corpCode, name: name });
+      localStorage.setItem('dart_watchlist', JSON.stringify(list));
+      return true;
+    }
+    return false;
+  },
+
+  removeWatch(corpCode) {
+    const list = this.getWatchlist().filter(i => i.code !== corpCode);
+    localStorage.setItem('dart_watchlist', JSON.stringify(list));
+  },
+
   // 1. 공시검색
   async searchDisclosures(opts = {}) {
     const params = { ...opts };

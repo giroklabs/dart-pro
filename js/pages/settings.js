@@ -3,13 +3,42 @@ function renderSettings() {
   const api = window.DART_API;
   const savedKey = api.getKey();
   const masked = savedKey ? savedKey.slice(0, 8) + '••••••••' + savedKey.slice(-4) : '';
+  const watchlist = api.getWatchlist();
 
   return `
     <div class="page-header">
       <h2>설정</h2>
-      <p>DART API 키 관리</p>
+      <p>DART API 키 및 관심 종목 관리</p>
     </div>
     <div class="settings-section">
+      <div class="card card-static">
+        <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">관심 종목 (보유 기업)</h3>
+        <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
+          대시보드에서 최신 공시를 자동으로 요약해서 보여줄 기업을 등록하세요.
+        </p>
+        <div class="form-group" style="display:flex;gap:8px;">
+          <input type="text" class="form-input" id="watch-input" placeholder="기업명 또는 고유번호 입력" />
+          <button class="btn-primary" onclick="addToWatchlist()">추가</button>
+        </div>
+        <div id="watchlist-display" style="margin-top:var(--sp-md);">
+          ${watchlist.length > 0 ? `
+            <table class="data-table">
+              <tbody>
+                ${watchlist.map(item => `
+                  <tr>
+                    <td class="bold">${item.name}</td>
+                    <td class="mono">${item.code}</td>
+                    <td class="text-right">
+                      <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${item.code}')">삭제</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p style="font-size:13px;color:var(--outline);text-align:center;padding:20px;">등록된 기업이 없습니다.</p>'}
+        </div>
+      </div>
+
       <div class="card card-static">
         <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">API 인증키</h3>
         ${savedKey ? `
@@ -30,21 +59,38 @@ function renderSettings() {
           ${savedKey ? '<button class="btn-secondary" onclick="clearApiKey()">키 삭제</button>' : ''}
         </div>
       </div>
-
-      <div class="card card-static">
-        <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">정보</h3>
-        <table class="data-table">
-          <tbody>
-            <tr><td class="bold">앱 이름</td><td>DART Pro</td></tr>
-            <tr><td class="bold">버전</td><td>1.0.0</td></tr>
-            <tr><td class="bold">API 서버</td><td>opendart.fss.or.kr</td></tr>
-            <tr><td class="bold">CORS 프록시</td><td>corsproxy.io</td></tr>
-            <tr><td class="bold">소스코드</td><td><a href="https://github.com/giroklabs/dart-pro" target="_blank" style="color:var(--secondary);">GitHub</a></td></tr>
-          </tbody>
-        </table>
-      </div>
     </div>
   `;
+}
+
+async function addToWatchlist() {
+  const api = window.DART_API;
+  const input = document.getElementById('watch-input');
+  let val = input?.value.trim();
+  if (!val) return;
+
+  const code = api.findCorpCode(val);
+  if (code.length !== 8) {
+    showToast('8자리 고유번호를 찾을 수 없습니다.');
+    return;
+  }
+
+  // 기업 정보 가져오기 (이름 확인용)
+  try {
+    const info = await api.getCompanyInfo(code);
+    api.addWatch(code, info.corp_name);
+    showToast(`${info.corp_name}이(가) 추가되었습니다.`);
+    input.value = '';
+    window.router();
+  } catch (err) {
+    showToast('기업 정보를 불러올 수 없습니다.');
+  }
+}
+
+function removeFromWatchlist(code) {
+  window.DART_API.removeWatch(code);
+  showToast('삭제되었습니다.');
+  window.router();
 }
 
 function saveApiKey() {
@@ -81,3 +127,5 @@ window.renderSettings = renderSettings;
 window.saveApiKey = saveApiKey;
 window.clearApiKey = clearApiKey;
 window.showToast = showToast;
+window.addToWatchlist = addToWatchlist;
+window.removeFromWatchlist = removeFromWatchlist;
