@@ -453,7 +453,14 @@ table { border-collapse: collapse; width: 100%; }
   background: linear-gradient(45deg, #818cf8, #c084fc, #818cf8);
   z-index: -1; opacity: 0.1;
 }
-.settings-section { max-width: 560px; }
+.group-item:hover { background: var(--surface-container-high); }
+.group-item:last-child { border-bottom: none !important; }
+.corp-logo {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--primary); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px;
+}
 .settings-section .card { margin-bottom: var(--sp-lg); }
 .api-key-display {
   font-family: 'SF Mono', 'Fira Code', monospace;

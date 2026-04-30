@@ -236,22 +236,50 @@ async function initDashboard() {
     
     const responses = await Promise.all(requests);
     
-    // 2. 데이터 병합 및 정렬
-    let allList = [];
-    responses.forEach(res => {
-      if (res.list) allList = allList.concat(res.list);
+    // 2. 데이터 그룹화
+    const groups = watchlist.map((item, idx) => {
+      const res = responses[idx];
+      const list = res.list || [];
+      return {
+        company: item,
+        latestDate: list.length > 0 ? list[0].rcept_no : '0',
+        list: list.slice(0, 3) // 각 기업별 최신 3개만 표시
+      };
     });
 
-    // 최신 접수번호/시간 순으로 정렬
-    allList.sort((a, b) => b.rcept_no.localeCompare(a.rcept_no));
+    // 최신 공시가 있는 기업 순으로 정렬
+    groups.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
 
     // 3. 렌더링
-    if (allList.length > 0) {
-      // 인사이트 (가장 최신 것 하나)
-      const target = allList.find(i => i.report_nm.includes('배당') || i.report_nm.includes('보고서')) || allList[0];
-      renderInsight(insightContainerId, target);
+    if (groups.some(g => g.list.length > 0)) {
+      // 상단 인사이트 (전체 중 가장 최신 것 하나)
+      const allDisclosures = groups.flatMap(g => g.list);
+      allDisclosures.sort((a, b) => b.rcept_no.localeCompare(a.rcept_no));
+      renderInsight(insightContainerId, allDisclosures[0]);
       
-      feedEl.innerHTML = allList.map(item => renderFeedCard(item)).join('');
+      // 기업별 카드 렌더링
+      feedEl.innerHTML = groups.filter(g => g.list.length > 0).map(group => `
+        <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
+          <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div class="corp-logo">${group.company.name[0]}</div>
+              <h3 class="t-headline-sm">${group.company.name}</h3>
+            </div>
+            <button class="btn-text" onclick="location.hash='#/company?q=${group.company.code}'">전체보기 &rarr;</button>
+          </div>
+          <div class="group-disclosures" style="padding:8px 0;">
+            ${group.list.map(item => `
+              <div class="group-item" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')" style="padding:12px 20px; border-bottom:1px solid var(--outline-variant); cursor:pointer; transition:background 0.2s;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+                  <span class="t-label-sm" style="color:var(--secondary);">${api.formatDate(item.rcept_dt)}</span>
+                  <span class="badge ${item.corp_cls === 'Y' ? 'badge-primary' : 'badge-secondary'}">${item.corp_cls === 'Y' ? '유가' : '코스닥'}</span>
+                </div>
+                <div class="t-body-md bold" style="color:var(--on-surface);">${item.report_nm}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
     } else {
       feedEl.innerHTML = `
         <div class="empty-state">
