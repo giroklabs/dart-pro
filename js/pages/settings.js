@@ -81,12 +81,12 @@ function renderSettings() {
           <span class="badge badge-secondary" id="db-count-badge">내장 데이터 모드</span>
         </div>
         <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
-          DART에 등록된 모든 기업(약 10만 개+)의 최신 고유번호 데이터를 로컬에 동기화합니다. 검색되지 않는 기업이 있을 때 실행하세요.
+          DART에 등록된 모든 기업(약 10만 개+)의 최신 고유번호 데이터를 로컬에 동기화합니다.
         </p>
-        <div id="db-sync-status" style="margin-bottom:12px; font-size:12px; color:var(--secondary); display:none;"></div>
+        <div id="db-sync-status" style="margin-bottom:12px; font-size:12px; color:var(--secondary); display:none; padding:8px; background:var(--surface-container-low); border-radius:4px;"></div>
         
         <!-- Proxy Sync -->
-        <div style="margin-bottom:16px;">
+        <div style="margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--surface-container);">
           <div class="t-label-sm" style="margin-bottom:8px; color:var(--outline);">자동 동기화 (프록시)</div>
           <div style="display:flex; gap:8px;">
             <button class="btn-primary" id="btn-sync-db" onclick="syncFullDatabase()">전체 기업 데이터 동기화</button>
@@ -95,15 +95,16 @@ function renderSettings() {
         </div>
 
         <!-- Manual Upload Sync -->
-        <div style="padding:12px; background:var(--surface-container-low); border-radius:var(--r-md);">
-          <div class="t-label-sm" style="margin-bottom:8px; color:var(--outline);">수동 동기화 (가장 확실한 방법)</div>
-          <p class="t-body-md" style="font-size:12px; margin-bottom:12px;">
-            프록시 오류 발생 시, <a href="https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019018" target="_blank" style="color:var(--secondary); text-decoration:underline; font-weight:600;">여기(DART)</a>에서 직접 받은 파일을 아래에 올려주세요.
+        <div>
+          <div class="t-label-sm" style="margin-bottom:8px; color:var(--outline);">수동 동기화 (프록시 오류 시 권장)</div>
+          <p class="t-body-md" style="font-size:12px; margin-bottom:12px; line-height:1.4;">
+            1. <a href="https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019018" target="_blank" style="color:var(--secondary); text-decoration:underline; font-weight:600;">DART 사이트(클릭)</a> 하단에서 <b>[다운로드]</b> 클릭<br>
+            2. 받은 CORPCODE.zip(또는 xml) 파일을 아래 버튼으로 업로드
           </p>
           <input type="file" id="db-file-input" style="display:none;" onchange="handleFileUpload(event)" accept=".xml,.zip" />
-          <button class="btn-secondary" onclick="document.getElementById('db-file-input').click()" style="width:100%; border-style:dashed;">
-            <span class="material-symbols-outlined" style="font-size:18px; vertical-align:middle; margin-right:4px;">upload_file</span>
-            CORPCODE.xml 또는 ZIP 파일 선택
+          <button class="btn-secondary" onclick="document.getElementById('db-file-input').click()" style="width:100%; border-style:dashed; height:60px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:24px;">upload_file</span>
+            <span style="font-size:13px; font-weight:600;">기업 코드 파일(XML/ZIP) 선택</span>
           </button>
         </div>
       </div>
