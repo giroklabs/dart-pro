@@ -230,6 +230,41 @@ const DART_API = {
     throw new Error(`모든 프록시 시도 실패: ${lastError?.message || '알 수 없는 오류'}`);
   },
 
+  async syncFromFile(file, progressCb) {
+    if (progressCb) progressCb('파일 읽는 중...');
+    let xmlText = '';
+
+    if (file.name.toLowerCase().endsWith('.zip')) {
+      const zip = await JSZip.loadAsync(file);
+      xmlText = await zip.file("CORPCODE.xml").async("string");
+    } else {
+      xmlText = await file.text();
+    }
+
+    if (progressCb) progressCb('데이터 분석 및 인덱싱 중...');
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlText, "text/xml");
+    const list = xml.getElementsByTagName("list");
+
+    const db = await this._getDb();
+    const tx = db.transaction('corps', 'readwrite');
+    const store = tx.objectStore('corps');
+    store.clear();
+
+    for (let i = 0; i < list.length; i++) {
+      const name = list[i].getElementsByTagName("corp_name")[0].textContent;
+      const code = list[i].getElementsByTagName("corp_code")[0].textContent;
+      store.put({ name, code });
+    }
+
+    return new Promise((resolve) => {
+      tx.oncomplete = () => {
+        localStorage.setItem('dart_db_synced', Date.now());
+        resolve(list.length);
+      };
+    });
+  },
+
   async findCorpCode(name) {
     const q = name.replace(/\s/g, '').toLowerCase();
     

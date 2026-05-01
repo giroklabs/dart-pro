@@ -84,9 +84,27 @@ function renderSettings() {
           DART에 등록된 모든 기업(약 10만 개+)의 최신 고유번호 데이터를 로컬에 동기화합니다. 검색되지 않는 기업이 있을 때 실행하세요.
         </p>
         <div id="db-sync-status" style="margin-bottom:12px; font-size:12px; color:var(--secondary); display:none;"></div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn-primary" id="btn-sync-db" onclick="syncFullDatabase()">전체 기업 데이터 동기화</button>
-          <button class="btn-secondary" onclick="clearFullDatabase()">DB 초기화</button>
+        
+        <!-- Proxy Sync -->
+        <div style="margin-bottom:16px;">
+          <div class="t-label-sm" style="margin-bottom:8px; color:var(--outline);">자동 동기화 (프록시)</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-primary" id="btn-sync-db" onclick="syncFullDatabase()">전체 기업 데이터 동기화</button>
+            <button class="btn-secondary" onclick="clearFullDatabase()">DB 초기화</button>
+          </div>
+        </div>
+
+        <!-- Manual Upload Sync -->
+        <div style="padding:12px; background:var(--surface-container-low); border-radius:var(--r-md);">
+          <div class="t-label-sm" style="margin-bottom:8px; color:var(--outline);">수동 동기화 (가장 확실한 방법)</div>
+          <p class="t-body-md" style="font-size:12px; margin-bottom:12px;">
+            프록시 오류 발생 시, <a href="https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019018" target="_blank" style="color:var(--secondary); text-decoration:underline; font-weight:600;">여기(DART)</a>에서 직접 받은 파일을 아래에 올려주세요.
+          </p>
+          <input type="file" id="db-file-input" style="display:none;" onchange="handleFileUpload(event)" accept=".xml,.zip" />
+          <button class="btn-secondary" onclick="document.getElementById('db-file-input').click()" style="width:100%; border-style:dashed;">
+            <span class="material-symbols-outlined" style="font-size:18px; vertical-align:middle; margin-right:4px;">upload_file</span>
+            CORPCODE.xml 또는 ZIP 파일 선택
+          </button>
         </div>
       </div>
     </div>
@@ -333,5 +351,31 @@ async function clearFullDatabase() {
   window.router();
 }
 
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('db-sync-status');
+  const api = window.DART_API;
+
+  statusEl.style.display = 'block';
+  
+  try {
+    const count = await api.syncFromFile(file, (msg) => {
+      statusEl.textContent = msg;
+    });
+    statusEl.textContent = `동기화 완료! 총 ${count.toLocaleString()}개 기업이 파일로부터 저장되었습니다.`;
+    showToast('수동 DB 동기화 성공');
+    setTimeout(() => window.router(), 1500);
+  } catch (err) {
+    statusEl.textContent = `동기화 실패: ${err.message}`;
+    showToast('파일 처리 중 오류 발생');
+    console.error(err);
+  } finally {
+    event.target.value = ''; // 초기화
+  }
+}
+
 window.syncFullDatabase = syncFullDatabase;
 window.clearFullDatabase = clearFullDatabase;
+window.handleFileUpload = handleFileUpload;
