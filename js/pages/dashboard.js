@@ -81,6 +81,7 @@ async function renderInsight(containerId, item) {
   if (cached) {
     try {
       const aiData = JSON.parse(cached);
+      aiData._cached = true; // 캐시됨 표시
       container.innerHTML = summarizeDisclosure(item, aiData);
       return;
     } catch (e) {
@@ -147,12 +148,13 @@ function summarizeDisclosure(item, aiData = null) {
 
   // Gemini 데이터가 있는 경우 우선 사용
   if (aiData) {
+    const isCached = aiData._cached ? '⚡️ ' : '';
     return `
       <div class="insight-banner insight-info ai-glow">
         <div class="insight-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
         <div class="insight-content">
           <div class="insight-header">
-            <div class="insight-label">GEMINI 1.5 FLASH ANALYSIS</div>
+            <div class="insight-label">${isCached}GEMINI 1.5 FLASH</div>
             <div class="insight-impact">${aiData.impact || '분석 중'}</div>
           </div>
           <div class="insight-text"><strong>${item.corp_name}</strong> - ${aiData.insight}</div>
@@ -271,7 +273,7 @@ function summarizeDisclosure(item, aiData = null) {
       <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">AI PRO ANALYSIS</div>
+          <div class="insight-label">AI QUICK ANALYSIS</div>
           <div class="insight-impact">${impact}</div>
         </div>
         <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
