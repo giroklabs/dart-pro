@@ -322,19 +322,24 @@ async function initDashboard() {
     const bgnDeToday = endDe;
     const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
-    // 2. 새로운 데이터 조회
-    const requests = watchlist.map(item => 
-      api.searchDisclosures({ corp_code: item.code, bgn_de: bgnDe30, end_de: endDe })
-    );
+    // 2. 새로운 데이터 조회 (배치 호출로 최적화: 단 1회 요청)
+    const corpCodes = watchlist.map(item => item.code).join(',');
+    const batchRes = await api.searchDisclosures({ 
+      corp_code: corpCodes, 
+      bgn_de: bgnDe30, 
+      end_de: endDe,
+      page_count: 100 // 충분한 양을 한꺼번에 가져옴
+    });
     
-    const responses = await Promise.all(requests);
-    const groups = watchlist.map((item, idx) => {
-      const res = responses[idx];
-      const list = res.list || [];
+    const allList = batchRes.list || [];
+    
+    // 데이터를 종목별로 그룹화
+    const groups = watchlist.map(item => {
+      const corpList = allList.filter(d => d.corp_code === item.code);
       return {
         company: item,
-        latestDate: list.length > 0 ? list[0].rcept_no : '0',
-        list: list.slice(0, 3)
+        latestDate: corpList.length > 0 ? corpList[0].rcept_no : '0',
+        list: corpList.slice(0, 3)
       };
     });
 
