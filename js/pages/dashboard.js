@@ -358,7 +358,10 @@ async function initDashboard() {
         div.id = divId;
         div.style.marginBottom = "12px";
         if (insightContainer) insightContainer.appendChild(div);
-        renderInsight(divId, group.list[0]);
+        // 순차 처리를 위해 await 추가 (병렬 요청으로 인한 429 방지)
+        await renderInsight(divId, group.list[0]);
+        // 요청 간 짧은 지연으로 RPM 제한 준수
+        await new Promise(r => setTimeout(r, 300));
       }
       
       // 기업별 카드 렌더링
