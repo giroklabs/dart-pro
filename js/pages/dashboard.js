@@ -323,12 +323,21 @@ async function initDashboard() {
     const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
     // 2. 새로운 데이터 조회 (배치 호출로 최적화: 단 1회 요청)
-    const corpCodes = watchlist.map(item => item.code).join(',');
+    const validCodes = watchlist
+      .map(item => item.code)
+      .filter(code => code && /^[0-9]{8}$/.test(code)); // 8자리 숫자만 허용
+
+    if (validCodes.length === 0) {
+      renderDashboardUI([], null);
+      return;
+    }
+
+    const corpCodes = validCodes.join(',');
     const batchRes = await api.searchDisclosures({ 
       corp_code: corpCodes, 
       bgn_de: bgnDe30, 
       end_de: endDe,
-      page_count: 100 // 충분한 양을 한꺼번에 가져옴
+      page_count: 100 
     });
     
     const allList = batchRes.list || [];
