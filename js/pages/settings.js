@@ -78,7 +78,9 @@ function renderSettings() {
       <div class="card card-static">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-md);">
           <h3 class="t-headline-sm">기업 데이터베이스 관리</h3>
-          <span class="badge badge-secondary" id="db-count-badge">내장 데이터 모드</span>
+          <span class="badge ${localStorage.getItem('dart_db_synced') ? 'badge-success' : 'badge-secondary'}" id="db-count-badge">
+            ${localStorage.getItem('dart_db_synced') ? '전수 동기화 완료(10만+)' : '내장 데이터 모드'}
+          </span>
         </div>
         <p class="t-body-md" style="color:var(--on-surface-variant);margin-bottom:var(--sp-md);">
           DART에 등록된 모든 기업(약 10만 개+)의 최신 고유번호 데이터를 로컬에 동기화합니다.
