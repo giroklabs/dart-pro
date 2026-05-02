@@ -195,7 +195,7 @@ async function addToWatchlist(providedCode) {
   }
 }
 
-function handleSearch() {
+async function handleSearch() {
   const input = document.getElementById('watch-input');
   const query = input?.value.trim();
   if (!query) {
@@ -203,8 +203,11 @@ function handleSearch() {
     return;
   }
   
-  const results = window.DART_API.searchCorpCodes(query);
   const suggestions = document.getElementById('search-suggestions');
+  suggestions.innerHTML = '<div class="suggestion-item"><span class="name">검색 중...</span></div>';
+  suggestions.style.display = 'block';
+
+  const results = await window.DART_API.searchCorpCodes(query);
   
   if (results.length > 0) {
     suggestions.innerHTML = results.map(res => `
@@ -225,14 +228,14 @@ function initAutocomplete() {
   const suggestions = document.getElementById('search-suggestions');
   if (!input || !suggestions) return;
 
-  input.addEventListener('input', (e) => {
+  input.addEventListener('input', async (e) => {
     const query = e.target.value.trim();
     if (query.length < 2) {
       suggestions.style.display = 'none';
       return;
     }
 
-    const results = window.DART_API.searchCorpCodes(query);
+    const results = await window.DART_API.searchCorpCodes(query);
     if (results.length > 0) {
       suggestions.innerHTML = results.map(res => `
         <div class="suggestion-item" onclick="addToWatchlist('${res.code}')">
