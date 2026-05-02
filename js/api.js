@@ -365,7 +365,18 @@ const DART_API = {
   addWatch(corpCode, name) {
     const list = this.getWatchlist();
     if (!list.find(i => i.code === corpCode)) {
-      list.push({ code: corpCode, name: name });
+      // 명칭이 없는 경우 내장 맵에서 역조회
+      let finalName = name;
+      if (!finalName) {
+        const INTERNAL_MAP = { 
+          "00126380": "삼성전자(주)", "00164779": "에스케이하이닉스(주)", "00164742": "현대자동차(주)", 
+          "00111722": "미래에셋증권(주)", "01042775": "에이치엘만도(주)", "00570387": "하나금융지주(주)",
+          "00126431": "대한항공(주)", "00155167": "한화솔루션(주)", "00159109": "한국전력공사(주)"
+        };
+        finalName = INTERNAL_MAP[corpCode] || "알 수 없는 기업";
+      }
+      
+      list.push({ code: corpCode, name: finalName });
       localStorage.setItem('dart_watchlist', JSON.stringify(list));
       return true;
     }
@@ -393,13 +404,20 @@ const DART_API = {
       const listData = await listRes.json();
       const availableModels = listData.models || [];
       
-      // 사용자 요청에 따라 Flash 모델을 최우선적으로 검색
+      // 1. Flash 모델 최우선 검색 (비용 및 속도 최적화)
       let targetModel = availableModels.find(m => 
-        m.name.toLowerCase().includes('flash') && 
+        m.name.toLowerCase().includes('1.5-flash') && 
         m.supportedGenerationMethods.includes('generateContent')
       );
 
-      // 만약 Flash가 없다면 Pro 계열 중 가용한 것을 차선책으로 검색
+      if (!targetModel) {
+        targetModel = availableModels.find(m => 
+          m.name.toLowerCase().includes('flash') && 
+          m.supportedGenerationMethods.includes('generateContent')
+        );
+      }
+
+      // 2. Flash가 없는 경우에만 Pro 계열 검색
       if (!targetModel) {
         targetModel = availableModels.find(m => 
           m.name.toLowerCase().includes('pro') && 

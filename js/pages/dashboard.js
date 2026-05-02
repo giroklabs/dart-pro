@@ -74,14 +74,33 @@ async function renderInsight(containerId, item) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // 기본 규칙 기반 요약 먼저 표시 (로딩 대용)
+  // 1. 캐시 확인
+  const cacheKey = `ai_insight_${item.rcept_no}`;
+  const cached = localStorage.getItem(cacheKey);
+  
+  if (cached) {
+    try {
+      const aiData = JSON.parse(cached);
+      container.innerHTML = summarizeDisclosure(item, aiData);
+      return;
+    } catch (e) {
+      localStorage.removeItem(cacheKey);
+    }
+  }
+
+  // 2. 기본 요약 표시 (로딩 중 대용)
   container.innerHTML = summarizeDisclosure(item);
 
-  // Gemini 키가 있으면 실시간 분석 시도
+  // 3. 실시간 분석 시도
   if (api.getGeminiKey()) {
-    const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
-    if (aiData) {
-      container.innerHTML = summarizeDisclosure(item, aiData);
+    try {
+      const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
+      if (aiData) {
+        localStorage.setItem(cacheKey, JSON.stringify(aiData));
+        container.innerHTML = summarizeDisclosure(item, aiData);
+      }
+    } catch (e) {
+      console.error('AI Analysis Error:', e);
     }
   }
 }
