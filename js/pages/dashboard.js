@@ -298,75 +298,110 @@ function summarizeDisclosure(item, aiData = null) {
 async function initDashboard() {
   const api = window.DART_API;
   if (!api.getKey()) return;
-
-  const feedEl = document.getElementById('dashboard-feed');
-  const insightContainerId = 'quick-insight-container';
   const watchlist = api.getWatchlist();
 
-  if (watchlist.length === 0) {
-    feedEl.innerHTML = `
-      <div class="empty-state">
-        <span class="material-symbols-outlined" style="font-size:48px;opacity:0.3;">domain_disabled</span>
-        <h3>등록된 관심 종목이 없습니다.</h3>
-        <p>설정 메뉴에서 모니터링할 기업을 추가해 주세요.</p>
-        <button class="btn-primary" style="margin-top:16px;" onclick="location.hash='#/settings'">설정으로 이동</button>
-      </div>
-    `;
-    return;
+  // 1. 대시보드 캐시 로딩 (즉시 렌더링)
+  const dashboardCache = localStorage.getItem('dashboard_cache');
+  const feedEl = document.getElementById('dashboard-feed');
+  const insightContainerId = 'quick-insight-container';
+
+  if (dashboardCache && feedEl) {
+    try {
+      const cachedData = JSON.parse(dashboardCache);
+      // 관심 종목 구성이 같은 경우에만 캐시 사용
+      if (JSON.stringify(cachedData.watchlist) === JSON.stringify(watchlist)) {
+        renderDashboardUI(cachedData.groups, cachedData.stats);
+      }
+    } catch (e) {
+      localStorage.removeItem('dashboard_cache');
+    }
   }
 
   try {
-    const today = new Date();
-    const endDe = fmt(today);
-    const bgnDe30 = fmt(new Date(today.getTime() - 29 * 86400000));
+    const endDe = fmt(new Date());
     const bgnDeToday = endDe;
+    const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
-    // 1. 각 종목별로 개별 호출 (DART API 제한 때문)
+    // 2. 새로운 데이터 조회
     const requests = watchlist.map(item => 
-      api.searchDisclosures({ corp_code: item.code, bgn_de: bgnDe30, end_de: endDe, page_count: 10 })
+      api.searchDisclosures({ corp_code: item.code, bgn_de: bgnDe30, end_de: endDe })
     );
     
     const responses = await Promise.all(requests);
-    
-    // 2. 데이터 그룹화
     const groups = watchlist.map((item, idx) => {
       const res = responses[idx];
       const list = res.list || [];
       return {
         company: item,
         latestDate: list.length > 0 ? list[0].rcept_no : '0',
-        list: list.slice(0, 3) // 각 기업별 최신 3개만 표시
+        list: list.slice(0, 3)
       };
     });
 
-    // 최신 공시가 있는 기업 순으로 정렬
     groups.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
 
-    // 3. 렌더링
+    // 시장 현황 데이터 조회
+    const [todayData, regularData, kospiData, kosdaqData] = await Promise.all([
+      api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, page_count: 1 }),
+      api.searchDisclosures({ bgn_de: bgnDe30, end_de: endDe, pblntf_ty: 'A', page_count: 1 }),
+      api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'Y', page_count: 1 }),
+      api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 })
+    ]);
+
+    const stats = {
+      todayCount: todayData.total_count || 0,
+      todayLabel: api.formatDate(endDe),
+      regularCount: regularData.total_count || 0,
+      kospiCount: kospiData.total_count || 0,
+      kosdaqCount: kosdaqData.total_count || 0
+    };
+
+    // 3. UI 업데이트 및 캐싱
+    renderDashboardUI(groups, stats);
+    localStorage.setItem('dashboard_cache', JSON.stringify({ watchlist, groups, stats }));
+
+    // 4. AI 인사이트 업데이트 (순차 처리)
     if (groups.some(g => g.list.length > 0)) {
-      // 상단 인사이트 (관심 종목별 최신 공시 하나씩 모두 표시)
-      const insightContainer = document.getElementById(insightContainerId);
-      if (insightContainer) {
-        insightContainer.innerHTML = ''; // 초기화
-      }
-      
       const activeGroups = groups.filter(g => g.list.length > 0);
       for (let i = 0; i < activeGroups.length; i++) {
-        const group = activeGroups[i];
         const divId = `insight-item-${i}`;
-        const div = document.createElement('div');
-        div.id = divId;
-        div.style.marginBottom = "12px";
-        if (insightContainer) insightContainer.appendChild(div);
-        // 순차 처리를 위해 await 추가 (병렬 요청으로 인한 429 방지)
-        await renderInsight(divId, group.list[0]);
-        // 요청 간 짧은 지연으로 RPM 제한 준수
+        await renderInsight(divId, activeGroups[i].list[0]);
         await new Promise(r => setTimeout(r, 300));
       }
-      
-      // 기업별 카드 렌더링
-      if (feedEl) {
-        feedEl.innerHTML = activeGroups.map(group => `
+    }
+
+  } catch (err) {
+    console.error(err);
+    if (feedEl && feedEl.innerHTML === '') {
+      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
+    }
+  }
+}
+
+function renderDashboardUI(groups, stats) {
+  const api = window.DART_API;
+  const feedEl = document.getElementById('dashboard-feed');
+  const insightContainer = document.getElementById('quick-insight-container');
+
+  // 1. 인사이트 컨테이너 초기화
+  if (insightContainer) {
+    insightContainer.innerHTML = '';
+    const activeGroups = groups.filter(g => g.list.length > 0);
+    activeGroups.forEach((group, i) => {
+      const divId = `insight-item-${i}`;
+      const div = document.createElement('div');
+      div.id = divId;
+      div.style.marginBottom = "12px";
+      insightContainer.appendChild(div);
+      div.innerHTML = summarizeDisclosure(group.list[0]);
+    });
+  }
+
+  // 2. 피드 카드 렌더링
+  if (feedEl) {
+    if (groups.some(g => g.list.length > 0)) {
+      const activeGroups = groups.filter(g => g.list.length > 0);
+      feedEl.innerHTML = activeGroups.map(group => `
         <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
           <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:12px;">
@@ -388,35 +423,18 @@ async function initDashboard() {
           </div>
         </div>
       `).join('');
-      }
     } else {
-      feedEl.innerHTML = `
-        <div class="empty-state">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>관심 종목에 대한 최근 30일간의 공시가 없습니다.</p>
-        </div>
-      `;
+      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>최근 공시가 없습니다.</p></div>`;
     }
+  }
 
-    // 4. 시장 현황 업데이트 (전체 데이터)
-    const todayData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, page_count: 1 });
-    document.getElementById('stat-today-count').textContent = todayData.total_count || 0;
-    document.getElementById('stat-today-label').textContent = api.formatDate(endDe);
-
-    const regularData = await api.searchDisclosures({ bgn_de: bgnDe30, end_de: endDe, pblntf_ty: 'A', page_count: 1 });
-    document.getElementById('stat-regular').textContent = regularData.total_count || 0;
-
-    const kospiData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'Y', page_count: 1 });
-    document.getElementById('stat-kospi').textContent = kospiData.total_count || 0;
-
-    const kosdaqData = await api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 });
-    document.getElementById('stat-kosdaq').textContent = kosdaqData.total_count || 0;
-
-    const allDisclosures = groups.flatMap(g => g.list);
-    renderTypeStats(allDisclosures);
-  } catch (err) {
-    console.error(err);
-    feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
+  // 3. 통계 업데이트
+  if (stats) {
+    if(document.getElementById('stat-today-count')) document.getElementById('stat-today-count').textContent = stats.todayCount;
+    if(document.getElementById('stat-today-label')) document.getElementById('stat-today-label').textContent = stats.todayLabel;
+    if(document.getElementById('stat-regular')) document.getElementById('stat-regular').textContent = stats.regularCount;
+    if(document.getElementById('stat-kospi')) document.getElementById('stat-kospi').textContent = stats.kospiCount;
+    if(document.getElementById('stat-kosdaq')) document.getElementById('stat-kosdaq').textContent = stats.kosdaqCount;
   }
 }
 
