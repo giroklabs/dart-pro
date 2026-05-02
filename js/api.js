@@ -35,6 +35,7 @@ const DART_API = {
 
     // 프록시 목록 (안정성 순서)
     const proxies = [
+      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
       url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
       url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
     ];
@@ -43,7 +44,10 @@ const DART_API = {
 
     for (const getProxyUrl of proxies) {
       try {
-        const res = await fetch(getProxyUrl(targetUrl));
+        const res = await fetch(getProxyUrl(targetUrl), { 
+          cache: 'no-store',
+          signal: AbortSignal.timeout(6000) // 6초 타임아웃
+        });
         if (!res.ok) continue;
 
         const result = await res.json();
