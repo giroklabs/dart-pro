@@ -322,29 +322,22 @@ async function initDashboard() {
     const bgnDeToday = endDe;
     const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
-    // 2. 새로운 데이터 조회 (배치 호출로 최적화: 단 1회 요청)
-    const validCodes = watchlist
-      .map(item => item.code)
-      .filter(code => code && /^[0-9]{8}$/.test(code)); // 8자리 숫자만 허용
-
-    if (validCodes.length === 0) {
-      renderDashboardUI([], null);
-      return;
-    }
-
-    const corpCodes = validCodes.join(',');
-    const batchRes = await api.searchDisclosures({ 
-      corp_code: corpCodes, 
+    // 2. 전역 피드 조회 (배치 호출의 한계 극복: 전 종목 최신 100건 조회)
+    const globalRes = await api.searchDisclosures({ 
       bgn_de: bgnDe30, 
       end_de: endDe,
-      page_count: 100 
+      page_count: 100 // 최근 전체 공시 100건 확보
     });
     
-    const allList = batchRes.list || [];
+    const allDisclosures = globalRes.list || [];
+    const watchCodes = new Set(watchlist.map(item => item.code));
+
+    // 내 관심 종목에 해당하는 공시만 필터링
+    const myDisclosures = allDisclosures.filter(d => watchCodes.has(d.corp_code));
     
     // 데이터를 종목별로 그룹화
     const groups = watchlist.map(item => {
-      const corpList = allList.filter(d => d.corp_code === item.code);
+      const corpList = myDisclosures.filter(d => d.corp_code === item.code);
       return {
         company: item,
         latestDate: corpList.length > 0 ? corpList[0].rcept_no : '0',
