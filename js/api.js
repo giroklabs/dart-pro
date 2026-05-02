@@ -103,6 +103,7 @@ const DART_API = {
 
     try {
       const key = this.getKey();
+      if (!key) return;
       const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
       
       const proxies = [
@@ -113,7 +114,7 @@ const DART_API = {
       for (const getProxyUrl of proxies) {
         try {
           const proxyUrl = getProxyUrl(url);
-          const res = await fetch(proxyUrl);
+          const res = await fetch(proxyUrl, { cache: 'no-store' });
           if (!res.ok) continue;
           
           const zipData = await res.arrayBuffer();
