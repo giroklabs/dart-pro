@@ -315,20 +315,30 @@ const DART_API = {
     // 2. 내장 맵 검색 (Fallback 및 주요 기업 우선순위)
     const INTERNAL_MAP = { 
       "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742", 
-      "미래에셋증권": "00155255", "미래에셋": "00155255", "HL만도": "00155219", "에이치엘만도": "00155219",
-      "카카오": "00258838", "네이버": "00266961", "에코프로": "00305884"
+      "미래에셋증권": "00111722", "미래에셋": "00111722", "HL만도": "01042775", "에이치엘만도": "01042775",
+      "하나금융지주": "00570387", "하나금융": "00570387", "카카오": "00258838", "네이버": "00266961", "에코프로": "00305884"
     };
+
+    const isNumber = /^\d+$/.test(q);
 
     for (const [name, code] of Object.entries(INTERNAL_MAP)) {
       if (results.length >= limit) break;
-      if (name.toLowerCase().includes(q) || code.includes(q)) {
+      const matchName = name.toLowerCase().includes(q);
+      const matchCode = code.includes(q);
+      
+      if (matchName || matchCode) {
         if (!results.find(r => r.code === code)) {
-          results.push({ name, code });
+          // 번호 검색 시 해당 항목을 최상단으로
+          if (isNumber && matchCode) results.unshift({ name, code });
+          else results.push({ name, code });
         }
       }
     }
     
-    return results;
+    // 중복 제거 및 제한
+    return Array.from(new Set(results.map(r => r.code)))
+      .map(code => results.find(r => r.code === code))
+      .slice(0, limit);
   },
 
   async getDbStatus() {
