@@ -101,7 +101,14 @@ async function renderInsight(containerId, item) {
         container.innerHTML = summarizeDisclosure(item, aiData);
       }
     } catch (e) {
-      console.error('AI Analysis Error:', e);
+      console.warn('AI Analysis Warning:', e.message);
+      if (e.message.includes('429')) {
+        container.innerHTML = summarizeDisclosure(item, {
+          insight: "Gemini API 할당량을 모두 소모했습니다. 약 1분 후 분석이 재개됩니다.",
+          impact: "할당량 초과",
+          points: ["무료 티어는 분당 요청 수가 제한되어 있습니다.", "잠시 후 새로고침 시 캐시된 정보가 표시됩니다."]
+        });
+      }
     }
   }
 }
