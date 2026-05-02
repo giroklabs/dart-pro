@@ -301,21 +301,33 @@ const DART_API = {
           const cursor = e.target.result;
           if (cursor) {
             const name = cursor.value.name;
-            if (name.toLowerCase().includes(q)) {
-              results.push({ name, code: cursor.value.code });
+            const code = cursor.value.code;
+            if (name.toLowerCase().includes(q) || code.includes(q)) {
+              results.push({ name, code });
             }
             if (results.length < limit) cursor.continue();
             else resolve();
           } else resolve();
         };
       });
-    } catch(e) {
-      // 실패 시 기본 맵이라도 활용
-      const CORP_MAP = { "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "미래에셋": "00155255" };
-      for (const [name, code] of Object.entries(CORP_MAP)) {
-        if (name.includes(q)) results.push({ name, code });
+    } catch(e) {}
+
+    // 2. 내장 맵 검색 (Fallback 및 주요 기업 우선순위)
+    const INTERNAL_MAP = { 
+      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742", 
+      "미래에셋증권": "00155255", "미래에셋": "00155255", "HL만도": "00155219", "에이치엘만도": "00155219",
+      "카카오": "00258838", "네이버": "00266961", "에코프로": "00305884"
+    };
+
+    for (const [name, code] of Object.entries(INTERNAL_MAP)) {
+      if (results.length >= limit) break;
+      if (name.toLowerCase().includes(q) || code.includes(q)) {
+        if (!results.find(r => r.code === code)) {
+          results.push({ name, code });
+        }
       }
     }
+    
     return results;
   },
 
