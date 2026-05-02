@@ -286,10 +286,27 @@ const DART_API = {
   },
 
   async searchCorpCodes(query, limit = 10) {
+    if (!query || query.length < 2) return [];
     const results = [];
     const q = query.replace(/\s/g, '').toLowerCase();
-    
-    // IndexedDB 검색 (전수)
+    const isNumber = /^\d+$/.test(q);
+
+    // 1. 내장 맵 우선 검색 (가장 빠르고 확실함)
+    const INTERNAL_MAP = { 
+      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742", 
+      "미래에셋증권": "00111722", "미래에셋": "00111722", "HL만도": "01042775", "에이치엘만도": "01042775",
+      "하나금융지주": "00570387", "하나금융": "00570387", "카카오": "00258838", "네이버": "00266961", "에코프로": "00305884"
+    };
+
+    for (const [name, code] of Object.entries(INTERNAL_MAP)) {
+      const matchName = name.toLowerCase().includes(q);
+      const matchCode = code.includes(q);
+      if (matchName || matchCode) {
+        results.push({ name, code });
+      }
+    }
+
+    // 2. IndexedDB 검색 (전수 데이터가 있는 경우 추가)
     try {
       const db = await this._getDb();
       const tx = db.transaction('corps', 'readonly');
@@ -299,46 +316,31 @@ const DART_API = {
       await new Promise(resolve => {
         req.onsuccess = (e) => {
           const cursor = e.target.result;
-          if (cursor) {
+          if (cursor && results.length < limit * 2) {
             const name = cursor.value.name;
             const code = cursor.value.code;
             if (name.toLowerCase().includes(q) || code.includes(q)) {
-              results.push({ name, code });
+              if (!results.find(r => r.code === code)) {
+                results.push({ name, code });
+              }
             }
-            if (results.length < limit) cursor.continue();
-            else resolve();
+            cursor.continue();
           } else resolve();
         };
+        req.onerror = () => resolve();
       });
     } catch(e) {}
 
-    // 2. 내장 맵 검색 (Fallback 및 주요 기업 우선순위)
-    const INTERNAL_MAP = { 
-      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742", 
-      "미래에셋증권": "00111722", "미래에셋": "00111722", "HL만도": "01042775", "에이치엘만도": "01042775",
-      "하나금융지주": "00570387", "하나금융": "00570387", "카카오": "00258838", "네이버": "00266961", "에코프로": "00305884"
-    };
-
-    const isNumber = /^\d+$/.test(q);
-
-    for (const [name, code] of Object.entries(INTERNAL_MAP)) {
-      if (results.length >= limit) break;
-      const matchName = name.toLowerCase().includes(q);
-      const matchCode = code.includes(q);
-      
-      if (matchName || matchCode) {
-        if (!results.find(r => r.code === code)) {
-          // 번호 검색 시 해당 항목을 최상단으로
-          if (isNumber && matchCode) results.unshift({ name, code });
-          else results.push({ name, code });
-        }
+    // 정렬: 번호가 정확히 일치하거나 이름이 정확히 일치하는 항목 우선
+    return results.sort((a, b) => {
+      if (isNumber) {
+        if (a.code === q) return -1;
+        if (b.code === q) return 1;
       }
-    }
-    
-    // 중복 제거 및 제한
-    return Array.from(new Set(results.map(r => r.code)))
-      .map(code => results.find(r => r.code === code))
-      .slice(0, limit);
+      if (a.name === query) return -1;
+      if (b.name === query) return 1;
+      return 0;
+    }).slice(0, limit);
   },
 
   async getDbStatus() {
