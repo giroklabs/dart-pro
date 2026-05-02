@@ -303,7 +303,6 @@ async function initDashboard() {
   // 1. 대시보드 캐시 로딩 (즉시 렌더링)
   const dashboardCache = localStorage.getItem('dashboard_cache');
   const feedEl = document.getElementById('dashboard-feed');
-  const insightContainerId = 'quick-insight-container';
 
   if (dashboardCache && feedEl) {
     try {
