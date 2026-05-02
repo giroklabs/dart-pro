@@ -46,7 +46,7 @@ const DART_API = {
       try {
         const res = await fetch(getProxyUrl(targetUrl), { 
           cache: 'no-store',
-          signal: AbortSignal.timeout(6000) // 6초 타임아웃
+          signal: AbortSignal.timeout(12000) // 12초 타임아웃
         });
         if (!res.ok) continue;
 
