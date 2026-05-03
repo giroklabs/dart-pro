@@ -2,7 +2,32 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 
-const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1';
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+let cachedModelId = null;
+
+async function getAvailableFlashModel(apiKey) {
+  if (cachedModelId) return cachedModelId;
+  try {
+    const res = await axios.get(`${GEMINI_BASE_URL}/models?key=${apiKey}`);
+    const models = res.data.models || [];
+    // generateContent를 지원하는 flash 모델 찾기 (pro 제외, 가장 최신/저렴한 버전 우선)
+    const flashModel = models.find(m => 
+      m.name.includes('flash') && 
+      !m.name.includes('pro') &&
+      m.supportedGenerationMethods && 
+      m.supportedGenerationMethods.includes('generateContent')
+    );
+    if (flashModel) {
+      cachedModelId = flashModel.name.replace('models/', '');
+      console.log('Dynamic model selected:', cachedModelId);
+      return cachedModelId;
+    }
+  } catch (err) {
+    console.error('Failed to fetch models:', err.message);
+  }
+  return 'gemini-1.5-flash-8b'; // 기본 폴백 (가장 저렴/빠른 모델)
+}
 
 router.post('/analyze', async (req, res, next) => {
   try {
@@ -26,8 +51,8 @@ router.post('/analyze', async (req, res, next) => {
       return res.status(400).json({ error: { message: '기업명과 공시제목이 필요합니다.' } });
     }
 
-    // 모델 고정 (gemini-2.0-flash)
-    const modelId = 'gemini-2.0-flash';
+    // 계정에 허용된 Flash 모델 동적 할당
+    const modelId = await getAvailableFlashModel(apiKey);
     const url = `${GEMINI_BASE_URL}/models/${modelId}:generateContent?key=${apiKey}`;
 
     const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 

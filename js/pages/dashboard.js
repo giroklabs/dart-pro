@@ -24,18 +24,20 @@ async function renderDashboard() {
   const geminiStyle = aiMode === 'gemini' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
 
   return `
-    <div class="page-header">
-      <h2>대시보드</h2>
-      <p>DART 전자공시 실시간 모니터링</p>
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h2>대시보드</h2>
+        <p>DART 전자공시 실시간 모니터링</p>
+      </div>
+      <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
+        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${quickStyle}" onclick="switchAiMode('quick')">⚡️ QUICK 분석</button>
+        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${geminiStyle}" onclick="switchAiMode('gemini')">✨ 제미나이</button>
+      </div>
     </div>
     <div id="quick-insight-container"></div>
     <div id="dashboard-main-content">
-      <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="section-header">
         <h3 class="section-title">관심 종목 리얼타임 피드</h3>
-        <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
-          <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${quickStyle}" onclick="switchAiMode('quick')">⚡️ 퀵 룰스</button>
-          <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${geminiStyle}" onclick="switchAiMode('gemini')">✨ 제미나이</button>
-        </div>
       </div>
       <div id="dashboard-feed"></div>
     </div>
