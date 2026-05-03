@@ -1,29 +1,25 @@
 window.switchAiMode = function(mode) {
+  if (mode === 'gemini') {
+    const isPremium = window.FB_AUTH && window.FB_AUTH.isPremium;
+    if (!isPremium) {
+      if (window.showToast) window.showToast('AI 제미나이 분석은 프리미엄(유료) 사용자만 이용할 수 있습니다.');
+      return;
+    }
+  }
   localStorage.setItem('dart_ai_mode', mode);
   window.router();
 };
 
 // Dashboard Page
 async function renderDashboard() {
-  const api = window.DART_API;
-  const hasKey = !!api.getKey();
-
-  if (!hasKey) {
-    return `
-      <div class="page-header">
-        <h2>대시보드</h2>
-        <p>DART 전자공시 실시간 모니터링</p>
-      </div>
-      <div class="empty-state">
-        <span class="material-symbols-outlined">key</span>
-        <p>API 키를 먼저 설정해주세요.</p>
-        <br>
-        <button class="btn-primary" onclick="location.hash='#/settings'">설정으로 이동</button>
-      </div>
-    `;
+  const isPremium = window.FB_AUTH && window.FB_AUTH.isPremium;
+  
+  // 프리미엄 유저가 아닌 경우 항상 quick 모드로 강제 설정
+  if (!isPremium && localStorage.getItem('dart_ai_mode') === 'gemini') {
+    localStorage.setItem('dart_ai_mode', 'quick');
   }
 
-  const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
+  const aiMode = localStorage.getItem('dart_ai_mode') || 'quick';
   const quickStyle = aiMode === 'quick' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
   const geminiStyle = aiMode === 'gemini' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
 
@@ -78,23 +74,33 @@ async function renderInsight(containerId, item) {
   // 3. 기본 요약 표시 (로딩 중 대용)
   container.innerHTML = summarizeDisclosure(item, null);
 
-  // 4. 실시간 분석 시도
-  if (api.getGeminiKey()) {
-    try {
-      const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
-      // api.js 내부에서 캐시 저장 완료 — 여기서 중복 저장 불필요
-      if (aiData) {
-        container.innerHTML = summarizeDisclosure(item, aiData);
-      }
-    } catch (e) {
-      console.warn('AI Analysis Warning:', e.message);
-      if (e.message.includes('429')) {
-        container.innerHTML = summarizeDisclosure(item, {
-          insight: "Gemini API 할당량을 모두 소모했습니다. 약 1분 후 분석이 재개됩니다.",
-          impact: "할당량 초과",
-          points: ["무료 티어는 분당 요청 수가 제한되어 있습니다.", "잠시 후 새로고침 시 캐시된 정보가 표시됩니다."]
-        });
-      }
+  // 4. 실시간 분석 시도 (프리미엄 검증은 백엔드에서도 수행됨)
+  try {
+    const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
+    // api.js 내부에서 캐시 저장 완료
+    if (aiData) {
+      container.innerHTML = summarizeDisclosure(item, aiData);
+    }
+  } catch (e) {
+    console.warn('AI Analysis Warning:', e.message);
+    if (e.message.includes('429')) {
+      container.innerHTML = summarizeDisclosure(item, {
+        insight: "Gemini API 할당량을 모두 소모했습니다. 약 1분 후 분석이 재개됩니다.",
+        impact: "할당량 초과",
+        points: ["현재 트래픽이 많습니다.", "잠시 후 새로고침 시 캐시된 정보가 표시됩니다."]
+      });
+    } else if (e.message.includes('Premium')) {
+      container.innerHTML = summarizeDisclosure(item, {
+        insight: "이 기능은 Premium 사용자만 이용할 수 있습니다.",
+        impact: "권한 없음",
+        points: ["Gemini AI 분석은 유료 요금제에서 제공됩니다."]
+      });
+    } else {
+      container.innerHTML = summarizeDisclosure(item, {
+        insight: `분석 실패: ${e.message}`,
+        impact: "오류",
+        points: ["서버 또는 네트워크 상태를 확인하세요."]
+      });
     }
   }
 }
@@ -307,14 +313,20 @@ async function initDashboard() {
     // 3. UI 1차 업데이트 (피드 우선 표시, 통계는 로딩중 상태)
     renderDashboardUI(groups, null);
 
-    // 4. AI 인사이트 업데이트 (순차 처리 - 비동기로 바로 시작)
+    // 4. AI 인사이트 업데이트 (청크 단위 처리: 한 번에 3개씩, 1초 간격)
     const updateInsights = async () => {
       if (groups.some(g => g.list.length > 0)) {
         const activeGroups = groups.filter(g => g.list.length > 0);
-        for (let i = 0; i < activeGroups.length; i++) {
-          const divId = `insight-item-${i}`;
-          await renderInsight(divId, activeGroups[i].list[0]);
-          await new Promise(r => setTimeout(r, 300));
+        for (let i = 0; i < activeGroups.length; i += 3) {
+          const chunk = activeGroups.slice(i, i + 3);
+          await Promise.all(chunk.map((g, idx) => {
+            const globalIdx = i + idx;
+            const divId = `insight-item-${globalIdx}`;
+            return renderInsight(divId, g.list[0]);
+          }));
+          if (i + 3 < activeGroups.length) {
+            await new Promise(r => setTimeout(r, 1000)); // 다음 청크 전 1초 대기
+          }
         }
       }
     };

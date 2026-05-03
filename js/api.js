@@ -1,49 +1,30 @@
 // DART OpenAPI Wrapper
-// 환경 자동 감지: 로컬(localhost) = server.js 내부 프록시, 배포(GitHub Pages 등) = 직접 DART 호출(CORS 프록시 경유)
+// 백엔드(BFF) 연동 모드로 작동합니다. 모든 외부 API 통신은 서버를 거칩니다.
 const _IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const DART_DIRECT = 'https://opendart.fss.or.kr/api';
-// 공개 CORS 프록시 - 배포 환경에서 DART API CORS 우회
-const CORS_PROXY = 'https://corsproxy.io/?url=';
+// 배포 시 발급받은 실제 백엔드 도메인으로 변경해야 합니다. (예: https://my-dart-backend.duckdns.org)
+const BACKEND_URL = _IS_LOCAL ? 'http://localhost:3000' : 'https://api.yourdomain.com';
 
 const api = {
-  BASE: _IS_LOCAL ? '/api/dart' : null, // null이면 _fetch에서 직접 URL 구성
-  GEMINI_BASE: 'https://generativelanguage.googleapis.com/v1beta',
+  BASE: `${BACKEND_URL}/api/dart`,
+  GEMINI_BASE: `${BACKEND_URL}/api/gemini`,
   
   // 상태 관리
-  _geminiModel: 'models/gemini-1.5-flash',
   _corpDb: null,
   
-  getKey() {
-    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
-    return settings.apiKey || '';
-  },
-
-  getGeminiKey() {
-    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
-    return settings.geminiApiKey || '';
-  },
-
-  setKey(key) {
-    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
-    settings.apiKey = key;
-    localStorage.setItem('dart_settings', JSON.stringify(settings));
-  },
-
-  setGeminiKey(key) {
-    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
-    settings.geminiApiKey = key;
-    localStorage.setItem('dart_settings', JSON.stringify(settings));
-  },
-
-  setGeminiModel(modelName) {
-    this._geminiModel = modelName;
+  // Firebase Auth에서 발급한 ID Token을 가져오는 헬퍼 함수
+  async _getAuthToken() {
+    if (window.FB_AUTH && window.FB_AUTH.currentUser) {
+      try {
+        return await window.FB_AUTH.currentUser.getIdToken(true);
+      } catch (e) {
+        console.error('Failed to get Firebase token', e);
+      }
+    }
+    return null;
   },
 
   async _fetch(endpoint, params = {}) {
-    const key = this.getKey();
-    if (!key) throw new Error('API 키가 설정되지 않았습니다.');
-
-    const cleanParams = { crtfc_key: key };
+    const cleanParams = {};
     Object.keys(params).forEach(k => {
       if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
         cleanParams[k] = params[k];
@@ -51,33 +32,32 @@ const api = {
     });
 
     const query = new URLSearchParams(cleanParams).toString();
-    
-    // 로컬: server.js 내부 프록시, 배포: CORS 프록시 경유 직접 호출
-    let targetUrl;
-    if (_IS_LOCAL && this.BASE) {
-      targetUrl = `${this.BASE}/${endpoint}?${query}`;
-    } else {
-      const dartUrl = `${DART_DIRECT}/${endpoint}?${query}`;
-      targetUrl = `${CORS_PROXY}${encodeURIComponent(dartUrl)}`;
-    }
+    const targetUrl = `${this.BASE}/${endpoint}?${query}`;
 
     try {
+      // 프록시 서버 호출 (서버에서 DART API 키를 알아서 붙여줌)
       const res = await fetch(targetUrl, { 
         cache: 'no-store',
         signal: AbortSignal.timeout(15000)
       });
       
-      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+      if (!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
       
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+         // 바이너리(ZIP) 등 JSON이 아닌 경우 그냥 반환
+         return res;
+      }
+
       const data = await res.json();
       
-      // DART 서버 에러 검출
+      // DART API 포맷의 에러 검출
       if (data.status && data.status !== '000') {
         return this._handleData(data); // 에러 파싱 후 throw
       }
       return data;
     } catch (err) {
-      if (err.message.includes('DART') || err.message.includes('부적절한 값')) {
+      if (err.message.includes('DART') || err.message.includes('부적절한 값') || err.message.includes('서버 점검')) {
         throw err;
       }
       throw new Error(`데이터 로드 실패: ${err.message}`);
@@ -90,10 +70,10 @@ const api = {
     }
     if (data.status && data.status !== '000') {
       const messages = {
-        '010': '등록되지 않은 키입니다.',
-        '011': '사용할 수 없는 키입니다.',
-        '020': '요청 제한을 초과하였습니다.',
-        '800': '시스템 점검 중입니다.',
+        '010': '등록되지 않은 키입니다. (서버 확인 필요)',
+        '011': '사용할 수 없는 키입니다. (서버 확인 필요)',
+        '020': '요청 제한을 초과하였습니다. 잠시 후 다시 시도하세요.',
+        '800': 'DART 시스템 점검 중입니다.',
       };
       throw new Error(messages[data.status] || data.message || 'DART 서버 응답 오류');
     }
@@ -117,29 +97,6 @@ const api = {
       console.warn("[DART] Local DB fetch failed:", err);
     }
 
-    // 2. 실패 시 비상용 IndexedDB 확인 (직접 쿼리)
-    try {
-      const db = await this._getDb();
-      const tx = db.transaction('corps', 'readonly');
-      const store = tx.objectStore('corps');
-      const all = await new Promise(resolve => {
-        const req = store.getAll();
-        req.onsuccess = () => {
-          const res = {};
-          req.result.forEach(item => {
-            res[item.name] = item.code;
-            res[item.code] = item.name; // 양방향 매핑 추가
-          });
-          resolve(res);
-        };
-        req.onerror = () => resolve({});
-      });
-      if (Object.keys(all).length > 0) {
-        this._corpDb = { data: all };
-        return all;
-      }
-    } catch (e) {}
-
     return {};
   },
 
@@ -149,121 +106,6 @@ const api = {
     return db[code] || code;
   },
 
-  // --- IndexedDB 기반 대용량 DB 관리 ---
-  _db: null,
-  async _getDb() {
-    if (this._db) return this._db;
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open('dart_pro_db', 1);
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('corps')) {
-          db.createObjectStore('corps', { keyPath: 'name' });
-        }
-      };
-      req.onsuccess = (e) => { this._db = e.target.result; resolve(this._db); };
-      req.onerror = (e) => reject(e.target.error);
-    });
-  },
-
-  async syncFullDb(progressCb) {
-    const key = this.getKey();
-    if (!key) throw new Error('API 키가 필요합니다.');
-    
-    const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
-    const proxies = [
-      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-      u => `https://thingproxy.freeboard.io/fetch/${u}` // 차선책
-    ];
-
-    let lastError = null;
-    for (const getProxyUrl of proxies) {
-      try {
-        if (progressCb) progressCb(`${getProxyUrl('').split('/')[2]} 프록시 연결 중...`);
-        const proxyUrl = getProxyUrl(url);
-        const res = await fetch(proxyUrl);
-        
-        if (!res.ok) {
-          console.warn(`Proxy ${proxyUrl} failed with status ${res.status}`);
-          continue;
-        }
-        
-        const zipData = await res.arrayBuffer();
-        if (zipData.byteLength < 10000) {
-          console.warn(`Proxy returned too small data (${zipData.byteLength} bytes)`);
-          continue;
-        }
-
-        if (progressCb) progressCb('압축 해제 및 데이터 분석 중...');
-        const zip = await JSZip.loadAsync(zipData);
-        const xmlText = await zip.file("CORPCODE.xml").async("string");
-        
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, "text/xml");
-        const list = xml.getElementsByTagName("list");
-        
-        if (progressCb) progressCb(`인덱싱 중... (총 ${list.length.toLocaleString()}개)`);
-        const db = await this._getDb();
-        const tx = db.transaction('corps', 'readwrite');
-        const store = tx.objectStore('corps');
-        store.clear();
-
-        for (let i = 0; i < list.length; i++) {
-          const name = list[i].getElementsByTagName("corp_name")[0].textContent;
-          const code = list[i].getElementsByTagName("corp_code")[0].textContent;
-          store.put({ name, code });
-        }
-
-        return new Promise((resolve) => {
-          tx.oncomplete = () => {
-            localStorage.setItem('dart_db_synced', Date.now());
-            resolve(list.length);
-          };
-        });
-      } catch (err) {
-        console.error(`Sync attempt failed: ${err.message}`);
-        lastError = err;
-      }
-    }
-    
-    throw new Error(`모든 프록시 시도 실패: ${lastError?.message || '알 수 없는 오류'}`);
-  },
-
-  async syncFromFile(file, progressCb) {
-    if (progressCb) progressCb('파일 읽는 중...');
-    let xmlText = '';
-
-    if (file.name.toLowerCase().endsWith('.zip')) {
-      const zip = await JSZip.loadAsync(file);
-      xmlText = await zip.file("CORPCODE.xml").async("string");
-    } else {
-      xmlText = await file.text();
-    }
-
-    if (progressCb) progressCb('데이터 분석 및 인덱싱 중...');
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, "text/xml");
-    const list = xml.getElementsByTagName("list");
-
-    const db = await this._getDb();
-    const tx = db.transaction('corps', 'readwrite');
-    const store = tx.objectStore('corps');
-    store.clear();
-
-    for (let i = 0; i < list.length; i++) {
-      const name = list[i].getElementsByTagName("corp_name")[0].textContent;
-      const code = list[i].getElementsByTagName("corp_code")[0].textContent;
-      store.put({ name, code });
-    }
-
-    return new Promise((resolve) => {
-      tx.oncomplete = () => {
-        localStorage.setItem('dart_db_synced', Date.now());
-        resolve(list.length);
-      };
-    });
-  },
 
   async findCorpCode(name) {
     const q = name.replace(/\s/g, '').toLowerCase();
@@ -338,19 +180,6 @@ const api = {
     }).slice(0, limit);
   },
 
-  async getDbStatus() {
-    const synced = localStorage.getItem('dart_db_synced');
-    if (!synced) return { status: 'internal', count: 0 };
-    return { status: 'synced', timestamp: parseInt(synced) };
-  },
-
-  async clearFullDb() {
-    const db = await this._getDb();
-    const tx = db.transaction('corps', 'readwrite');
-    tx.objectStore('corps').clear();
-    localStorage.removeItem('dart_db_synced');
-  },
-
   // 관심 종목 관리
   getWatchlist() {
     return JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
@@ -359,19 +188,11 @@ const api = {
   addWatch(corpCode, name) {
     const list = this.getWatchlist();
     if (!list.find(i => i.code === corpCode)) {
-      // 명칭이 없는 경우 내장 맵에서 역조회
-      let finalName = name;
-      if (!finalName) {
-        const INTERNAL_MAP = { 
-          "00126380": "삼성전자(주)", "00164779": "에스케이하이닉스(주)", "00164742": "현대자동차(주)", 
-          "00111722": "미래에셋증권(주)", "01042775": "에이치엘만도(주)", "00547583": "하나금융지주(주)",
-          "00126431": "대한항공(주)", "00155167": "한화솔루션(주)", "00159109": "한국전력공사(주)"
-        };
-        finalName = INTERNAL_MAP[corpCode] || "알 수 없는 기업";
-      }
-      
-      list.push({ code: corpCode, name: finalName });
+      list.push({ code: corpCode, name: name || "알 수 없는 기업" });
       localStorage.setItem('dart_watchlist', JSON.stringify(list));
+      if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
+        window.FB_AUTH.saveInterestsToCloud();
+      }
       return true;
     }
     return false;
@@ -380,17 +201,16 @@ const api = {
   removeWatch(corpCode) {
     const list = this.getWatchlist().filter(i => i.code !== corpCode);
     localStorage.setItem('dart_watchlist', JSON.stringify(list));
+    if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
+      window.FB_AUTH.saveInterestsToCloud();
+    }
   },
 
   async getGeminiAnalysis(corpName, reportNm) {
-    const key = this.getGeminiKey();
-    if (!key) return null;
-
     if (this._geminiRateLimitUntil && Date.now() < this._geminiRateLimitUntil) {
       throw new Error(`할당량 초과 (429): 분당 요청 제한에 걸렸습니다. 잠시 후 다시 시도하세요.`);
     }
 
-    // 전역 캐시 확인 (모든 분석 요청에 적용)
     const cacheKey = `gemini_cache_${corpName}_${reportNm}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
@@ -402,70 +222,25 @@ const api = {
     }
 
     try {
-      let modelId = this._geminiTargetModelId;
-      
-      // 모델 조회를 캐시하여 1분당 요청 횟수(RPM)를 절반으로 줄입니다.
-      if (!modelId) {
-        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-        const listRes = await fetch(listUrl);
-        if (!listRes.ok) {
-          const err = await listRes.json();
-          throw new Error(`API 권한 오류 (${listRes.status}): ${err.error?.message || '접근 거부'}`);
-        }
-        
-        const listData = await listRes.json();
-        const availableModels = listData.models || [];
-        
-        let targetModel = availableModels.find(m => 
-          m.name.toLowerCase().includes('1.5-flash') && 
-          m.supportedGenerationMethods.includes('generateContent')
-        );
+      const token = await this._getAuthToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        if (!targetModel) {
-          targetModel = availableModels.find(m => 
-            m.name.toLowerCase().includes('flash') && 
-            m.supportedGenerationMethods.includes('generateContent')
-          );
-        }
-
-        if (!targetModel) {
-          targetModel = availableModels.find(m => 
-            m.name.toLowerCase().includes('pro') && 
-            m.supportedGenerationMethods.includes('generateContent')
-          );
-        }
-
-        if (!targetModel) {
-          throw new Error("Gemini Flash 모델을 찾을 수 없습니다. API 키의 모델 권한을 확인하세요.");
-        }
-
-        modelId = targetModel.name.split('/').pop();
-        this._geminiTargetModelId = modelId; 
-      }
-
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`;
-      
-      const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
-반드시 다음 JSON 형식으로만 응답하세요. **나 * 같은 마크다운 기호는 절대 사용하지 마세요.
-{ "insight": "공시의 핵심 의미 요약", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
-
-공시 정보:
-기업명: ${corpName}
-공시제목: ${reportNm}`;
-
-      const res = await fetch(url, {
+      const res = await fetch(`${this.GEMINI_BASE}/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        headers,
+        body: JSON.stringify({ corpName, reportNm })
       });
 
       if (!res.ok) {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         const msg = errData.error?.message || '';
         if (res.status === 429) {
-          // 429 에러 발생 시 60초간 API 호출 완전 차단 (서킷 브레이커)
           this._geminiRateLimitUntil = Date.now() + 60000;
           throw new Error(`할당량 초과 (429): 분당 요청 제한에 걸렸습니다. 1분 후 다시 시도하세요.`);
+        }
+        if (res.status === 401 || res.status === 403) {
+          throw new Error(`Premium 사용자만 이용 가능합니다.`);
         }
         throw new Error(`분석 요청 실패 (${res.status}): ${msg || 'Unknown'}`);
       }
@@ -476,7 +251,7 @@ const api = {
         const cleanedText = text.replace(/```json|```/g, '').trim();
         let parsedData = JSON.parse(cleanedText);
         
-        // 불필요한 마크다운 기호(**, *) 제거
+        // 불필요한 마크다운 기호 제거
         const stripMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
         parsedData.insight = stripMd(parsedData.insight);
         parsedData.impact = stripMd(parsedData.impact);
@@ -489,7 +264,7 @@ const api = {
       }
     } catch (err) {
       console.error('Gemini Analysis Critical Error:', err);
-      throw err; // 상세 에러를 UI로 전달
+      throw err;
     }
     return null;
   },
@@ -512,7 +287,6 @@ const api = {
         delete params.corp_code;
       }
     } else {
-      // corp_code가 아예 없거나 null/undefined인 경우 확실히 삭제
       delete params.corp_code;
     }
 
@@ -530,8 +304,7 @@ const api = {
 
   // 3. 공시서류원본파일
   getDocumentUrl(rceptNo) {
-    const key = this.getKey();
-    return `${this.BASE}/document.xml?crtfc_key=${key}&rcept_no=${rceptNo}`;
+    return `${this.BASE}/document.xml?rcept_no=${rceptNo}`;
   },
 
   disclosureTypes: {
