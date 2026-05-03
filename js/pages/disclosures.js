@@ -93,10 +93,10 @@ async function doDisclosureSearch(page) {
           <tbody>${data.list.map(item => `
             <tr style="cursor:pointer;" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')">
               <td class="mono">${api.formatDate(item.rcept_dt)}</td>
-              <td class="bold">${item.corp_name || ''}</td>
-              <td>${item.report_nm || ''}</td>
-              <td><span class="pill ${api.pillClass(item.corp_cls)}">${api.corpClsNames[item.corp_cls] || ''}</span></td>
-              <td style="font-size:12px;color:var(--on-surface-variant);">${item.flr_nm || ''}</td>
+              <td class="bold" style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.corp_name || ''}</td>
+              <td style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.report_nm || ''}</td>
+              <td style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span class="pill ${api.pillClass(item.corp_cls)}">${api.corpClsNames[item.corp_cls] || ''}</span></td>
+              <td style="font-size:12px; color:var(--on-surface-variant); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px;">${item.flr_nm || ''}</td>
             </tr>
           `).join('')}</tbody>
         </table>
