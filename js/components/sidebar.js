@@ -12,7 +12,7 @@ function renderSidebar() {
 
   return `
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">D</div>
+      <img src="icon-512-maskable.png" class="sidebar-logo-icon" style="object-fit: cover;" />
       <div class="sidebar-logo-text">
         <h1>DART Pro</h1>
         <p>전자공시 대시보드</p>

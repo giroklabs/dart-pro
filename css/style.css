@@ -99,9 +99,8 @@ table { border-collapse: collapse; width: 100%; }
 
 .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 8px; margin-bottom: var(--sp-xl); }
 .sidebar-logo-icon {
-  width: 32px; height: 32px; background: var(--primary);
+  width: 32px; height: 32px;
   border-radius: var(--r-default); display: flex; align-items: center; justify-content: center;
-  color: white; font-weight: 900; font-size: 16px; font-family: 'Manrope';
 }
 .sidebar-logo-text h1 { font-family: 'Manrope'; font-size: 18px; font-weight: 900; line-height: 1; color: var(--on-surface); }
 .sidebar-logo-text p { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--outline); font-weight: 700; margin-top: 3px; }
