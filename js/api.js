@@ -115,39 +115,30 @@ const api = {
       } catch (e) { localStorage.removeItem('dart_corp_db'); }
     }
 
+  // 기업 DB 초기화 (로컬 corps.json 우선)
+  async initCorpCodes() {
+    if (this._corpDb) return this._corpDb;
+    
     try {
-      const key = this.getKey();
-      if (!key) return;
-      let targetUrl;
-      if (_IS_LOCAL && this.BASE) {
-        targetUrl = `${this.BASE}/corpCode.xml?crtfc_key=${key}`;
-      } else {
-        const dartUrl = `${DART_DIRECT}/corpCode.xml?crtfc_key=${key}`;
-        targetUrl = `${CORS_PROXY}${encodeURIComponent(dartUrl)}`;
+      // 1. 서버의 corps.json 시도 (가장 권장)
+      const res = await fetch('corps.json');
+      if (res.ok) {
+        const data = await res.json();
+        this._corpDb = { data };
+        console.log('[DART] Local corps.json loaded.');
+        return data;
       }
-      
-      try {
-        const res = await fetch(targetUrl, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-          
-        const zipData = await res.arrayBuffer();
-        if (zipData.byteLength < 5000) throw new Error('Zip 파일이 너무 작거나 깨졌습니다.');
-
-        const zip = await JSZip.loadAsync(zipData);
-        const xmlFile = zip.file("CORPCODE.xml");
-        if (!xmlFile) throw new Error('CORPCODE.xml 파일이 없습니다.');
-          
-          this._corpDb = { timestamp: Date.now(), data: db };
-          localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
-          return db;
-        } catch (err) {
-          console.error(`Backend Proxy Failed: ${err.message}`);
-          return {};
-        }
     } catch (err) {
-      console.error("Critical DB Error:", err);
-      return {};
+      console.warn("[DART] Local DB fetch failed:", err);
     }
+
+    // 2. 실패 시 비상용 IndexedDB 확인
+    try {
+      const data = await this.searchCorpCodes(''); // 전체 로드 시도
+      if (Object.keys(data).length > 0) return data;
+    } catch (e) {}
+
+    return {};
   },
 
   // --- IndexedDB 기반 대용량 DB 관리 ---
