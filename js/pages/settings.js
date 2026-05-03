@@ -104,29 +104,41 @@ async function addToWatchlist(providedCode, providedName) {
 
 async function handleSearch() {
   const input = document.getElementById('watch-input');
+  const btn = document.querySelector('.btn-secondary[onclick="handleSearch()"]');
   const query = input?.value.trim();
+  
   if (!query) {
     showToast('검색어를 입력해 주세요.');
     return;
   }
   
   const suggestions = document.getElementById('search-suggestions');
-  suggestions.innerHTML = '<div class="suggestion-item"><span class="name">검색 중...</span></div>';
+  suggestions.innerHTML = '<div class="suggestion-item"><span class="name">🔍 검색 중...</span></div>';
   suggestions.style.display = 'block';
 
-  const results = await window.DART_API.searchCorpCodes(query);
-  
-  if (results.length > 0) {
-    suggestions.innerHTML = results.map(res => `
-      <div class="suggestion-item" onclick="addToWatchlist('${res.code}', '${res.name}')">
-        <span class="name">${res.name}</span>
-        <span class="code">${res.code}</span>
-      </div>
-    `).join('');
-    suggestions.style.display = 'block';
-  } else {
-    showToast('검색 결과가 없습니다.');
-    suggestions.style.display = 'none';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '...';
+  }
+
+  try {
+    const results = await window.DART_API.searchCorpCodes(query);
+    if (results.length > 0) {
+      suggestions.innerHTML = results.map(res => `
+        <div class="suggestion-item" onclick="addToWatchlist('${res.code}', '${res.name}')">
+          <span class="name">${res.name}</span>
+          <span class="code">${res.code}</span>
+        </div>
+      `).join('');
+    } else {
+      showToast('검색 결과가 없습니다.');
+      suggestions.style.display = 'none';
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '검색';
+    }
   }
 }
 
@@ -143,25 +155,31 @@ function initAutocomplete() {
   _autoCompleteController = new AbortController();
   const signal = _autoCompleteController.signal;
 
-  input.addEventListener('input', async (e) => {
+  let timer = null;
+  input.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     if (query.length < 2) {
       suggestions.style.display = 'none';
       return;
     }
 
-    const results = await window.DART_API.searchCorpCodes(query);
-    if (results.length > 0) {
-      suggestions.innerHTML = results.map(res => `
-        <div class="suggestion-item" onclick="addToWatchlist('${res.code}', '${res.name}')">
-          <span class="name">${res.name}</span>
-          <span class="code">${res.code}</span>
-        </div>
-      `).join('');
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(async () => {
+      suggestions.innerHTML = '<div class="suggestion-item"><span class="name">🔍 검색 중...</span></div>';
       suggestions.style.display = 'block';
-    } else {
-      suggestions.style.display = 'none';
-    }
+
+      const results = await window.DART_API.searchCorpCodes(query);
+      if (results.length > 0) {
+        suggestions.innerHTML = results.map(res => `
+          <div class="suggestion-item" onclick="addToWatchlist('${res.code}', '${res.name}')">
+            <span class="name">${res.name}</span>
+            <span class="code">${res.code}</span>
+          </div>
+        `).join('');
+      } else {
+        suggestions.style.display = 'none';
+      }
+    }, 300); // 300ms 디바운스 추가
   }, { signal });
 
   document.addEventListener('click', (e) => {
