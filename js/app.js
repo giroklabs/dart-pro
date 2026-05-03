@@ -1,9 +1,6 @@
 // App Router & Initialization
 document.addEventListener('DOMContentLoaded', () => {
-  // Auto-set API key if not already saved
-  if (!DART_API.getKey()) {
-    DART_API.setKey('REMOVED');
-  }
+  // API 키는 사용자가 설정 페이지에서 직접 입력합니다. 하드코딩 금지.
 
   // 기업 고유번호 DB 초기화 (배경 작업)
   DART_API.initCorpCodes();
