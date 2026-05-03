@@ -61,7 +61,7 @@ const FB_AUTH = {
       const doc = await db.collection('users').doc(this.currentUser.uid).get();
       if (doc.exists && doc.data().interests) {
         const cloudInterests = doc.data().interests;
-        localStorage.setItem('dart_interests', JSON.stringify(cloudInterests));
+        localStorage.setItem('dart_watchlist', JSON.stringify(cloudInterests));
         console.log('Firebase: Interests loaded from cloud');
       }
     } catch (error) {

@@ -107,10 +107,12 @@ const api = {
     // 캐시 확인
     const cached = localStorage.getItem('dart_corp_db');
     if (cached) {
-      this._corpDb = JSON.parse(cached);
-      if (Date.now() - this._corpDb.timestamp < 86400000 * 7) { // 7일간 유효
-        return this._corpDb.data;
-      }
+      try {
+        this._corpDb = JSON.parse(cached);
+        if (Date.now() - this._corpDb.timestamp < 86400000 * 7) { // 7일간 유효
+          return this._corpDb.data;
+        }
+      } catch (e) { localStorage.removeItem('dart_corp_db'); }
     }
 
     try {
@@ -134,18 +136,6 @@ const api = {
         const zip = await JSZip.loadAsync(zipData);
         const xmlFile = zip.file("CORPCODE.xml");
         if (!xmlFile) throw new Error('CORPCODE.xml 파일이 없습니다.');
-          
-          const xmlText = await xmlFile.async("string");
-          const parser = new DOMParser();
-          const xml = parser.parseFromString(xmlText, "text/xml");
-          const list = xml.getElementsByTagName("list");
-          
-          const db = {};
-          for (let i = 0; i < list.length; i++) {
-            const name = list[i].getElementsByTagName("corp_name")[0].textContent;
-            const code = list[i].getElementsByTagName("corp_code")[0].textContent;
-            db[name] = code;
-          }
           
           this._corpDb = { timestamp: Date.now(), data: db };
           localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
