@@ -25,8 +25,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Inject Firebase Config
+        env:
+          FB_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
         run: |
-          sed -i "s/__FIREBASE_CONFIG__/${{ secrets.FIREBASE_CONFIG }}/g" js/firebase-auth.js
+          node -e "const fs=require('fs'); const f='js/firebase-auth.js'; fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace('__FIREBASE_CONFIG__', process.env.FB_CONFIG))"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

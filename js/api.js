@@ -54,8 +54,8 @@ const api = {
     
     // 로컬: server.js 내부 프록시, 배포: CORS 프록시 경유 직접 호출
     let targetUrl;
-    if (_IS_LOCAL) {
-      targetUrl = `/api/dart/${endpoint}?${query}`;
+    if (_IS_LOCAL && this.BASE) {
+      targetUrl = `${this.BASE}/${endpoint}?${query}`;
     } else {
       const dartUrl = `${DART_DIRECT}/${endpoint}?${query}`;
       targetUrl = `${CORS_PROXY}${encodeURIComponent(dartUrl)}`;
