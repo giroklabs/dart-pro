@@ -244,7 +244,7 @@ function getQuickInsightHtml(item) {
       <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">⚡️ 퀵 룰스 분석</div>
+          <div class="insight-label">⚡️ QUICK 분석</div>
           <div class="insight-impact">${impact}</div>
         </div>
         <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
@@ -576,7 +576,7 @@ function getQuickInsightHtml(item) {
       <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">⚡️ 퀵 룰스 분석</div>
+          <div class="insight-label">⚡️ QUICK 분석</div>
           <div class="insight-impact">${impact}</div>
         </div>
         <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
