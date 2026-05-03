@@ -173,11 +173,13 @@ function clearGeminiKey() {
   window.router();
 }
 
-async function addToWatchlist(providedCode) {
+async function addToWatchlist(providedCode, providedName) {
   const api = window.DART_API;
   const input = document.getElementById('watch-input');
   
   let code = providedCode;
+  let name = providedName;
+
   if (!code) {
     const val = input?.value.trim();
     if (!val) return;
@@ -189,20 +191,39 @@ async function addToWatchlist(providedCode) {
     return;
   }
 
+  // 이름이 없으면 로컬 DB에서 역조회 시도
+  if (!name) {
+    name = await api.getCorpName(code);
+    if (name === code) name = null; // 조희 실패 시 null
+  }
+
   try {
-    const info = await api.getCompanyInfo(code);
-    const added = api.addWatch(code, info.corp_name);
+    // 최종적으로 이름이 없거나 추가 정보(법인구분 등)가 필요한 경우에만 서버 호출
+    if (!name) {
+      const info = await api.getCompanyInfo(code);
+      name = info.corp_name;
+    }
+
+    const added = api.addWatch(code, name || '알 수 없는 기업');
     if (added) {
-      showToast(`${info.corp_name}이(가) 추가되었습니다.`);
+      showToast(`${name || code}이(가) 추가되었습니다.`);
     } else {
       showToast('이미 등록된 기업입니다.');
     }
+    
     if (input) input.value = '';
     const suggestions = document.getElementById('search-suggestions');
     if (suggestions) suggestions.style.display = 'none';
     window.router();
   } catch (err) {
-    showToast('기업 정보를 불러올 수 없습니다.');
+    // 서버 호출 실패해도 이름만 알면 추가 진행
+    if (name) {
+      api.addWatch(code, name);
+      showToast(`${name}이(가) 추가되었습니다.`);
+      window.router();
+    } else {
+      showToast('기업 정보를 불러올 수 없습니다.');
+    }
   }
 }
 
@@ -222,7 +243,7 @@ async function handleSearch() {
   
   if (results.length > 0) {
     suggestions.innerHTML = results.map(res => `
-      <div class="suggestion-item" onclick="addToWatchlist('${res.code}')">
+      <div class="suggestion-item" onclick="addToWatchlist('${res.code}', '${res.name}')">
         <span class="name">${res.name}</span>
         <span class="code">${res.code}</span>
       </div>
@@ -249,7 +270,7 @@ function initAutocomplete() {
     const results = await window.DART_API.searchCorpCodes(query);
     if (results.length > 0) {
       suggestions.innerHTML = results.map(res => `
-        <div class="suggestion-item" onclick="addToWatchlist('${res.code}')">
+        <div class="suggestion-item" onclick="addToWatchlist('${res.code}', '${res.name}')">
           <span class="name">${res.name}</span>
           <span class="code">${res.code}</span>
         </div>

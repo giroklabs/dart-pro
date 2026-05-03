@@ -126,7 +126,10 @@ const api = {
         const req = store.getAll();
         req.onsuccess = () => {
           const res = {};
-          req.result.forEach(item => res[item.name] = item.code);
+          req.result.forEach(item => {
+            res[item.name] = item.code;
+            res[item.code] = item.name; // 양방향 매핑 추가
+          });
           resolve(res);
         };
         req.onerror = () => resolve({});
@@ -304,30 +307,24 @@ const api = {
       }
     }
 
-    // 2. IndexedDB 검색 (전수 데이터가 있는 경우 추가)
-    try {
-      const db = await this._getDb();
-      const tx = db.transaction('corps', 'readonly');
-      const store = tx.objectStore('corps');
-      const req = store.openCursor();
-      
-      await new Promise(resolve => {
-        req.onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor && results.length < limit * 2) {
-            const name = cursor.value.name;
-            const code = cursor.value.code;
-            if (name.toLowerCase().includes(q) || code.includes(q)) {
-              if (!results.find(r => r.code === code)) {
-                results.push({ name, code });
-              }
+    // 2. 메모리 캐시 검색 (전수 데이터가 로드된 경우)
+    const dbData = await this.initCorpCodes();
+    if (dbData) {
+      for (const [key, val] of Object.entries(dbData)) {
+        if (results.length >= limit * 3) break;
+        // 번호(key)로 찾거나 이름(val)으로 찾기 (양방향 매핑 활용)
+        const isCode = /^\d{8}$/.test(key);
+        if (isCode) {
+          const name = val;
+          const code = key;
+          if (code.includes(q) || name.toLowerCase().includes(q)) {
+            if (!results.find(r => r.code === code)) {
+              results.push({ name, code });
             }
-            cursor.continue();
-          } else resolve();
-        };
-        req.onerror = () => resolve();
-      });
-    } catch(e) {}
+          }
+        }
+      }
+    }
 
     // 정렬: 번호가 정확히 일치하거나 이름이 정확히 일치하는 항목 우선
     return results.sort((a, b) => {
