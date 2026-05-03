@@ -260,7 +260,6 @@ function getQuickInsightHtml(item) {
 
 async function initDashboard() {
   const api = window.DART_API;
-  if (!api.getKey()) return;
   const watchlist = api.getWatchlist();
 
   // 1. 대시보드 캐시 로딩 (즉시 렌더링)
