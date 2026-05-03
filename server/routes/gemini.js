@@ -2,7 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 
-const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1';
 
 router.post('/analyze', async (req, res, next) => {
   try {
@@ -26,8 +26,8 @@ router.post('/analyze', async (req, res, next) => {
       return res.status(400).json({ error: { message: '기업명과 공시제목이 필요합니다.' } });
     }
 
-    // 모델 고정 (Flash 1.5)
-    const modelId = 'gemini-1.5-flash';
+    // 모델 고정 (gemini-2.0-flash)
+    const modelId = 'gemini-2.0-flash';
     const url = `${GEMINI_BASE_URL}/models/${modelId}:generateContent?key=${apiKey}`;
 
     const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
