@@ -49,6 +49,13 @@ async function router() {
         content.innerHTML = await renderDashboard();
         initDashboard();
     }
+
+    // 상단바 검색 기능 초기화 및 애니메이션 효과
+    if (window.initTopbar) window.initTopbar();
+    content.style.animation = 'none';
+    content.offsetHeight;
+    content.style.animation = '';
+
   } catch (err) {
     console.error('[Router Error]', err);
     const content = document.getElementById('app-content');
@@ -56,12 +63,4 @@ async function router() {
       content.innerHTML = `<div class="empty-state"><p>페이지 로드 중 오류가 발생했습니다: ${err.message}</p><button class="btn-primary" onclick="location.reload()">새로고침</button></div>`;
     }
   }
-}
-
-  initTopbar();
-
-  // Re-animate
-  content.style.animation = 'none';
-  content.offsetHeight;
-  content.style.animation = '';
 }

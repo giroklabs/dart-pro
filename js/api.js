@@ -100,21 +100,6 @@ const api = {
     return data;
   },
 
-  // 기업 DB 초기화 (DART에서 전체 리스트 다운로드)
-  async initCorpCodes() {
-    if (this._corpDb) return this._corpDb;
-    
-    // 캐시 확인
-    const cached = localStorage.getItem('dart_corp_db');
-    if (cached) {
-      try {
-        this._corpDb = JSON.parse(cached);
-        if (Date.now() - this._corpDb.timestamp < 86400000 * 7) { // 7일간 유효
-          return this._corpDb.data;
-        }
-      } catch (e) { localStorage.removeItem('dart_corp_db'); }
-    }
-
   // 기업 DB 초기화 (로컬 corps.json 우선)
   async initCorpCodes() {
     if (this._corpDb && this._corpDb.data) return this._corpDb.data;
