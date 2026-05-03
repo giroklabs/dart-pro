@@ -366,9 +366,10 @@ function renderDashboardUI(groups, stats) {
 
   // 2. 피드 카드 렌더링
   if (feedEl) {
-    if (groups.some(g => g.list.length > 0)) {
-      const activeGroups = groups.filter(g => g.list.length > 0);
-      feedEl.innerHTML = activeGroups.map(group => `
+    if (groups.length > 0) {
+      feedEl.innerHTML = groups.map(group => {
+        const hasList = group.list && group.list.length > 0;
+        return `
         <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
           <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:12px;">
@@ -378,7 +379,7 @@ function renderDashboardUI(groups, stats) {
             <button class="btn-text" onclick="location.hash='#/company?q=${group.company.code}'">전체보기 &rarr;</button>
           </div>
           <div class="group-disclosures" style="padding:8px 0;">
-            ${group.list.map(item => `
+            ${hasList ? group.list.map(item => `
               <div class="group-item" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')" style="padding:12px 20px; border-bottom:1px solid var(--outline-variant); cursor:pointer; transition:background 0.2s;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
                   <span class="t-label-sm" style="color:var(--secondary);">${api.formatDate(item.rcept_dt)}</span>
@@ -386,12 +387,16 @@ function renderDashboardUI(groups, stats) {
                 </div>
                 <div class="t-body-md bold" style="color:var(--on-surface);">${item.report_nm}</div>
               </div>
-            `).join('')}
+            `).join('') : `
+              <div style="padding:16px 20px; color:var(--secondary); font-size:13px; text-align:center;">
+                최근 30일 이내 공시가 없습니다.
+              </div>
+            `}
           </div>
         </div>
-      `).join('');
+      `}).join('');
     } else {
-      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>최근 공시가 없습니다.</p></div>`;
+      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>관심 종목을 추가해 주세요.</p></div>`;
     }
   }
 
