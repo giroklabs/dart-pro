@@ -2,7 +2,7 @@
 // 백엔드(BFF) 연동 모드로 작동합니다. 모든 외부 API 통신은 서버를 거칩니다.
 const _IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 // 배포 시 발급받은 실제 백엔드 도메인으로 변경해야 합니다. (예: https://my-dart-backend.duckdns.org)
-const BACKEND_URL = _IS_LOCAL ? 'http://localhost:3000' : 'https://api.yourdomain.com';
+const BACKEND_URL = _IS_LOCAL ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
 
 const api = {
   BASE: `${BACKEND_URL}/api/dart`,
