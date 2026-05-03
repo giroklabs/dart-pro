@@ -24,6 +24,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inject Firebase Config
+        run: |
+          sed -i "s/__FIREBASE_CONFIG__/${{ secrets.FIREBASE_CONFIG }}/g" js/firebase-auth.js
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
