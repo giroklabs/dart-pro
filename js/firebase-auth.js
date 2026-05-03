@@ -43,7 +43,7 @@ const FB_AUTH = {
   async saveInterestsToCloud() {
     if (!this.currentUser) return;
     try {
-      const interests = JSON.parse(localStorage.getItem('dart_interests') || '[]');
+      const interests = JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
       await db.collection('users').doc(this.currentUser.uid).set({
         interests: interests,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()

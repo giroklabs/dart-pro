@@ -116,7 +116,13 @@ const api = {
     try {
       const key = this.getKey();
       if (!key) return;
-      const targetUrl = `${this.BASE}/corpCode.xml?crtfc_key=${key}`;
+      let targetUrl;
+      if (_IS_LOCAL && this.BASE) {
+        targetUrl = `${this.BASE}/corpCode.xml?crtfc_key=${key}`;
+      } else {
+        const dartUrl = `${DART_DIRECT}/corpCode.xml?crtfc_key=${key}`;
+        targetUrl = `${CORS_PROXY}${encodeURIComponent(dartUrl)}`;
+      }
       
       try {
         const res = await fetch(targetUrl, { cache: 'no-store' });
