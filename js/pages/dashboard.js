@@ -285,16 +285,17 @@ async function initDashboard() {
     
     const results = await Promise.all(promises);
 
-    // 데이터를 종목별로 그룹화
-    const groups = watchlist.map((item, index) => {
+    // 데이터를 종목별로 그룹화 + 이름 교정 (Reverse Lookup)
+    const groups = await Promise.all(watchlist.map(async (item, index) => {
       const res = results[index];
       const corpList = res.list || [];
+      const correctedName = await api.getCorpName(item.code);
       return {
-        company: item,
+        company: { ...item, name: correctedName || item.name },
         latestDate: corpList.length > 0 ? corpList[0].rcept_no : '0',
         list: corpList
       };
-    });
+    }));
 
     groups.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
 

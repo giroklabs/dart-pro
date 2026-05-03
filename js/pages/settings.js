@@ -1,9 +1,10 @@
-function renderSettings() {
+async function renderSettings() {
   const api = window.DART_API;
   const dartKey = api.getKey();
   const geminiKey = api.getGeminiKey();
   
   const mask = (key) => key ? key.slice(0, 6) + '••••••••' + key.slice(-4) : '';
+  const watchlistHtml = await renderWatchlistTable();
 
   return `
     <div class="page-header">
@@ -12,7 +13,7 @@ function renderSettings() {
     </div>
     
     <div class="settings-section">
-      <!-- DART API Key -->
+      <!-- DART API Key ... (생략) ... -->
       <div class="card card-static" style="margin-bottom:var(--sp-lg);">
         <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">DART API 인증키</h3>
         <div class="api-key-status" style="margin-bottom:var(--sp-md);">
@@ -70,11 +71,11 @@ function renderSettings() {
           <div id="search-suggestions" class="suggestions-list" style="display:none; margin-top:4px;"></div>
         </div>
         <div id="watchlist-display" style="margin-top:var(--sp-md);">
-          ${renderWatchlistTable()}
+          ${watchlistHtml}
         </div>
       </div>
 
-      <!-- DB Management -->
+      <!-- DB Management ... (생략 가능) ... -->
       <div class="card card-static">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-md);">
           <h3 class="t-headline-sm">기업 데이터베이스 관리</h3>
@@ -114,23 +115,31 @@ function renderSettings() {
   `;
 }
 
-function renderWatchlistTable() {
-  const watchlist = window.DART_API.getWatchlist();
+async function renderWatchlistTable() {
+  const api = window.DART_API;
+  const watchlist = api.getWatchlist();
   if (watchlist.length === 0) {
     return '<p style="font-size:13px;color:var(--outline);text-align:center;padding:20px;">등록된 기업이 없습니다.</p>';
   }
+
+  // 최신 DB 기준으로 이름 교정
+  const rows = await Promise.all(watchlist.map(async item => {
+    const correctedName = await api.getCorpName(item.code);
+    return `
+      <tr>
+        <td class="bold">${correctedName || item.name}</td>
+        <td class="mono">${item.code}</td>
+        <td class="text-right">
+          <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${item.code}')">삭제</button>
+        </td>
+      </tr>
+    `;
+  }));
+
   return `
     <table class="data-table">
       <tbody>
-        ${watchlist.map(item => `
-          <tr>
-            <td class="bold">${item.name}</td>
-            <td class="mono">${item.code}</td>
-            <td class="text-right">
-              <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${item.code}')">삭제</button>
-            </td>
-          </tr>
-        `).join('')}
+        ${rows.join('')}
       </tbody>
     </table>
   `;

@@ -43,7 +43,7 @@ async function router() {
         }
         break;
       case '#/settings':
-        content.innerHTML = renderSettings();
+        content.innerHTML = await renderSettings();
         break;
       default:
         content.innerHTML = await renderDashboard();
