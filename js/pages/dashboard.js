@@ -101,6 +101,7 @@ async function renderInsight(containerId, item) {
 
 function summarizeDisclosure(item, aiData = null) {
   const title = item.report_nm || '';
+  const cleanMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
   
   // 삼성전자 배당 공시인 경우 고퀄리티 제미나이 분석 예시 제공
   if (!aiData && item.corp_name === '삼성전자' && title.includes('배당')) {
@@ -142,17 +143,21 @@ function summarizeDisclosure(item, aiData = null) {
   // Gemini 데이터가 있는 경우 우선 사용
   if (aiData) {
     const isCached = aiData._cached ? '⚡️ ' : '';
+    const insight = cleanMd(aiData.insight || '');
+    const impact = cleanMd(aiData.impact || '분석 중');
+    const points = (aiData.points || []).map(p => cleanMd(p));
+
     return `
       <div class="insight-banner insight-info ai-glow">
         <div class="insight-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
         <div class="insight-content">
           <div class="insight-header">
             <div class="insight-label">${isCached}GEMINI 1.5 FLASH</div>
-            <div class="insight-impact">${aiData.impact || '분석 중'}</div>
+            <div class="insight-impact">${impact}</div>
           </div>
-          <div class="insight-text"><strong>${item.corp_name}</strong> - ${aiData.insight}</div>
+          <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
           <ul class="insight-points">
-            ${(aiData.points || []).map(p => `<li>${p}</li>`).join('')}
+            ${points.map(p => `<li>${p}</li>`).join('')}
           </ul>
         </div>
         <div class="insight-actions">

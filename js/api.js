@@ -443,13 +443,13 @@ const api = {
         }
 
         modelId = targetModel.name.split('/').pop();
-        this._geminiTargetModelId = modelId; // 캐시 저장
+        this._geminiTargetModelId = modelId; 
       }
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`;
       
       const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
-반드시 다음 JSON 형식으로만 응답하세요:
+반드시 다음 JSON 형식으로만 응답하세요. **나 * 같은 마크다운 기호는 절대 사용하지 마세요.
 { "insight": "공시의 핵심 의미 요약", "impact": "긍정적/부정적/정보확인 중 하나", "points": ["포인트1", "포인트2", "포인트3"] }
 
 공시 정보:
@@ -477,9 +477,16 @@ const api = {
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
         const text = data.candidates[0].content.parts[0].text;
         const cleanedText = text.replace(/```json|```/g, '').trim();
-        const parsedData = JSON.parse(cleanedText);
+        let parsedData = JSON.parse(cleanedText);
         
-        // 캐시 저장: 기업명과 공시제목을 키로 사용하여 영구 저장
+        // 불필요한 마크다운 기호(**, *) 제거
+        const stripMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
+        parsedData.insight = stripMd(parsedData.insight);
+        parsedData.impact = stripMd(parsedData.impact);
+        if (Array.isArray(parsedData.points)) {
+          parsedData.points = parsedData.points.map(p => stripMd(p));
+        }
+
         localStorage.setItem(cacheKey, JSON.stringify(parsedData));
         return parsedData;
       }
