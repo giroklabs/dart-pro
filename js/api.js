@@ -117,7 +117,7 @@ const api = {
 
   // 기업 DB 초기화 (로컬 corps.json 우선)
   async initCorpCodes() {
-    if (this._corpDb) return this._corpDb;
+    if (this._corpDb && this._corpDb.data) return this._corpDb.data;
     
     try {
       // 1. 서버의 corps.json 시도 (가장 권장)
@@ -126,16 +126,30 @@ const api = {
         const data = await res.json();
         this._corpDb = { data };
         console.log('[DART] Local corps.json loaded.');
-        return data;
+        return data; // 데이터 내용물 반환
       }
     } catch (err) {
       console.warn("[DART] Local DB fetch failed:", err);
     }
 
-    // 2. 실패 시 비상용 IndexedDB 확인
+    // 2. 실패 시 비상용 IndexedDB 확인 (직접 쿼리)
     try {
-      const data = await this.searchCorpCodes(''); // 전체 로드 시도
-      if (Object.keys(data).length > 0) return data;
+      const db = await this._getDb();
+      const tx = db.transaction('corps', 'readonly');
+      const store = tx.objectStore('corps');
+      const all = await new Promise(resolve => {
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const res = {};
+          req.result.forEach(item => res[item.name] = item.code);
+          resolve(res);
+        };
+        req.onerror = () => resolve({});
+      });
+      if (Object.keys(all).length > 0) {
+        this._corpDb = { data: all };
+        return all;
+      }
     } catch (e) {}
 
     return {};
