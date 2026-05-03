@@ -1,3 +1,8 @@
+window.switchAiMode = function(mode) {
+  localStorage.setItem('dart_ai_mode', mode);
+  window.router();
+};
+
 // Dashboard Page
 async function renderDashboard() {
   const api = window.DART_API;
@@ -18,6 +23,10 @@ async function renderDashboard() {
     `;
   }
 
+  const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
+  const quickStyle = aiMode === 'quick' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
+  const geminiStyle = aiMode === 'gemini' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
+
   return `
     <div class="page-header">
       <h2>대시보드</h2>
@@ -25,46 +34,15 @@ async function renderDashboard() {
     </div>
     <div id="quick-insight-container"></div>
     <div id="dashboard-main-content">
-      <div class="section-header">
+      <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
         <h3 class="section-title">관심 종목 리얼타임 피드</h3>
+        <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
+          <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${quickStyle}" onclick="switchAiMode('quick')">⚡️ 퀵 룰스</button>
+          <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${geminiStyle}" onclick="switchAiMode('gemini')">✨ 제미나이</button>
+        </div>
       </div>
       <div id="dashboard-feed"></div>
     </div>
-    
-    <div class="section-header" style="margin-top:var(--sp-xl);">
-      <h3 class="section-title">시장 현황 (오늘)</h3>
-    </div>
-    <div class="stat-grid">
-      <div class="card card-static" id="stat-total">
-        <p class="stat-label">오늘의 공시</p>
-        <div class="stat-value" id="stat-today-count">-</div>
-        <p class="stat-sub" id="stat-today-label">조회 중...</p>
-      </div>
-      <div class="card card-static">
-        <p class="stat-label">유가증권</p>
-        <div class="stat-value" id="stat-kospi">-</div>
-        <p class="stat-sub"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;">trending_up</span> KOSPI</p>
-      </div>
-      <div class="card card-static">
-        <p class="stat-label">코스닥</p>
-        <div class="stat-value" id="stat-kosdaq">-</div>
-        <p class="stat-sub"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;">trending_up</span> KOSDAQ</p>
-      </div>
-      <div class="card card-static">
-        <p class="stat-label">정기공시</p>
-        <div class="stat-value" id="stat-regular">-</div>
-          </div>
-          <div id="type-stats" style="padding:16px;"><div class="loading"><div class="spinner"></div></div></div>
-        </div>
-        <div class="dark-banner">
-          <div class="dark-banner-head">
-            <span class="material-symbols-outlined">auto_awesome</span>
-            <span>DART Pro</span>
-          </div>
-          <p>전자공시 검색, 기업개황 조회, 공시서류 다운로드를 한 곳에서 이용하세요.</p>
-          <button class="btn-action" onclick="location.hash='#/disclosures'">공시 검색 시작</button>
-        </div>
-      </div>
     </div>
   `;
 }
@@ -74,14 +52,22 @@ async function renderInsight(containerId, item) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // 1. 캐시 확인
-  const cacheKey = `ai_insight_${item.rcept_no}`;
+  const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
+
+  // 1. 퀵 분석 모드일 경우 즉시 렌더링하고 종료
+  if (aiMode === 'quick') {
+    container.innerHTML = getQuickInsightHtml(item);
+    return;
+  }
+
+  // 2. 캐시 확인 (Gemini 전용) — api.js와 동일한 키 사용
+  const cacheKey = `gemini_cache_${item.corp_name}_${item.report_nm}`;
   const cached = localStorage.getItem(cacheKey);
   
   if (cached) {
     try {
       const aiData = JSON.parse(cached);
-      aiData._cached = true; // 캐시됨 표시
+      aiData._cached = true;
       container.innerHTML = summarizeDisclosure(item, aiData);
       return;
     } catch (e) {
@@ -89,15 +75,15 @@ async function renderInsight(containerId, item) {
     }
   }
 
-  // 2. 기본 요약 표시 (로딩 중 대용)
-  container.innerHTML = summarizeDisclosure(item);
+  // 3. 기본 요약 표시 (로딩 중 대용)
+  container.innerHTML = summarizeDisclosure(item, null);
 
-  // 3. 실시간 분석 시도
+  // 4. 실시간 분석 시도
   if (api.getGeminiKey()) {
     try {
       const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
+      // api.js 내부에서 캐시 저장 완료 — 여기서 중복 저장 불필요
       if (aiData) {
-        localStorage.setItem(cacheKey, JSON.stringify(aiData));
         container.innerHTML = summarizeDisclosure(item, aiData);
       }
     } catch (e) {
@@ -176,103 +162,68 @@ function summarizeDisclosure(item, aiData = null) {
     `;
   }
 
-  // 기존 규칙 기반 요약 로직
+  // Gemini 데이터가 없는 경우 (로딩 중 상태)
+  if (!aiData) {
+    return `
+      <div class="insight-banner insight-info ai-glow" style="opacity: 0.7;">
+        <div class="insight-icon"><span class="material-symbols-outlined spin">sync</span></div>
+        <div class="insight-content">
+          <div class="insight-header">
+            <div class="insight-label">GEMINI 1.5 FLASH</div>
+            <div class="insight-impact">분석 중...</div>
+          </div>
+          <div class="insight-text"><strong>${item.corp_name}</strong> - 실시간 공시 내용을 AI가 분석하고 있습니다.</div>
+          <ul class="insight-points">
+            <li style="color:var(--on-surface-variant);">잠시만 기다려주세요...</li>
+          </ul>
+        </div>
+        <div class="insight-actions">
+          <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function getQuickInsightHtml(item) {
+  const title = item.report_nm || '';
+  
   let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
-  let points = ["접수번호: " + item.rcept_no, "제출일자: " + item.rcept_dt];
+  let points = ["접수번호: " + item.rcept_no, "제출일자: " + window.DART_API.formatDate(item.rcept_dt)];
   let impact = "정보 확인";
   let typeCls = "insight-default";
   let icon = "campaign";
 
   if (title.includes("배당")) {
     insight = "<strong>현금/현물 배당 결정:</strong> 주주 환원의 핵심 지표가 발표되었습니다.";
-    points = [
-      "과거 배당금 대비 증액 여부 확인",
-      "시가배당률이 은행 금리 및 업종 평균 대비 높은지 검토",
-      "배당 기준일 전 매수 여부 결정 필요"
-    ];
+    points = ["과거 배당금 대비 증액 여부 확인", "시가배당률 확인 요망"];
     impact = "긍정적 (배당수익)";
     typeCls = "insight-success";
     icon = "payments";
   } else if (title.includes("분기보고서") || title.includes("사업보고서")) {
     insight = "<strong>정기 실적 발표:</strong> 기업의 성적표가 공개되었습니다.";
-    points = [
-      "매출액 및 영업이익의 전년 동기 대비(YoY) 성장성",
-      "컨센서스(시장 기대치) 상회 여부(어닝 서프라이즈)",
-      "영업이익률 개선 및 비용 구조 변화 확인"
-    ];
+    points = ["매출액 및 영업이익 YoY 확인", "어닝 서프라이즈 여부 검토"];
     impact = "실적 변동";
     typeCls = "insight-info";
     icon = "monitoring";
   } else if (title.includes("공급계약") || title.includes("수주")) {
-    insight = "<strong>신규 수주/공급계약:</strong> 매출 증대로 직결되는 직접적인 호재입니다.";
-    points = [
-      "계약 금액이 최근 매출액 대비 차지하는 비중(%)",
-      "계약 상대방의 신뢰도 및 계약 기간 확인",
-      "향후 실적 반영 시점(매출 인식) 추정"
-    ];
+    insight = "<strong>신규 수주/공급계약:</strong> 매출 증대로 직결되는 호재입니다.";
+    points = ["계약 금액 비중 확인", "계약 기간 및 상대방 검토"];
     impact = "매출 증대";
     typeCls = "insight-success";
     icon = "contract_edit";
   } else if (title.includes("유상증자") || title.includes("무상증자")) {
-    insight = "<strong>자본금 변동(증자):</strong> 주식 수 변화에 따른 가치 희석이 우려됩니다.";
-    points = [
-      "자금 조달 목적(시설투자-호재 vs 운영자산-악재)",
-      "발행가액 할인율 및 신주 배정 비율 확인",
-      "기존 주주 가치 희석 및 주가 단기 변동성 유의"
-    ];
+    insight = "<strong>자본금 변동(증자):</strong> 주식 수 변화에 따른 가치 희석 우려가 있습니다.";
+    points = ["자금 조달 목적(호재/악재) 확인", "신주 배정 비율 확인"];
     impact = "가치 변동";
     typeCls = "insight-warning";
     icon = "add_chart";
-  } else if (title.includes("풍문") || title.includes("해명")) {
-    insight = "<strong>시장 루머/보도 해명:</strong> 기업 가치에 영향을 줄 수 있는 보도에 대한 공식 답변입니다.";
-    points = [
-      "해당 보도 내용의 사실 여부 및 구체적 진행 상황 확인",
-      "'미확정' 공시일 경우 향후 재공시 예정일 주시",
-      "주가 급등락의 원인이 된 루머의 실체적 진실 파악"
-    ];
-    impact = "변동성 유의";
-    typeCls = "insight-warning";
-    icon = "record_voice_over";
-  } else if (title.includes("출자") || title.includes("취득")) {
-    insight = "<strong>지분 취득/타법인 출자:</strong> 사업 확장 또는 파트너십 강화를 위한 자금 투입입니다.";
-    points = [
-      "출자 목적(신규 사업 진출, 경영권 확보 등) 확인",
-      "자기자본 대비 투자 금액의 적정성 검토",
-      "상대 기업과의 시너지 및 향후 수익성 기여도 기대"
-    ];
-    impact = "사업 확장";
-    typeCls = "insight-info";
-    icon = "account_balance_wallet";
   } else if (title.includes("소유상황") || title.includes("장내매수")) {
-    insight = "<strong>내부자 지분 변동:</strong> 경영진 및 대주주가 자사 주식을 매매했습니다.";
-    points = [
-      "매수(Buy)인 경우 책임 경영 의지 및 주가 저평가 시그널",
-      "변동 수량 및 지분율이 경영권에 미치는 영향 확인",
-      "단발성 매매인지 지속적인 매입/매도인지 추세 파악"
-    ];
+    insight = "<strong>내부자 지분 변동:</strong> 경영진 및 대주주가 주식을 매매했습니다.";
+    points = ["매수/매도 여부에 따른 시그널 판단", "경영권 영향 확인"];
     impact = "내부자 시그널";
     typeCls = "insight-success";
     icon = "person_search";
-  } else if (title.includes("기업설명회") || title.includes("IR")) {
-    insight = "<strong>IR/기업설명회 개최:</strong> 투자자 소통 및 향후 비전 공유가 예정되어 있습니다.";
-    points = [
-      "신규 사업 전략 및 실적 가이드라인(Guidance) 제시 여부",
-      "시장과의 소통 강화를 통한 저평가 해소 기대",
-      "설명회 이후 발표될 증권사 분석 리포트 주시"
-    ];
-    impact = "시장 소통";
-    typeCls = "insight-info";
-    icon = "campaign";
-  } else if (title.includes("최대주주") || title.includes("경영권")) {
-    insight = "<strong>지배구조 변동:</strong> 경영권 및 소유 구조에 큰 변화가 감지되었습니다.";
-    points = [
-      "최대주주 변경의 원인(양수도, 증여 등)",
-      "새로운 주체의 경영 방침 및 사업 방향성 변화",
-      "오버행(잠재적 매도 물량) 리스크 존재 여부"
-    ];
-    impact = "주의 요망";
-    typeCls = "insight-major";
-    icon = "group_work";
   }
 
   return `
@@ -280,7 +231,7 @@ function summarizeDisclosure(item, aiData = null) {
       <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">AI QUICK ANALYSIS</div>
+          <div class="insight-label">⚡️ 퀵 룰스 분석</div>
           <div class="insight-impact">${impact}</div>
         </div>
         <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
@@ -293,6 +244,7 @@ function summarizeDisclosure(item, aiData = null) {
       </div>
     </div>
   `;
+
 }
 
 async function initDashboard() {
@@ -321,66 +273,58 @@ async function initDashboard() {
     const bgnDeToday = endDe;
     const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
-    // 2. 전역 피드 조회 (배치 호출의 한계 극복: 전 종목 최신 100건 조회)
-    const globalRes = await api.searchDisclosures({ 
-      bgn_de: bgnDe30, 
-      end_de: endDe,
-      page_count: 100 // 최근 전체 공시 100건 확보
-    });
+    // 2. 관심 종목별 공시 데이터 개별 조회 (병렬 처리)
+    const promises = watchlist.map(item => 
+      api.searchDisclosures({ 
+        corp_code: item.code, 
+        bgn_de: bgnDe30, 
+        end_de: endDe, 
+        page_count: 3 // 각 종목별 최근 3건
+      })
+    );
     
-    const allDisclosures = globalRes.list || [];
-    const watchCodes = new Set(watchlist.map(item => item.code));
+    const results = await Promise.all(promises);
 
-    // 내 관심 종목에 해당하는 공시만 필터링
-    const myDisclosures = allDisclosures.filter(d => watchCodes.has(d.corp_code));
-    
     // 데이터를 종목별로 그룹화
-    const groups = watchlist.map(item => {
-      const corpList = myDisclosures.filter(d => d.corp_code === item.code);
+    const groups = watchlist.map((item, index) => {
+      const res = results[index];
+      const corpList = res.list || [];
       return {
         company: item,
         latestDate: corpList.length > 0 ? corpList[0].rcept_no : '0',
-        list: corpList.slice(0, 3)
+        list: corpList
       };
     });
 
     groups.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
 
-    // 시장 현황 데이터 조회
-    const [todayData, regularData, kospiData, kosdaqData] = await Promise.all([
-      api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, page_count: 1 }),
-      api.searchDisclosures({ bgn_de: bgnDe30, end_de: endDe, pblntf_ty: 'A', page_count: 1 }),
-      api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'Y', page_count: 1 }),
-      api.searchDisclosures({ bgn_de: bgnDeToday, end_de: endDe, corp_cls: 'K', page_count: 1 })
-    ]);
+    // 3. UI 1차 업데이트 (피드 우선 표시, 통계는 로딩중 상태)
+    renderDashboardUI(groups, null);
 
-    const stats = {
-      todayCount: todayData.total_count || 0,
-      todayLabel: api.formatDate(endDe),
-      regularCount: regularData.total_count || 0,
-      kospiCount: kospiData.total_count || 0,
-      kosdaqCount: kosdaqData.total_count || 0
-    };
-
-    // 3. UI 업데이트 및 캐싱
-    renderDashboardUI(groups, stats);
-    localStorage.setItem('dashboard_cache', JSON.stringify({ watchlist, groups, stats }));
-
-    // 4. AI 인사이트 업데이트 (순차 처리)
-    if (groups.some(g => g.list.length > 0)) {
-      const activeGroups = groups.filter(g => g.list.length > 0);
-      for (let i = 0; i < activeGroups.length; i++) {
-        const divId = `insight-item-${i}`;
-        await renderInsight(divId, activeGroups[i].list[0]);
-        await new Promise(r => setTimeout(r, 300));
+    // 4. AI 인사이트 업데이트 (순차 처리 - 비동기로 바로 시작)
+    const updateInsights = async () => {
+      if (groups.some(g => g.list.length > 0)) {
+        const activeGroups = groups.filter(g => g.list.length > 0);
+        for (let i = 0; i < activeGroups.length; i++) {
+          const divId = `insight-item-${i}`;
+          await renderInsight(divId, activeGroups[i].list[0]);
+          await new Promise(r => setTimeout(r, 300));
+        }
       }
-    }
+    };
+    updateInsights(); // await 없이 백그라운드 실행
+
+    // 대시보드 상태 저장
+    localStorage.setItem('dashboard_cache', JSON.stringify({ watchlist, groups }));
 
   } catch (err) {
     console.error(err);
-    if (feedEl && feedEl.innerHTML === '') {
-      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">error</span><p>${err.message}</p></div>`;
-    }
+    document.getElementById('dashboard-feed').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">!</div>
+        <div>데이터 로드 실패: ${err.message}</div>
+      </div>
+    `;
   }
 }
 
@@ -434,14 +378,6 @@ function renderDashboardUI(groups, stats) {
     }
   }
 
-  // 3. 통계 업데이트
-  if (stats) {
-    if(document.getElementById('stat-today-count')) document.getElementById('stat-today-count').textContent = stats.todayCount;
-    if(document.getElementById('stat-today-label')) document.getElementById('stat-today-label').textContent = stats.todayLabel;
-    if(document.getElementById('stat-regular')) document.getElementById('stat-regular').textContent = stats.regularCount;
-    if(document.getElementById('stat-kospi')) document.getElementById('stat-kospi').textContent = stats.kospiCount;
-    if(document.getElementById('stat-kosdaq')) document.getElementById('stat-kosdaq').textContent = stats.kosdaqCount;
-  }
 }
 
 function renderFeedCard(item) {
@@ -496,3 +432,63 @@ function fmt(d) {
 
 window.renderDashboard = renderDashboard;
 window.initDashboard = initDashboard;
+
+function getQuickInsightHtml(item) {
+  const title = item.report_nm || '';
+  let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
+  let points = ["접수번호: " + item.rcept_no, "제출일자: " + window.DART_API.formatDate(item.rcept_dt)];
+  let impact = "정보 확인";
+  let typeCls = "insight-default";
+  let icon = "campaign";
+
+  if (title.includes("배당")) {
+    insight = "<strong>현금/현물 배당 결정:</strong> 주주 환원의 핵심 지표가 발표되었습니다.";
+    points = ["과거 배당금 대비 증액 여부 확인", "시가배당률 확인 요망"];
+    impact = "긍정적 (배당수익)";
+    typeCls = "insight-success";
+    icon = "payments";
+  } else if (title.includes("분기보고서") || title.includes("사업보고서")) {
+    insight = "<strong>정기 실적 발표:</strong> 기업의 성적표가 공개되었습니다.";
+    points = ["매출액 및 영업이익 YoY 확인", "어닝 서프라이즈 여부 검토"];
+    impact = "실적 변동";
+    typeCls = "insight-info";
+    icon = "monitoring";
+  } else if (title.includes("공급계약") || title.includes("수주")) {
+    insight = "<strong>신규 수주/공급계약:</strong> 매출 증대로 직결되는 호재입니다.";
+    points = ["계약 금액 비중 확인", "계약 기간 및 상대방 검토"];
+    impact = "매출 증대";
+    typeCls = "insight-success";
+    icon = "contract_edit";
+  } else if (title.includes("유상증자") || title.includes("무상증자")) {
+    insight = "<strong>자본금 변동(증자):</strong> 주식 수 변화에 따른 가치 희석 우려가 있습니다.";
+    points = ["자금 조달 목적(호재/악재) 확인", "신주 배정 비율 확인"];
+    impact = "가치 변동";
+    typeCls = "insight-warning";
+    icon = "add_chart";
+  } else if (title.includes("소유상황") || title.includes("장내매수")) {
+    insight = "<strong>내부자 지분 변동:</strong> 경영진 및 대주주가 주식을 매매했습니다.";
+    points = ["매수/매도 여부에 따른 시그널 판단", "경영권 영향 확인"];
+    impact = "내부자 시그널";
+    typeCls = "insight-success";
+    icon = "person_search";
+  }
+
+  return `
+    <div class="insight-banner ${typeCls}">
+      <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
+      <div class="insight-content">
+        <div class="insight-header">
+          <div class="insight-label">⚡️ 퀵 룰스 분석</div>
+          <div class="insight-impact">${impact}</div>
+        </div>
+        <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
+        <ul class="insight-points">
+          ${points.map(p => `<li>${p}</li>`).join('')}
+        </ul>
+      </div>
+      <div class="insight-actions">
+        <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+      </div>
+    </div>
+  `;
+}

@@ -1,25 +1,33 @@
 // Company Page
 function renderCompany() {
+  const api = window.DART_API;
+  const watchlist = api.getWatchlist ? api.getWatchlist() : [];
+
+  const watchlistButtons = watchlist.length > 0
+    ? watchlist.map(item => `
+        <span style="cursor:pointer;color:var(--secondary);margin-left:8px;white-space:nowrap;"
+              onclick="document.getElementById('company-corp-code').value='${item.code}';doCompanySearch()"
+        >${item.name}</span>`).join('')
+    : '<span style="color:var(--on-surface-variant);margin-left:8px;">관심 종목 없음 (설정에서 추가하세요)</span>';
+
   return `
     <div class="page-header">
       <h2>기업조회</h2>
-      <p>DART 고유번호로 기업개황 조회</p>
+      <p>기업명 또는 고유번호로 기업개황 조회</p>
     </div>
     <div class="filter-bar">
       <div class="form-group" style="flex:2;">
-        <label class="form-label">고유번호 (8자리)</label>
-        <input type="text" class="form-input" id="company-corp-code" placeholder="예: 00126380 (삼성전자)" maxlength="8" />
+        <label class="form-label">기업명 또는 고유번호</label>
+        <input type="text" class="form-input" id="company-corp-code"
+               placeholder="예: 삼성전자  또는  00126380"
+               onkeydown="if(event.key==='Enter') doCompanySearch()" />
       </div>
       <button class="btn-primary" onclick="doCompanySearch()">
         <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">search</span>조회
       </button>
     </div>
     <div class="card card-static" style="margin-bottom:var(--sp-md);padding:var(--sp-md);background:var(--surface-container-low);font-size:13px;color:var(--on-surface-variant);">
-      💡 <strong>주요 기업 고유번호:</strong>
-      <span style="cursor:pointer;color:var(--secondary);margin-left:8px;" onclick="document.getElementById('company-corp-code').value='00126380';doCompanySearch()">삼성전자(00126380)</span>
-      <span style="cursor:pointer;color:var(--secondary);margin-left:8px;" onclick="document.getElementById('company-corp-code').value='00164779';doCompanySearch()">SK하이닉스(00164779)</span>
-      <span style="cursor:pointer;color:var(--secondary);margin-left:8px;" onclick="document.getElementById('company-corp-code').value='00164742';doCompanySearch()">현대자동차(00164742)</span>
-      <span style="cursor:pointer;color:var(--secondary);margin-left:8px;" onclick="document.getElementById('company-corp-code').value='00258801';doCompanySearch()">카카오(00258801)</span>
+      ⭐ <strong>관심 종목 바로가기:</strong>${watchlistButtons}
     </div>
     <div id="company-result"></div>
     <div id="company-disclosures" style="margin-top:var(--sp-xl);"></div>
@@ -28,19 +36,44 @@ function renderCompany() {
 
 async function doCompanySearch() {
   const api = window.DART_API;
-  let corpCode = document.getElementById('company-corp-code')?.value.trim();
+  let input = document.getElementById('company-corp-code')?.value.trim();
   const resultEl = document.getElementById('company-result');
   const discEl = document.getElementById('company-disclosures');
 
-  if (!corpCode) return;
+  if (!input) return;
 
-  // 기업명인 경우 고유번호로 변환 시도
-  const originalInput = corpCode;
-  corpCode = api.findCorpCode(corpCode);
+  let corpCode = input;
 
-  if (corpCode.length !== 8) {
-    resultEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">warning</span><p>'${originalInput}'에 대한 고유번호를 찾을 수 없습니다. 8자리 번호를 직접 입력해주세요.</p></div>`;
-    return;
+  // 8자리 숫자가 아니면 기업명으로 간주 → 고유번호 변환
+  if (!/^\d{8}$/.test(input)) {
+    resultEl.innerHTML = '<div class="loading"><div class="spinner"></div>기업명 검색 중...</div>';
+    // 1. findCorpCode (IndexedDB + 내장맵) 시도
+    corpCode = await api.findCorpCode(input);
+
+    // 2. 실패하면 searchCorpCodes로 퍼지 검색
+    if (!corpCode) {
+      const candidates = await api.searchCorpCodes(input, 5);
+      if (candidates.length === 1) {
+        corpCode = candidates[0].code;
+      } else if (candidates.length > 1) {
+        // 여러 후보 → 선택 UI 표시
+        resultEl.innerHTML = `
+          <div class="card card-static">
+            <p style="margin-bottom:12px;color:var(--on-surface-variant);">
+              '<strong>${input}</strong>'에 해당하는 기업이 여러 개 있습니다. 선택하세요:
+            </p>
+            ${candidates.map(c => `
+              <button class="btn-text" style="display:block;margin-bottom:8px;text-align:left;"
+                onclick="document.getElementById('company-corp-code').value='${c.code}';doCompanySearch()">
+                ${c.name} <span style="color:var(--on-surface-variant);font-size:12px;">(${c.code})</span>
+              </button>`).join('')}
+          </div>`;
+        return;
+      } else {
+        resultEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">warning</span><p>'${input}'에 해당하는 기업을 찾을 수 없습니다.</p></div>`;
+        return;
+      }
+    }
   }
 
   resultEl.innerHTML = '<div class="loading"><div class="spinner"></div>기업 정보 조회 중...</div>';

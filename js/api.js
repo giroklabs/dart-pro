@@ -1,28 +1,48 @@
-// DART OpenAPI Wrapper with Multi-Proxy Support
-const DART_API = {
-  BASE: 'https://opendart.fss.or.kr/api',
+// DART OpenAPI Wrapper
+// 환경 자동 감지: 로컬(localhost) = server.js 내부 프록시, 배포(GitHub Pages 등) = 직접 DART 호출(CORS 프록시 경유)
+const _IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const DART_DIRECT = 'https://opendart.fss.or.kr/api';
+// 공개 CORS 프록시 - 배포 환경에서 DART API CORS 우회
+const CORS_PROXY = 'https://corsproxy.io/?url=';
 
+const api = {
+  BASE: _IS_LOCAL ? '/api/dart' : null, // null이면 _fetch에서 직접 URL 구성
+  GEMINI_BASE: 'https://generativelanguage.googleapis.com/v1beta',
+  
+  // 상태 관리
+  _geminiModel: 'models/gemini-1.5-flash',
+  _corpDb: null,
+  
   getKey() {
-    return localStorage.getItem('dart_api_key') || '';
+    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
+    return settings.apiKey || '';
   },
 
   getGeminiKey() {
-    return localStorage.getItem('gemini_api_key') || '';
+    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
+    return settings.geminiApiKey || '';
   },
 
   setKey(key) {
-    localStorage.setItem('dart_api_key', key);
+    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
+    settings.apiKey = key;
+    localStorage.setItem('dart_settings', JSON.stringify(settings));
   },
 
   setGeminiKey(key) {
-    localStorage.setItem('gemini_api_key', key);
+    const settings = JSON.parse(localStorage.getItem('dart_settings') || '{}');
+    settings.geminiApiKey = key;
+    localStorage.setItem('dart_settings', JSON.stringify(settings));
+  },
+
+  setGeminiModel(modelName) {
+    this._geminiModel = modelName;
   },
 
   async _fetch(endpoint, params = {}) {
     const key = this.getKey();
     if (!key) throw new Error('API 키가 설정되지 않았습니다.');
 
-    // 파라미터 정제 (undefined, null, 빈 문자열 제거)
     const cleanParams = { crtfc_key: key };
     Object.keys(params).forEach(k => {
       if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
@@ -31,59 +51,47 @@ const DART_API = {
     });
 
     const query = new URLSearchParams(cleanParams).toString();
-    const targetUrl = `${this.BASE}/${endpoint}?${query}`;
-
-    // 프록시 목록 (안정성 순서)
-    const proxies = [
-      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-      url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-    ];
-
-    let lastError = null;
-
-    for (const getProxyUrl of proxies) {
-      try {
-        const res = await fetch(getProxyUrl(targetUrl), { 
-          cache: 'no-store',
-          signal: AbortSignal.timeout(12000) // 12초 타임아웃
-        });
-        if (!res.ok) continue;
-
-        const result = await res.json();
-        let data;
-
-        if (result.contents) {
-          data = JSON.parse(result.contents);
-        } else {
-          data = result;
-        }
-
-        // DART 서버에서 에러를 반환한 경우 (프록시 문제가 아님)
-        if (data.status && data.status !== '000') {
-          return this._handleData(data); // 여기서 에러 throw
-        }
-
-        return data;
-      } catch (err) {
-        // DART 서버 에러(status !== '000')인 경우 루프 중단하고 즉시 throw
-        if (err.message.includes('DART 서버 응답 오류') || err.message.includes('부적절한 값')) {
-          throw err;
-        }
-        lastError = err;
-        continue;
-      }
+    
+    // 로컬: server.js 내부 프록시, 배포: CORS 프록시 경유 직접 호출
+    let targetUrl;
+    if (_IS_LOCAL) {
+      targetUrl = `/api/dart/${endpoint}?${query}`;
+    } else {
+      const dartUrl = `${DART_DIRECT}/${endpoint}?${query}`;
+      targetUrl = `${CORS_PROXY}${encodeURIComponent(dartUrl)}`;
     }
 
-    throw new Error(`데이터 로드 실패 (프록시 모두 응답 없음): ${lastError?.message || 'Unknown'}`);
+    try {
+      const res = await fetch(targetUrl, { 
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15000)
+      });
+      
+      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+      
+      const data = await res.json();
+      
+      // DART 서버 에러 검출
+      if (data.status && data.status !== '000') {
+        return this._handleData(data); // 에러 파싱 후 throw
+      }
+      return data;
+    } catch (err) {
+      if (err.message.includes('DART') || err.message.includes('부적절한 값')) {
+        throw err;
+      }
+      throw new Error(`데이터 로드 실패: ${err.message}`);
+    }
   },
 
   _handleData(data) {
+    if (data.status === '013') {
+      return { ...data, list: [] }; // 에러가 아닌 빈 리스트로 정상 처리
+    }
     if (data.status && data.status !== '000') {
       const messages = {
         '010': '등록되지 않은 키입니다.',
         '011': '사용할 수 없는 키입니다.',
-        '013': '조회된 데이터가 없습니다.',
         '020': '요청 제한을 초과하였습니다.',
         '800': '시스템 점검 중입니다.',
       };
@@ -108,25 +116,18 @@ const DART_API = {
     try {
       const key = this.getKey();
       if (!key) return;
-      const url = `https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${key}`;
+      const targetUrl = `${this.BASE}/corpCode.xml?crtfc_key=${key}`;
       
-      const proxies = [
-        u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-        u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
-      ];
-
-      for (const getProxyUrl of proxies) {
-        try {
-          const proxyUrl = getProxyUrl(url);
-          const res = await fetch(proxyUrl, { cache: 'no-store' });
-          if (!res.ok) continue;
+      try {
+        const res = await fetch(targetUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
           
-          const zipData = await res.arrayBuffer();
-          if (zipData.byteLength < 5000) continue;
+        const zipData = await res.arrayBuffer();
+        if (zipData.byteLength < 5000) throw new Error('Zip 파일이 너무 작거나 깨졌습니다.');
 
-          const zip = await JSZip.loadAsync(zipData);
-          const xmlFile = zip.file("CORPCODE.xml");
-          if (!xmlFile) continue;
+        const zip = await JSZip.loadAsync(zipData);
+        const xmlFile = zip.file("CORPCODE.xml");
+        if (!xmlFile) throw new Error('CORPCODE.xml 파일이 없습니다.');
           
           const xmlText = await xmlFile.async("string");
           const parser = new DOMParser();
@@ -144,10 +145,9 @@ const DART_API = {
           localStorage.setItem('dart_corp_db', JSON.stringify(this._corpDb));
           return db;
         } catch (err) {
-          console.warn(`Proxy Failed: ${err.message}`);
+          console.error(`Backend Proxy Failed: ${err.message}`);
+          return {};
         }
-      }
-      return {};
     } catch (err) {
       console.error("Critical DB Error:", err);
       return {};
@@ -397,44 +397,63 @@ const DART_API = {
     const key = this.getGeminiKey();
     if (!key) return null;
 
+    if (this._geminiRateLimitUntil && Date.now() < this._geminiRateLimitUntil) {
+      throw new Error(`할당량 초과 (429): 분당 요청 제한에 걸렸습니다. 잠시 후 다시 시도하세요.`);
+    }
+
+    // 전역 캐시 확인 (모든 분석 요청에 적용)
+    const cacheKey = `gemini_cache_${corpName}_${reportNm}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
     try {
-      // 1. 가용 모델 리스트 조회 (권한 및 유효 모델 확인)
-      const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-      const listRes = await fetch(listUrl);
-      if (!listRes.ok) {
-        const err = await listRes.json();
-        throw new Error(`API 권한 오류 (${listRes.status}): ${err.error?.message || '접근 거부'}`);
-      }
+      let modelId = this._geminiTargetModelId;
       
-      const listData = await listRes.json();
-      const availableModels = listData.models || [];
-      
-      // 1. Flash 모델 최우선 검색 (비용 및 속도 최적화)
-      let targetModel = availableModels.find(m => 
-        m.name.toLowerCase().includes('1.5-flash') && 
-        m.supportedGenerationMethods.includes('generateContent')
-      );
-
-      if (!targetModel) {
-        targetModel = availableModels.find(m => 
-          m.name.toLowerCase().includes('flash') && 
+      // 모델 조회를 캐시하여 1분당 요청 횟수(RPM)를 절반으로 줄입니다.
+      if (!modelId) {
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+        const listRes = await fetch(listUrl);
+        if (!listRes.ok) {
+          const err = await listRes.json();
+          throw new Error(`API 권한 오류 (${listRes.status}): ${err.error?.message || '접근 거부'}`);
+        }
+        
+        const listData = await listRes.json();
+        const availableModels = listData.models || [];
+        
+        let targetModel = availableModels.find(m => 
+          m.name.toLowerCase().includes('1.5-flash') && 
           m.supportedGenerationMethods.includes('generateContent')
         );
+
+        if (!targetModel) {
+          targetModel = availableModels.find(m => 
+            m.name.toLowerCase().includes('flash') && 
+            m.supportedGenerationMethods.includes('generateContent')
+          );
+        }
+
+        if (!targetModel) {
+          targetModel = availableModels.find(m => 
+            m.name.toLowerCase().includes('pro') && 
+            m.supportedGenerationMethods.includes('generateContent')
+          );
+        }
+
+        if (!targetModel) {
+          throw new Error("Gemini Flash 모델을 찾을 수 없습니다. API 키의 모델 권한을 확인하세요.");
+        }
+
+        modelId = targetModel.name.split('/').pop();
+        this._geminiTargetModelId = modelId; // 캐시 저장
       }
 
-      // 2. Flash가 없는 경우에만 Pro 계열 검색
-      if (!targetModel) {
-        targetModel = availableModels.find(m => 
-          m.name.toLowerCase().includes('pro') && 
-          m.supportedGenerationMethods.includes('generateContent')
-        );
-      }
-
-      if (!targetModel) {
-        throw new Error("Gemini Flash 모델을 찾을 수 없습니다. API 키의 모델 권한을 확인하세요.");
-      }
-
-      const modelId = targetModel.name.split('/').pop();
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`;
       
       const prompt = `당신은 전문 주식 투자 분석가입니다. 다음 공시 정보를 바탕으로 투자자에게 도움이 될 만한 '인사이트 요약'과 '시장 영향력'을 한국어로 작성해 주세요. 
@@ -454,8 +473,10 @@ const DART_API = {
       if (!res.ok) {
         const errData = await res.json();
         const msg = errData.error?.message || '';
-        if (res.status === 429 && msg.includes('limit: 0')) {
-          throw new Error(`할당량 부족 (429): 현재 모델(${modelId})에 대한 무료 쿼터가 없습니다. Flash 모델로 변경하거나 결제 정보를 등록하세요.`);
+        if (res.status === 429) {
+          // 429 에러 발생 시 60초간 API 호출 완전 차단 (서킷 브레이커)
+          this._geminiRateLimitUntil = Date.now() + 60000;
+          throw new Error(`할당량 초과 (429): 분당 요청 제한에 걸렸습니다. 1분 후 다시 시도하세요.`);
         }
         throw new Error(`분석 요청 실패 (${res.status}): ${msg || 'Unknown'}`);
       }
@@ -464,7 +485,11 @@ const DART_API = {
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
         const text = data.candidates[0].content.parts[0].text;
         const cleanedText = text.replace(/```json|```/g, '').trim();
-        return JSON.parse(cleanedText);
+        const parsedData = JSON.parse(cleanedText);
+        
+        // 캐시 저장: 기업명과 공시제목을 키로 사용하여 영구 저장
+        localStorage.setItem(cacheKey, JSON.stringify(parsedData));
+        return parsedData;
       }
     } catch (err) {
       console.error('Gemini Analysis Critical Error:', err);
@@ -536,4 +561,5 @@ const DART_API = {
   }
 };
 
-window.DART_API = DART_API;
+window.DART_API = api;
+window.api = api;
