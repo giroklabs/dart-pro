@@ -38,12 +38,17 @@ async function renderWatchlistTable() {
     return '<p style="font-size:13px;color:var(--outline);text-align:center;padding:20px;">등록된 기업이 없습니다.</p>';
   }
 
-  // 최신 DB 기준으로 이름 교정
+  // 이름이 코드 형태(8자리 숫자)인 경우에만 DB로 보완, 정상 이름이면 그대로 사용
   const rows = await Promise.all(watchlist.map(async item => {
-    const correctedName = await api.getCorpName(item.code);
+    const isNameAsCode = /^\d{8}$/.test(item.name);
+    let displayName = item.name;
+    if (isNameAsCode || !item.name) {
+      const corrected = await api.getCorpName(item.code);
+      if (corrected && corrected !== item.code) displayName = corrected;
+    }
     return `
       <tr>
-        <td class="bold">${correctedName || item.name}</td>
+        <td class="bold">${displayName}</td>
         <td class="mono">${item.code}</td>
         <td class="text-right">
           <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${item.code}')">삭제</button>

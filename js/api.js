@@ -100,8 +100,16 @@ const api = {
     return {};
   },
 
-  // 고유번호로 회사 이름 찾기
+  // 고유번호로 회사 이름 찾기 (INTERNAL_MAP 우선)
   async getCorpName(code) {
+    const INTERNAL_MAP = {
+      "00126380": "삼성전자", "00164779": "SK하이닉스", "00164742": "현대자동차",
+      "00111722": "미래에셋증권", "01042775": "HL만도", "00547583": "하나금융지주",
+      "00570387": "하나금융지주", "00258838": "카카오", "00266961": "NAVER",
+      "00305884": "에코프로", "00126431": "대한항공", "00155167": "한화솔루션",
+      "00159109": "한국전력공사"
+    };
+    if (INTERNAL_MAP[code]) return INTERNAL_MAP[code];
     const db = await this.initCorpCodes();
     return db[code] || code;
   },
