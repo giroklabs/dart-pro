@@ -134,14 +134,22 @@ const server = http.createServer((req, res) => {
   // 3. DART API 백엔드 프록시 (기존 기능 유지 및 개선)
   // ==========================================
   if (pathname.startsWith('/api/dart/')) {
-    const dartPath = pathname.replace('/api/dart/', '');
-    const targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
+    // DART API 키 (서버에서 관리)
+    const DART_API_KEY = '53887019f20e43924765d77443183569c7625167'; // 기존에 사용하시던 키
+    
+    let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
+    if (!targetUrl.includes('crtfc_key=')) {
+      targetUrl += (targetUrl.includes('?') ? '&' : '?') + `crtfc_key=${DART_API_KEY}`;
+    }
+    
+    console.log(`[DART Proxy] Requesting: ${targetUrl}`);
     
     const options = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*'
-      }
+      },
+      rejectUnauthorized: false // SSL 인증서 검증 일시 완화 (필요시)
     };
 
     const proxyReq = https.get(targetUrl, options, (proxyRes) => {
@@ -149,6 +157,8 @@ const server = http.createServer((req, res) => {
       delete proxyRes.headers['x-frame-options'];
       delete proxyRes.headers['content-security-policy'];
       
+      // CORS 대응
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res, { end: true });
     });
