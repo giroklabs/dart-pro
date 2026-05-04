@@ -137,12 +137,16 @@ class DARTManager: ObservableObject {
     func testPushNotification() {
         guard let url = URL(string: "\(baseURL)/test-push") else { return }
         let fcmToken = UserDefaults.standard.string(forKey: "fcm_token") ?? ""
+        let uid = AuthManager.shared.user?.uid ?? ""
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body: [String: Any] = ["fcmToken": fcmToken]
+        let body: [String: Any] = [
+            "fcmToken": fcmToken,
+            "uid": uid
+        ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         URLSession.shared.dataTask(with: request) { data, _, _ in

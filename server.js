@@ -105,10 +105,31 @@ const server = http.createServer((req, res) => {
           token: fcmToken
         };
 
-        const response = await admin.messaging().send(message);
-        console.log('✅ Test push sent successfully:', response);
+        await admin.messaging().send(message);
+
+        // 알림 센터 내역에 저장
+        const { uid } = JSON.parse(body);
+        if (uid) {
+          const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
+          let userNotifs = [];
+          if (fs.existsSync(userNotifFile)) {
+            userNotifs = JSON.parse(fs.readFileSync(userNotifFile, 'utf8'));
+          }
+          userNotifs.unshift({
+            id: Date.now().toString(),
+            title: '🔔 테스트 알림',
+            body: '알림 테스트가 성공적으로 완료되었습니다.',
+            date: new Date().toISOString(),
+            rceptNo: 'TEST_000',
+            isRead: false
+          });
+          // 최대 50개까지만 유지
+          fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
+          console.log(`[TestPush] Notification saved for UID: ${uid}`);
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: '000', message: '테스트 알림 발송 성공' }));
+        res.end(JSON.stringify({ status: '000', message: '테스트 알림 발송 및 저장 성공' }));
       } catch (err) {
         console.error('❌ Test push ERROR DETAILS:', err); // 에러 객체 전체 출력
         res.writeHead(400, { 'Content-Type': 'application/json' });

@@ -51,6 +51,7 @@ struct ContentView: View {
                     .padding(.top, 10)
                     .padding(.bottom, 12)
                     
+                    /*
                     // Global Gemini Analysis Toggle Bar
                     VStack(spacing: 0) {
                         HStack {
@@ -90,6 +91,7 @@ struct ContentView: View {
                         .padding(.horizontal, 16)
                     }
                     .padding(.bottom, 10)
+                    */
                     
                     // Main List
                     if manager.disclosures.isEmpty && !manager.isLoading {

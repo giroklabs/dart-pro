@@ -6,6 +6,8 @@ struct DisclosureDetailView: View {
     @StateObject var authManager = AuthManager.shared
     @State private var isGeminiEnabled = false
     @State private var showSafari = false
+    @State private var showAISafari = false
+    @State private var showPremiumAlert = false
     @State private var geminiResult: AnalysisResult?
     @State private var isAnalyzing = false
     
@@ -51,127 +53,57 @@ struct DisclosureDetailView: View {
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                 
-                // 상세보기 링크 버튼
-                if let rceptNo = record.rceptNo, !rceptNo.isEmpty {
-                    Button(action: { showSafari = true }) {
+                // 상세보기 및 AI 분석 링크 (한 줄 배치)
+                HStack(spacing: 20) {
+                    if let rceptNo = record.rceptNo, !rceptNo.isEmpty {
+                        Button(action: { showSafari = true }) {
+                            HStack {
+                                Image(systemName: "doc.text.fill")
+                                Text("DART 상세보기")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(AppTheme.primary)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
+                        .sheet(isPresented: $showSafari) {
+                            if let url = URL(string: "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=\(rceptNo)") {
+                                SafariView(url: url)
+                            }
+                        }
+                    }
+                    
+                    Button(action: {
+                        if authManager.isPremium {
+                            showAISafari = true
+                        } else {
+                            showPremiumAlert = true
+                        }
+                    }) {
                         HStack {
-                            Image(systemName: "doc.text.fill")
-                            Text("DART 공시 원문 상세보기")
-                                .fontWeight(.semibold)
+                            Image(systemName: "sparkles")
+                            Text("AI 심층분석")
+                                .fontWeight(.bold)
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(AppTheme.primary)
+                        .background(Color.purple)
                         .foregroundColor(.white)
-                        .cornerRadius(10)
+                        .cornerRadius(12)
                     }
-                    .sheet(isPresented: $showSafari) {
-                        if let url = URL(string: "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=\(rceptNo)") {
+                    .sheet(isPresented: $showAISafari) {
+                        if let url = URL(string: "https://dartpro.duckdns.org/dashboard") {
                             SafariView(url: url)
                         }
                     }
                 }
-                
-                // Gemini AI 분석 섹션
-                VStack(alignment: .leading, spacing: 15) {
-                    HStack {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(.purple)
-                        Text(isAnalyzing ? "Gemini 실시간 분석 중..." : "Gemini AI 스마트 분석")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        if isAnalyzing {
-                            ProgressView()
-                        } else if authManager.isPremium {
-                            Toggle("", isOn: $isGeminiEnabled)
-                                .labelsHidden()
-                                .tint(.purple)
-                        } else {
-                            Image(systemName: "lock.fill")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                        }
-                    }
-                    
-                    if !authManager.isPremium {
-                        VStack(alignment: .center, spacing: 10) {
-                            Text("프리미엄 전용 기능입니다.")
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                            Text("AI 분석을 통해 공시의 핵심과 투자 인사이트를 즉시 확인하세요.")
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(.secondary)
-                            
-                            Button("프리미엄 업그레이드") {
-                                // 업그레이드 로직
-                            }
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.purple.opacity(0.1))
-                            .foregroundColor(.purple)
-                            .cornerRadius(20)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.purple.opacity(0.05))
-                        .cornerRadius(10)
-                    } else if isGeminiEnabled {
-                        VStack(alignment: .leading, spacing: 12) {
-                            if isAnalyzing {
-                                Text("Gemini가 공시 내용을 심층 분석하고 있습니다. 잠시만 기다려주세요...")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .italic()
-                            } else {
-                                Text(analysis.insight)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.purple)
-                                
-                                Divider()
-                                
-                                ForEach(analysis.points, id: \.self) { point in
-                                    HStack(alignment: .top, spacing: 8) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.purple)
-                                            .padding(.top, 2)
-                                        Text(point)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                
-                                HStack {
-                                    Text("투자 영향도:")
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                    Text(analysis.impact)
-                                        .font(.caption)
-                                        .foregroundColor(.purple)
-                                }
-                                .padding(.top, 4)
-                            }
-                        }
-                        .padding()
-                        .background(Color.purple.opacity(0.05))
-                        .cornerRadius(10)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    } else {
-                        Text("토글을 켜서 AI 분석 내용을 확인하세요.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                .alert("프리미엄 전용 기능", isPresented: $showPremiumAlert) {
+                    Button("확인", role: .cancel) { }
+                } message: {
+                    Text("Gemini AI 심층 분석은 프리미엄 구독자에게만 제공됩니다. 웹 대시보드에서 전문적인 리포트를 확인해 보세요!")
                 }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                 
                 Spacer()
             }

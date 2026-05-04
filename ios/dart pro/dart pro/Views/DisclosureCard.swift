@@ -5,6 +5,8 @@ struct DisclosureCard: View {
     let isGeminiEnabled: Bool
     @StateObject var authManager = AuthManager.shared
     @State private var showSafari = false
+    @State private var showAISafari = false
+    @State private var showPremiumAlert = false
     @State private var geminiResult: AnalysisResult?
     @State private var isAnalyzing = false
     
@@ -45,18 +47,40 @@ struct DisclosureCard: View {
                     .lineLimit(2)
             }
             
-            // DART 상세보기 링크 (웹 스타일)
-            if let rceptNo = item.rcept_no, !rceptNo.isEmpty {
-                Button(action: { showSafari = true }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.right.square")
-                        Text("DART 상세보기")
+            // 링크 섹션: 상세보기 및 AI 분석
+            HStack(spacing: 16) {
+                if let rceptNo = item.rcept_no, !rceptNo.isEmpty {
+                    Button(action: { showSafari = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right.square")
+                            Text("DART 상세보기")
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(AppTheme.primary)
                     }
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(AppTheme.primary)
+                    .sheet(isPresented: $showSafari) {
+                        if let url = URL(string: "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=\(rceptNo)") {
+                            SafariView(url: url)
+                        }
+                    }
                 }
-                .sheet(isPresented: $showSafari) {
-                    if let url = URL(string: "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=\(rceptNo)") {
+                
+                Button(action: {
+                    if authManager.isPremium {
+                        showAISafari = true
+                    } else {
+                        showPremiumAlert = true
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                        Text("AI 심층분석")
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.purple)
+                }
+                .sheet(isPresented: $showAISafari) {
+                    if let url = URL(string: "https://dartpro.duckdns.org/dashboard") {
                         SafariView(url: url)
                     }
                 }
@@ -111,57 +135,24 @@ struct DisclosureCard: View {
                             }
                         }
                     }
-                    
-                    // Gemini AI 상세 분석 (글로벌 토글 ON & 프리미엄일 때)
-                    if isGeminiEnabled && authManager.isPremium {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Divider()
-                                .padding(.vertical, 4)
-                            
-                            HStack {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.purple)
-                                Text(isAnalyzing ? "Gemini 분석 중..." : "Gemini Insight")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.purple)
-                            }
-                            
-                            if isAnalyzing {
-                                Text("데이터를 분석하여 투자 인사이트를 도출하고 있습니다.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                                    .italic()
-                            } else {
-                                ForEach(analysis.points, id: \.self) { point in
-                                    HStack(alignment: .top, spacing: 6) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.purple)
-                                            .padding(.top, 2)
-                                        Text(point)
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.primary.opacity(0.8))
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                }
-                            }
-                        }
-                        .transition(.opacity)
-                    }
                 }
             }
             .padding(12)
-            .background(isGeminiEnabled && authManager.isPremium ? Color.purple.opacity(0.03) : Color.secondary.opacity(0.05))
+            .background(Color.secondary.opacity(0.05))
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isGeminiEnabled && authManager.isPremium ? Color.purple.opacity(0.3) : impactColor(analysis.typeCls).opacity(0.2), lineWidth: 1)
+                    .stroke(impactColor(analysis.typeCls).opacity(0.2), lineWidth: 1)
             )
         }
         .padding(16)
         .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(16)
+        .alert("프리미엄 전용 기능", isPresented: $showPremiumAlert) {
+            Button("확인", role: .cancel) { }
+        } message: {
+            Text("Gemini AI 심층 분석은 프리미엄 구독자에게만 제공됩니다. 웹 대시보드에서 전문적인 리포트를 확인해 보세요!")
+        }
         .padding(.horizontal)
         .onChange(of: isGeminiEnabled) { newValue in
             if newValue && authManager.isPremium && geminiResult == nil {
