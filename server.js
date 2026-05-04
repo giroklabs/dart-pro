@@ -181,17 +181,26 @@ const server = http.createServer((req, res) => {
       const codes = corpCode.split(',');
       console.log(`[DART Proxy] Batch requesting for ${codes.length} codes...`);
       
-      const fetchPromises = codes.map(code => {
-        const singleUrl = targetUrl.replace(`corp_code=${encodeURIComponent(corpCode)}`, `corp_code=${code}`);
+      const fetchPromises = codes.map((code, index) => {
         return new Promise((resolve) => {
-          https.get(singleUrl, options, (pRes) => {
-            let data = '';
-            pRes.on('data', chunk => data += chunk);
-            pRes.on('end', () => {
-              try { resolve(JSON.parse(data).list || []); }
-              catch (e) { resolve([]); }
-            });
-          }).on('error', () => resolve([]));
+          // 0.1초 간격으로 순차 요청 (DART 차단 방지)
+          setTimeout(() => {
+            const urlObj = new URL(targetUrl);
+            urlObj.searchParams.set('corp_code', code);
+            urlObj.searchParams.set('page_count', '10'); // 종목당 최대 10건
+            const singleUrl = urlObj.toString();
+
+            https.get(singleUrl, options, (pRes) => {
+              let data = '';
+              pRes.on('data', chunk => data += chunk);
+              pRes.on('end', () => {
+                try { 
+                  const json = JSON.parse(data);
+                  resolve(json.list || []); 
+                } catch (e) { resolve([]); }
+              });
+            }).on('error', () => resolve([]));
+          }, index * 100);
         });
       });
 
