@@ -88,9 +88,9 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: '000', message: '테스트 알림 발송 성공' }));
       } catch (err) {
-        console.error('❌ Test push failed:', err.message);
+        console.error('❌ Test push ERROR DETAILS:', err); // 에러 객체 전체 출력
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: '500', message: err.message }));
+        res.end(JSON.stringify({ status: '500', message: err.message, code: err.code }));
       }
     });
     return;
@@ -321,7 +321,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
-  console.log(`🚀 DART Pro 정식 백엔드 서버가 시작되었습니다.`);
+  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-04 22:10)`);
   console.log(`👉 접속 주소: http://localhost:${PORT}`);
   console.log(`==============================================\n`);
   console.log(`서버 종료는 Ctrl + C 를 누르세요.`);
