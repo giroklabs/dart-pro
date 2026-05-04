@@ -321,8 +321,112 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
-  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-04 22:10)`);
+  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-04 22:22)`);
   console.log(`👉 접속 주소: http://localhost:${PORT}`);
   console.log(`==============================================\n`);
-  console.log(`서버 종료는 Ctrl + C 를 누르세요.`);
+  
+  // 감시 엔진 시작
+  startMonitoring();
 });
+
+// ==========================================
+// 4. 실시간 공시 감시 엔진 (Monitoring Engine)
+// ==========================================
+let lastProcessedRceptNo = null;
+const RCEPT_FILE = path.join(DATA_DIR, 'last_rcept_no.txt');
+
+function startMonitoring() {
+  console.log('📡 Monitoring engine started (Interval: 1 min)');
+  
+  // 재시작 시 마지막 접수번호 로드
+  if (fs.existsSync(RCEPT_FILE)) {
+    lastProcessedRceptNo = fs.readFileSync(RCEPT_FILE, 'utf8').trim();
+    console.log(`[Monitor] Resuming from last rcept_no: ${lastProcessedRceptNo}`);
+  }
+
+  // 1분마다 체크 (60000ms)
+  setInterval(checkNewDisclosures, 60000);
+  // 시작하자마자 한 번 체크
+  checkNewDisclosures();
+}
+
+async function checkNewDisclosures() {
+  const DART_API_KEY = process.env.DART_API_KEY;
+  if (!DART_API_KEY) return;
+
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const url = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&bgn_de=${today}&page_count=20`;
+
+  https.get(url, (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', async () => {
+      try {
+        const json = JSON.parse(data);
+        if (json.status !== '000' || !json.list || json.list.length === 0) return;
+
+        const latest = json.list[0];
+        
+        // 새로운 공시가 없는 경우
+        if (latest.rcept_no === lastProcessedRceptNo) return;
+
+        // 처음 시작하거나 새로운 공시들이 있는 경우
+        let newItems = [];
+        if (!lastProcessedRceptNo) {
+          newItems = [latest]; // 처음엔 최신 것 하나만
+        } else {
+          for (let item of json.list) {
+            if (item.rcept_no === lastProcessedRceptNo) break;
+            newItems.push(item);
+          }
+        }
+
+        if (newItems.length > 0) {
+          console.log(`[Monitor] Found ${newItems.length} new disclosures!`);
+          
+          // 구독 정보 로드
+          const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
+          if (fs.existsSync(SUBS_FILE)) {
+            const subs = JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8'));
+            
+            for (let item of newItems.reverse()) { // 오래된 것부터 순서대로 발송
+              const targets = subs[item.corp_code] || [];
+              if (targets.length > 0) {
+                console.log(`[Monitor] Sending push for ${item.corp_name} to ${targets.length} users`);
+                
+                for (let token of targets) {
+                  const message = {
+                    notification: {
+                      title: `🔔 [${item.corp_name}] 공시 알림`,
+                      body: item.report_nm.trim()
+                    },
+                    data: {
+                      rcept_no: item.rcept_no,
+                      corp_code: item.corp_code,
+                      type: 'DISCLOSURE'
+                    },
+                    token: token
+                  };
+                  
+                  try {
+                    await admin.messaging().send(message);
+                  } catch (e) {
+                    console.error('[Monitor] Push failed for token:', token.substring(0, 10));
+                  }
+                }
+              }
+            }
+          }
+
+          // 마지막 번호 업데이트 및 저장
+          lastProcessedRceptNo = latest.rcept_no;
+          fs.writeFileSync(RCEPT_FILE, lastProcessedRceptNo);
+        }
+      } catch (e) {
+        console.error('[Monitor] Error parsing data:', e.message);
+      }
+    });
+  }).on('error', (err) => {
+    console.error('[Monitor] Network error:', err.message);
+  });
+}
