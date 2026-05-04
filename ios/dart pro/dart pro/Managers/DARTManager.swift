@@ -36,18 +36,32 @@ class DARTManager: ObservableObject {
         let urlString = "\(baseURL)/push/watchlist?uid=\(user.uid)"
         guard let url = URL(string: urlString) else { return }
         
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data = data,
-                  let codes = try? JSONDecoder().decode([String].self, from: data) else { return }
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("[API] Watchlist fetch error:", error.localizedDescription)
+                return
+            }
             
-            // 기업 명칭을 포함한 리스트로 변환 (서버 API 설계에 따라 달라짐)
-            // 여기서는 코드로만 구성하거나 별도 매핑 필요
-            DispatchQueue.main.async {
-                // 받아온 코드를 WatchItem 객체로 변환
-                self.watchlist = codes.map { WatchItem(code: $0, name: "관심종목(\($0))") }
-                self.saveWatchlist()
-                self.fetchLatestDisclosures()
-                print("[API] Watchlist synced from server: \(codes)")
+            guard let data = data else {
+                print("[API] Watchlist fetch: No data received")
+                return
+            }
+            
+            // 응답 데이터가 문자열인 경우 출력 (디버깅용)
+            if let rawString = String(data: data, encoding: .utf8) {
+                print("[API] Raw Response:", rawString)
+            }
+
+            do {
+                let codes = try JSONDecoder().decode([String].self, from: data)
+                DispatchQueue.main.async {
+                    self.watchlist = codes.map { WatchItem(code: $0, name: "관심종목(\($0))") }
+                    self.saveWatchlist()
+                    self.fetchLatestDisclosures()
+                    print("[API] Watchlist synced from server: \(codes)")
+                }
+            } catch {
+                print("[API] Watchlist decoding failed:", error)
             }
         }.resume()
     }
