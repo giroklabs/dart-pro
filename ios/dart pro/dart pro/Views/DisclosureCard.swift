@@ -4,59 +4,99 @@ struct DisclosureCard: View {
     let item: DisclosureItem
     
     var body: some View {
+        let analysis = item.analysis
+        
         VStack(alignment: .leading, spacing: 12) {
+            // 헤더: 법인구분 및 날짜
             HStack {
-                // 시장 구분 뱃지
-                Text(item.corp_cls_name)
+                Text(item.corp_cls == "Y" ? "코스피" : "코스닥")
                     .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(item.corp_cls_color.opacity(0.2))
-                    .foregroundColor(item.corp_cls_color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(item.corp_cls == "Y" ? Color.blue.opacity(0.1) : Color.orange.opacity(0.1))
+                    .foregroundColor(item.corp_cls == "Y" ? .blue : .orange)
                     .cornerRadius(4)
                 
                 Spacer()
                 
                 Text(item.formattedDate)
-                    .font(AppTheme.captionFont)
-                    .foregroundColor(AppTheme.textSecondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
             }
             
+            // 제목 및 회사명
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.corp_name)
-                    .font(AppTheme.headlineFont)
-                    .foregroundColor(AppTheme.textPrimary)
+                Text(item.corp_name ?? "알 수 없음")
+                    .font(.system(size: 18, weight: .bold))
                 
-                Text(item.report_nm)
-                    .font(AppTheme.bodyFont)
-                    .foregroundColor(AppTheme.textPrimary)
+                Text(item.report_nm ?? "공시 정보 없음")
+                    .font(.system(size: 14))
+                    .foregroundColor(.primary)
                     .lineLimit(2)
             }
             
-            HStack {
-                Text(item.flr_nm)
-                    .font(AppTheme.captionFont)
-                    .foregroundColor(AppTheme.textSecondary)
-                
-                Spacer()
-                
-                // AI 분석 버튼 (예시)
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
+            // QUICK 분석 섹션 (웹 스타일)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(.yellow)
+                        .font(.system(size: 12))
                     Text("QUICK 분석")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.secondary)
+                    
+                    Text("[\(analysis.category)]")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.7))
+                    
+                    Spacer()
+                    
+                    Text(analysis.impact)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(impactColor(analysis.typeCls))
                 }
-                .font(.system(size: 12, weight: .semibold))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(AppTheme.primary.opacity(0.1))
-                .foregroundColor(AppTheme.primary)
-                .cornerRadius(20)
+                
+                // 픽토그램 제거 및 텍스트 중심 레이아웃
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(analysis.insight)
+                        .font(.system(size: 13, weight: .bold)) // 강조를 위해 굵게 변경
+                        .foregroundColor(.primary.opacity(0.9))
+                    
+                    ForEach(analysis.points, id: \.self) { point in
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("•")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                            Text(point)
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
             }
+            .padding(12)
+            .background(Color.secondary.opacity(0.05))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(impactColor(analysis.typeCls).opacity(0.2), lineWidth: 1)
+            )
         }
         .padding(16)
-        .background(AppTheme.cardBackground)
+        .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+        .padding(.horizontal)
+    }
+    
+    private func impactColor(_ type: String) -> Color {
+        switch type {
+        case "success": return .green
+        case "warning": return .orange
+        case "danger": return .red
+        case "info": return .blue
+        default: return .secondary
+        }
     }
 }
 

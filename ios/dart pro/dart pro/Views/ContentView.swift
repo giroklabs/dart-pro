@@ -5,6 +5,8 @@ struct ContentView: View {
     @StateObject var manager = DARTManager()
     @StateObject var authManager = AuthManager.shared
     @State private var showingSearch = false
+    @State private var showingSettings = false
+    @State private var showingNotificationCenter = false
     
     var body: some View {
         NavigationView {
@@ -17,41 +19,41 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("DART Pro")
                                 .font(AppTheme.largeTitleFont)
-                                .foregroundColor(AppTheme.primary)
+                                .foregroundColor(.primary)
                             if let user = authManager.user {
                                 Text("\(user.email ?? "사용자")님 환영합니다")
                                     .font(AppTheme.captionFont)
-                                    .foregroundColor(AppTheme.textSecondary)
-                            } else {
-                                Text("로그인하여 종목을 동기화하세요")
-                                    .font(AppTheme.captionFont)
-                                    .foregroundColor(AppTheme.textSecondary)
+                                    .foregroundColor(.secondary)
                             }
                         }
                         
                         Spacer()
                         
                         HStack(spacing: 12) {
-                            Button(action: {
-                                if authManager.user != nil {
-                                    authManager.signOut()
-                                } else {
-                                    authManager.signInWithGoogle()
-                                }
-                            }) {
-                                Image(systemName: authManager.user != nil ? "person.circle.fill" : "person.circle")
-                                    .font(.title2)
-                                    .foregroundColor(AppTheme.primary)
+                            // 알림 센터 버튼
+                            Button(action: { showingNotificationCenter = true }) {
+                                Image(systemName: "bell")
+                                    .font(.title3)
+                                    .foregroundColor(.primary)
                             }
                             
+                            // 설정 버튼
+                            Button(action: { showingSettings = true }) {
+                                Image(systemName: "gearshape")
+                                    .font(.title3)
+                                    .foregroundColor(.primary)
+                            }
+                            
+                            // 검색 버튼
                             Button(action: { showingSearch = true }) {
                                 Image(systemName: "magnifyingglass")
-                                    .font(.title2)
-                                    .foregroundColor(AppTheme.primary)
+                                    .font(.title3)
+                                    .foregroundColor(.primary)
                             }
                         }
-                        .padding(12)
-                        .background(Color.white.opacity(0.05))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.secondary.opacity(0.1))
                         .clipShape(Capsule())
                     }
                     .padding(.horizontal, 20)
@@ -88,6 +90,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingSearch) {
             SearchView(manager: manager)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(manager: manager)
+        }
+        .sheet(isPresented: $showingNotificationCenter) {
+            NotificationCenterView()
         }
     }
 }

@@ -49,9 +49,37 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        // 알림 클릭 처리
-        let userInfo = response.notification.request.content.userInfo
-        print("📌 Notification Clicked: \(userInfo)")
+        // 알림 클릭 처리 및 저장
+        let content = response.notification.request.content
+        let title = content.title
+        let body = content.body
+        
+        saveToHistory(title: title, body: body)
+        
+        print("📌 Notification Clicked: \(title)")
         completionHandler()
+    }
+    
+    private func saveToHistory(title: String, body: String) {
+        let newRecord = ["id": UUID().uuidString, "title": title, "body": body, "date": Date().timeIntervalSince1970] as [String : Any]
+        
+        var history = UserDefaults.standard.array(forKey: "notification_history_raw") as? [[String: Any]] ?? []
+        history.insert(newRecord, at: 0)
+        if history.count > 50 { history.removeLast() } // 최대 50개 유지
+        
+        UserDefaults.standard.set(history, forKey: "notification_history_raw")
+        
+        // NotificationCenterView에서 사용하는 NotificationRecord 형식으로 변환하여 저장
+        let records = history.compactMap { dict -> NotificationRecord? in
+            guard let id = dict["id"] as? String,
+                  let title = dict["title"] as? String,
+                  let body = dict["body"] as? String,
+                  let timestamp = dict["date"] as? Double else { return nil }
+            return NotificationRecord(id: id, title: title, body: body, date: Date(timeIntervalSince1970: timestamp))
+        }
+        
+        if let encoded = try? JSONEncoder().encode(records) {
+            UserDefaults.standard.set(encoded, forKey: "notification_history")
+        }
     }
 }

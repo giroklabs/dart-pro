@@ -2,22 +2,22 @@ import SwiftUI
 
 struct AppTheme {
     // Colors
-    static let primary = Color(hex: "FFCC00") // DART의 포인트 컬러 (노란색 계열)
-    static let secondary = Color(hex: "1A1A1A")
-    static let background = Color(hex: "0F0F0F")
-    static let cardBackground = Color(hex: "1E1E1E")
-    static let textPrimary = Color.white
-    static let textSecondary = Color.gray
+    static let primary = Color(hex: "FFCC00") // DART의 포인트 컬러 유지
+    static let secondary = Color(hex: "4A4A4A")
+    static let background = Color(hex: "FFFFFF")
+    static let cardBackground = Color(hex: "F5F5F7")
+    static let textPrimary = Color(hex: "1D1D1F")
+    static let textSecondary = Color(hex: "86868B")
     
     // Gradients
     static let backgroundGradient = LinearGradient(
-        gradient: Gradient(colors: [Color(hex: "1A1A1A"), Color(hex: "000000")]),
+        gradient: Gradient(colors: [Color(hex: "FFFFFF"), Color(hex: "F5F5F7")]),
         startPoint: .top,
         endPoint: .bottom
     )
     
     static let primaryGradient = LinearGradient(
-        gradient: Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]),
+        gradient: Gradient(colors: [Color(hex: "FFCC00"), Color(hex: "FFB800")]),
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

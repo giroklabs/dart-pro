@@ -16,7 +16,9 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
-// .env 파일 읽기 로직 (외부 라이브러리 미사용 시)
+const admin = require('firebase-admin');
+
+// .env 파일 읽기 로직
 try {
   const envPath = path.join(__dirname, '.env');
   if (fs.existsSync(envPath)) {
@@ -29,6 +31,17 @@ try {
   }
 } catch (err) {
   console.log('⚠️ .env file not found or unreadable.');
+}
+
+// Firebase Admin 초기화
+try {
+  const serviceAccount = require('./service-account.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log('🚀 Firebase Admin SDK initialized.');
+} catch (err) {
+  console.error('❌ Firebase Admin initialization failed:', err.message);
 }
 
 const server = http.createServer((req, res) => {
@@ -49,6 +62,38 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/health' || pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     return res.end('OK');
+  }
+
+  // ==========================================
+  // 0. 테스트 푸시 알림 발송 API
+  // ==========================================
+  if (pathname === '/api/test-push' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { fcmToken } = JSON.parse(body);
+        if (!fcmToken) throw new Error('FCM 토큰이 없습니다.');
+
+        const message = {
+          notification: {
+            title: '🔔 DART Pro 알림 테스트',
+            body: '축하합니다! 서버와의 알림 연동이 성공적으로 완료되었습니다.'
+          },
+          token: fcmToken
+        };
+
+        const response = await admin.messaging().send(message);
+        console.log('✅ Test push sent successfully:', response);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: '000', message: '테스트 알림 발송 성공' }));
+      } catch (err) {
+        console.error('❌ Test push failed:', err.message);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: '500', message: err.message }));
+      }
+    });
+    return;
   }
 
   // 데이터 파일 경로

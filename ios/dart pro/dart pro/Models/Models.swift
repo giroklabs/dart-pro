@@ -7,22 +7,31 @@ struct DisclosureResponse: Codable {
 }
 
 struct DisclosureItem: Codable, Identifiable {
-    var id: String { rcept_no }
-    let corp_code: String
-    let corp_name: String
+    let id = UUID()
+    let corp_code: String?
+    let corp_name: String?
+    let report_nm: String?
+    let rcept_no: String?
+    let flr_nm: String?
+    let rcept_dt: String?
+    let corp_cls: String?
     let stock_code: String?
-    let corp_cls: String // Y: 유가, K: 코스닥, N: 코넥스, E: 기타
-    let report_nm: String
-    let rcept_no: String
-    let flr_nm: String
-    let rcept_dt: String
     let rm: String?
     
+    enum CodingKeys: String, CodingKey {
+        case corp_code, corp_name, report_nm, rcept_no, flr_nm, rcept_dt, corp_cls, stock_code, rm
+    }
+    
+    // QUICK 분석 결과 반환
+    var analysis: AnalysisResult {
+        QuickAnalysisManager.shared.analyze(reportName: report_nm ?? "", corpName: corp_name ?? "")
+    }
+    
     var formattedDate: String {
-        guard rcept_dt.count == 8 else { return rcept_dt }
-        let year = rcept_dt.prefix(4)
-        let month = rcept_dt.dropFirst(4).prefix(2)
-        let day = rcept_dt.dropFirst(6)
+        guard let dateString = rcept_dt, dateString.count == 8 else { return rcept_dt ?? "" }
+        let year = dateString.prefix(4)
+        let month = dateString.dropFirst(4).prefix(2)
+        let day = dateString.dropFirst(6)
         return "\(year).\(month).\(day)"
     }
 }
