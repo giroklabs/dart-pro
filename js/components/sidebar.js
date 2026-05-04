@@ -5,7 +5,7 @@ function renderSidebar() {
     { hash: '#/', icon: 'dashboard', label: '대시보드' },
     { hash: '#/disclosures', icon: 'list_alt', label: '공시검색' },
     { hash: '#/company', icon: 'apartment', label: '기업조회' },
-    { hash: '#/settings', icon: 'settings', label: '설정' },
+    { hash: '#/settings', icon: 'star', label: '관심종목' },
   ];
 
   const user = window.FB_AUTH?.currentUser;

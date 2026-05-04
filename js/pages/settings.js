@@ -3,7 +3,7 @@ async function renderSettings() {
 
   return `
     <div class="page-header">
-      <h2>설정</h2>
+      <h2>관심종목</h2>
       <p>관심 종목 관리</p>
     </div>
     
