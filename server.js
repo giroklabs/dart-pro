@@ -103,6 +103,90 @@ const server = http.createServer((req, res) => {
   }
 
   // ==========================================
+  // 1.5 Gemini AI 분석 API (캐시 적용 버전)
+  // ==========================================
+  if (pathname === '/api/ai/analyze' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { reportName, corpName, rceptNo } = JSON.parse(body);
+        const apiKey = process.env.GEMINI_API_KEY;
+        const cacheFile = path.join(DATA_DIR, 'ai_analysis_cache.json');
+        
+        // 1. 캐시 확인
+        let cache = {};
+        if (fs.existsSync(cacheFile)) cache = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        
+        const cacheKey = rceptNo || `${corpName}_${reportName}`;
+        if (cache[cacheKey]) {
+          console.log(`[AI Cache] Hit! Returning cached analysis for: ${cacheKey}`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify(cache[cacheKey]));
+        }
+
+        if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
+
+        console.log(`[AI Cache] Miss. Requesting new analysis for: ${cacheKey}`);
+        const prompt = `
+        다음 주식 공시 정보를 바탕으로 투자자 관점에서 핵심을 분석해줘.
+        기업명: ${corpName}
+        공시제목: ${reportName}
+
+        답변은 반드시 다음 JSON 형식으로만 보내줘:
+        {
+          "category": "분류(예: 주주환원, 실적, 자본조달 등)",
+          "insight": "한 줄 핵심 요약",
+          "points": ["중요 체크포인트 1", "중요 체크포인트 2", "중요 체크포인트 3"],
+          "impact": "투자 영향도(예: 긍정적, 주의, 정보 확인)",
+          "typeCls": "success(긍정), warning(주의), danger(위험), info(정보) 중 택1"
+        }
+        `;
+
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const requestBody = JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        });
+
+        const gReq = https.request(apiURL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }, (gRes) => {
+          let gData = '';
+          gRes.on('data', chunk => gData += chunk);
+          gRes.on('end', () => {
+            try {
+              const gJson = JSON.parse(gData);
+              const text = gJson.candidates[0].content.parts[0].text;
+              const cleanJson = text.replace(/```json|```/g, '').trim();
+              const analysisResult = JSON.parse(cleanJson);
+              
+              // 2. 캐시 저장
+              cache[cacheKey] = analysisResult;
+              fs.writeFileSync(cacheFile, JSON.stringify(cache, null, 2));
+              
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(analysisResult));
+            } catch (e) {
+              res.writeHead(500);
+              res.end(JSON.stringify({ error: 'AI 응답 파싱 실패' }));
+            }
+          });
+        });
+
+        gReq.on('error', (e) => { throw e; });
+        gReq.write(requestBody);
+        gReq.end();
+
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ==========================================
   // 1. 종목 검색 API
   // ==========================================
   if (pathname === '/api/dart/search' || pathname === '/dart/search') {
