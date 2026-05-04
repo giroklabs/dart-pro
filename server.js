@@ -17,10 +17,10 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  // CORS Headers
+  // 모든 요청에 대해 CORS 헤더 우선 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
@@ -29,6 +29,12 @@ const server = http.createServer((req, res) => {
 
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
+
+  // 헬스체크 엔드포인트 (유연하게 매칭)
+  if (pathname === '/api/health' || pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    return res.end('OK');
+  }
 
   // 데이터 파일 경로
   const DATA_DIR = path.join(__dirname, 'data');
@@ -39,12 +45,13 @@ const server = http.createServer((req, res) => {
   // ==========================================
   // 1. 종목 검색 API
   // ==========================================
-  if (pathname === '/api/dart/search') {
+  if (pathname === '/api/dart/search' || pathname === '/dart/search') {
     const query = parsedUrl.searchParams.get('query');
     if (!query || query.length < 2) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify([]));
     }
+    // ... (기존 검색 로직 유지)
 
     try {
       const corpsPath = path.join(__dirname, 'corps.json');
@@ -83,7 +90,7 @@ const server = http.createServer((req, res) => {
   // ==========================================
   // 2. 구독 및 동기화 API
   // ==========================================
-  if (pathname === '/api/push/register' && req.method === 'POST') {
+  if ((pathname === '/api/push/register' || pathname === '/push/register') && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
@@ -118,7 +125,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/api/push/watchlist') {
+  if (pathname === '/api/push/watchlist' || pathname === '/push/watchlist') {
     const uid = parsedUrl.searchParams.get('uid');
     if (!uid) {
       res.writeHead(400);
@@ -133,8 +140,8 @@ const server = http.createServer((req, res) => {
   // ==========================================
   // 3. DART API 백엔드 프록시 (기존 기능 유지 및 개선)
   // ==========================================
-  if (pathname.startsWith('/api/dart/')) {
-    // DART API 키 (서버에서 관리)
+  if (pathname.startsWith('/api/dart/') || pathname.startsWith('/dart/')) {
+    const dartPath = pathname.replace('/api/dart/', '').replace('/dart/', '');
     const DART_API_KEY = '53887019f20e43924765d77443183569c7625167'; // 기존에 사용하시던 키
     
     let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
