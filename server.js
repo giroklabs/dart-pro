@@ -48,15 +48,33 @@ const server = http.createServer((req, res) => {
 
     try {
       const corpsPath = path.join(__dirname, 'corps.json');
+      console.log(`[Search] Searching for "${query}" in ${corpsPath}`);
+      
+      if (!fs.existsSync(corpsPath)) {
+        console.error('[Search] corps.json not found!');
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Data file missing' }));
+      }
+
       const corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
-      const results = corps
-        .filter(c => c.name.includes(query) || c.code.includes(query))
-        .slice(0, 20)
-        .map(c => ({ name: c.name, code: c.code }));
+      // corps.json 형식이 { "code": "name" } 인지 [{code, name}] 인지 확인 필요
+      // 여기서는 두 형식 모두 대응하도록 유연하게 처리
+      let results = [];
+      if (Array.isArray(corps)) {
+        results = corps.filter(c => (c.name && c.name.includes(query)) || (c.code && c.code.includes(query)));
+      } else {
+        results = Object.entries(corps)
+          .filter(([code, name]) => name.includes(query) || code.includes(query))
+          .map(([code, name]) => ({ code, name }));
+      }
+      
+      results = results.slice(0, 20);
+      console.log(`[Search] Found ${results.length} results`);
       
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(results));
     } catch (e) {
+      console.error('[Search] Error:', e.message);
       res.writeHead(500);
       return res.end(JSON.stringify({ error: e.message }));
     }

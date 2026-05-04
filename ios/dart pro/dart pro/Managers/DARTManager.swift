@@ -8,7 +8,7 @@ class DARTManager: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let baseURL = "http://192.168.126.175:3000/api" // 시뮬레이터 접속을 위해 로컬 IP 사용
+    private let baseURL = "https://dartpro.duckdns.org/api" // 운영 서버 주소 사용
     private var cancellables = Set<AnyCancellable>()
     
     init() {
