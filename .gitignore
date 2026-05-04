@@ -1,5 +1,8 @@
 node_modules/
+# Firebase & Google Secrets
+GoogleService-Info.plist
+service-account.json
+*.p8
 .env
-.DS_Store
-ios/dart pro/dart pro.xcworkspace/xcuserdata/
+/dart pro/dart pro.xcworkspace/xcuserdata/
 data/
