@@ -38,7 +38,7 @@ const api = {
       // 프록시 서버 호출 (서버에서 DART API 키를 알아서 붙여줌)
       const res = await fetch(targetUrl, { 
         cache: 'no-store',
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
       });
       
       if (!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);

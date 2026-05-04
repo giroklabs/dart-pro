@@ -153,13 +153,20 @@ const server = http.createServer((req, res) => {
     };
 
     const proxyReq = https.get(targetUrl, options, (proxyRes) => {
-      // 불필요한 보안 헤더 제거하여 브라우저 에러 방지
-      delete proxyRes.headers['x-frame-options'];
-      delete proxyRes.headers['content-security-policy'];
+      console.log(`[DART Proxy] Response Status: ${proxyRes.statusCode}`);
       
-      // CORS 대응
+      // 불필요하거나 문제되는 헤더 제거
+      const headers = { ...proxyRes.headers };
+      delete headers['x-frame-options'];
+      delete headers['content-security-policy'];
+      delete headers['content-length']; // 파이프 시 압축 등으로 달라질 수 있음
+      
+      // CORS 대응 (강력하게 설정)
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+      
+      res.writeHead(proxyRes.statusCode, headers);
       proxyRes.pipe(res, { end: true });
     });
 
