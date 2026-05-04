@@ -142,7 +142,8 @@ const server = http.createServer((req, res) => {
   // ==========================================
   if (pathname.startsWith('/api/dart/') || pathname.startsWith('/dart/')) {
     const dartPath = pathname.replace('/api/dart/', '').replace('/dart/', '');
-    const DART_API_KEY = '53887019f20e43924765d77443183569c7625167'; // 기존에 사용하시던 키
+    // DART API 키 (서버에서 관리 - 보안 유의)
+    const DART_API_KEY = 'b145253d5c1b2fdf8d3568b0e5a751d57ad0922b';
     
     let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
     if (!targetUrl.includes('crtfc_key=')) {
