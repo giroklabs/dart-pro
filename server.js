@@ -174,17 +174,49 @@ const server = http.createServer((req, res) => {
       targetUrl += (targetUrl.includes('?') ? '&' : '?') + `crtfc_key=${DART_API_KEY}`;
     }
     
-    console.log(`[DART Proxy] Requesting: ${targetUrl}`);
+    const corpCode = parsedUrl.searchParams.get('corp_code');
+    const options = { headers: { 'User-Agent': 'DART-Pro-Server' } };
+
+    // 다중 종목 코드 처리 (콤마로 구분된 경우)
+    if (corpCode && corpCode.includes(',')) {
+      const codes = corpCode.split(',');
+      console.log(`[DART Proxy] Batch requesting for ${codes.length} codes...`);
+      
+      const fetchPromises = codes.map(code => {
+        const singleUrl = targetUrl.replace(`corp_code=${encodeURIComponent(corpCode)}`, `corp_code=${code}`);
+        return new Promise((resolve) => {
+          https.get(singleUrl, options, (pRes) => {
+            let data = '';
+            pRes.on('data', chunk => data += chunk);
+            pRes.on('end', () => {
+              try { resolve(JSON.parse(data).list || []); }
+              catch (e) { resolve([]); }
+            });
+          }).on('error', () => resolve([]));
+        });
+      });
+
+      Promise.all(fetchPromises).then(results => {
+        const mergedList = [].concat(...results).sort((a, b) => {
+          // rcept_no(접수번호) 기준 내림차순 정렬
+          return (b.rcept_no || 0) - (a.rcept_no || 0);
+        });
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: '000', message: '정상', list: mergedList.slice(0, 50) }));
+      });
+      return;
+    }
+
+    console.log(`[DART Proxy] Requesting: ${targetUrl.replace(DART_API_KEY, 'HIDDEN')}`);
     
-    const options = {
+    const proxyReq = https.get(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*'
       },
       rejectUnauthorized: false // SSL 인증서 검증 일시 완화 (필요시)
-    };
-
-    const proxyReq = https.get(targetUrl, options, (proxyRes) => {
+    }, (proxyRes) => {
       console.log(`[DART Proxy] Response Status: ${proxyRes.statusCode}`);
       
       // 불필요하거나 문제되는 헤더 제거
