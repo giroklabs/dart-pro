@@ -260,5 +260,25 @@ class DARTManager: ObservableObject {
                 print("[API] Sync success")
             }
         }.resume()
+    // 서버에서 알림 내역 가져오기
+    func fetchNotificationsFromServer(completion: @escaping ([NotificationRecord]) -> Void) {
+        guard let uid = AuthManager.shared.user?.uid else { return }
+        
+        let urlString = "\(baseURL)/user/notifications?uid=\(uid)"
+        guard let url = URL(string: urlString) else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data = data, error == nil else { return }
+            
+            // 서버 날짜 형식을 위한 디코더 설정
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            if let decoded = try? decoder.decode([NotificationRecord].self, from: data) {
+                DispatchQueue.main.async {
+                    completion(decoded)
+                }
+            }
+        }.resume()
     }
 }

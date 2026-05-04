@@ -320,6 +320,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/api/user/notifications' || pathname === '/user/notifications') {
+    const uid = parsedUrl.searchParams.get('uid');
+    if (!uid) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'UID required' }));
+    }
+    const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
+    let userNotifs = [];
+    if (fs.existsSync(userNotifFile)) {
+      userNotifs = JSON.parse(fs.readFileSync(userNotifFile, 'utf8'));
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(userNotifs));
+  }
+
   if (pathname === '/api/push/watchlist' || pathname === '/push/watchlist') {
     const uid = parsedUrl.searchParams.get('uid');
     console.log(`[Watchlist] Fetch request - UID: ${uid || 'unknown'}`);
@@ -523,37 +538,48 @@ async function checkNewDisclosures() {
         if (newItems.length > 0) {
           console.log(`[Monitor] Found ${newItems.length} new disclosures!`);
           
-          // 구독 정보 로드
+          // 구독 정보 및 사용자 관심 종목 데이터 로드
           const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
+          const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
+          
           if (fs.existsSync(SUBS_FILE)) {
             const subs = JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8'));
+            const userData = fs.existsSync(USER_DATA_FILE) ? JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8')) : {};
             
-            for (let item of newItems.reverse()) { // 오래된 것부터 순서대로 발송
+            for (let item of newItems.reverse()) { 
+              // 1. 푸시 발송 (토큰 기준)
               const targets = subs[item.corp_code] || [];
               if (targets.length > 0) {
-                console.log(`[Monitor] Sending push for ${item.corp_name} to ${targets.length} users`);
-                
+                console.log(`[Monitor] Sending push for ${item.corp_name} to ${targets.length} devices`);
                 for (let token of targets) {
                   const message = {
-                    notification: {
-                      title: `🔔 [${item.corp_name}] 공시 알림`,
-                      body: item.report_nm.trim()
-                    },
-                    data: {
-                      rcept_no: item.rcept_no,
-                      corp_code: item.corp_code,
-                      type: 'DISCLOSURE'
-                    },
+                    notification: { title: `🔔 [${item.corp_name}] 공시 알림`, body: item.report_nm.trim() },
+                    data: { rcept_no: item.rcept_no, corp_code: item.corp_code, type: 'DISCLOSURE' },
                     token: token
                   };
-                  
-                  try {
-                    await admin.messaging().send(message);
-                  } catch (e) {
-                    console.error('[Monitor] Push failed for token:', token.substring(0, 10));
-                  }
+                  admin.messaging().send(message).catch(() => {});
                 }
               }
+
+              // 2. 알림 내역 저장 (UID 기준)
+              Object.entries(userData).forEach(([uid, codes]) => {
+                if (codes.includes(item.corp_code)) {
+                  const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
+                  let userNotifs = [];
+                  if (fs.existsSync(userNotifFile)) userNotifs = JSON.parse(fs.readFileSync(userNotifFile, 'utf8'));
+                  
+                  userNotifs.unshift({
+                    id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+                    title: `🔔 [${item.corp_name}] 공시 알림`,
+                    body: item.report_nm.trim(),
+                    date: new Date().toISOString(),
+                    rceptNo: item.rcept_no,
+                    isRead: false
+                  });
+                  fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
+                  console.log(`[Monitor] Saved history for UID: ${uid}`);
+                }
+              });
             }
           }
 

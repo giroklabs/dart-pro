@@ -60,6 +60,9 @@ struct NotificationCenterView: View {
                         }
                         .onDelete(perform: deleteNotifications)
                     }
+                    .refreshable {
+                        loadNotifications()
+                    }
                 }
             }
             .navigationTitle("알림 센터")
@@ -68,23 +71,16 @@ struct NotificationCenterView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("닫기") { dismiss() }
                 }
-                if !notifications.isEmpty {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("전체 삭제") {
-                            notifications.removeAll()
-                            saveNotifications()
-                        }
-                    }
-                }
             }
             .onAppear(perform: loadNotifications)
         }
     }
     
     private func loadNotifications() {
-        if let data = UserDefaults.standard.data(forKey: "notification_history"),
-           let decoded = try? JSONDecoder().decode([NotificationRecord].self, from: data) {
-            self.notifications = decoded.sorted(by: { $0.date > $1.date })
+        let manager = DARTManager()
+        manager.fetchNotificationsFromServer { fetchedNotifications in
+            self.notifications = fetchedNotifications.sorted(by: { $0.date > $1.date })
+            saveNotifications() // 로컬에도 캐시로 저장
         }
     }
     
