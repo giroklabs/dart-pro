@@ -16,6 +16,21 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
+// .env 파일 읽기 로직 (외부 라이브러리 미사용 시)
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf8');
+    envConfig.split('\n').forEach(line => {
+      const [key, value] = line.split('=');
+      if (key && value) process.env[key.trim()] = value.trim();
+    });
+    console.log('✅ .env configuration loaded.');
+  }
+} catch (err) {
+  console.log('⚠️ .env file not found or unreadable.');
+}
+
 const server = http.createServer((req, res) => {
   // 모든 요청에 대해 CORS 헤더 우선 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -142,8 +157,14 @@ const server = http.createServer((req, res) => {
   // ==========================================
   if (pathname.startsWith('/api/dart/') || pathname.startsWith('/dart/')) {
     const dartPath = pathname.replace('/api/dart/', '').replace('/dart/', '');
-    // DART API 키 (서버에서 관리 - 보안 유의)
-    const DART_API_KEY = 'b145253d5c1b2fdf8d3568b0e5a751d57ad0922b';
+    // DART API 키 (환경변수에서 로드)
+    const DART_API_KEY = process.env.DART_API_KEY;
+    
+    if (!DART_API_KEY) {
+      console.error('[DART Proxy] Error: DART_API_KEY is not set in .env');
+      res.writeHead(500);
+      return res.end('Server Configuration Error: API Key Missing');
+    }
     
     let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
     if (!targetUrl.includes('crtfc_key=')) {

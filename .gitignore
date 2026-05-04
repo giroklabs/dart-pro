@@ -1,17 +1,5 @@
-# 의존성
 node_modules/
-
-# 환경변수 / 비밀 키
 .env
-.env.*
-*.key
-
-# 로컬 전용 파일 (GitHub Pages에서 불필요)
-CORPCODE.xml
-CORPCODE.zip
-
-# macOS
 .DS_Store
-
-# 개발 로그
-*.log
+ios/dart pro/dart pro.xcworkspace/xcuserdata/
+data/
