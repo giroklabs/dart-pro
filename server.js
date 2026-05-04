@@ -64,6 +64,22 @@ const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
 
+  // 대시보드 페이지 서빙
+  if (pathname === '/dashboard' || pathname === '/') {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(fs.readFileSync(indexPath));
+    } else {
+      // public 폴더에 없으면 루트 폴더 확인
+      const rootIndexPath = path.join(__dirname, 'index.html');
+      if (fs.existsSync(rootIndexPath)) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        return res.end(fs.readFileSync(rootIndexPath));
+      }
+    }
+  }
+
   // 헬스체크 엔드포인트 (유연하게 매칭)
   if (pathname === '/api/health' || pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -395,7 +411,12 @@ const server = http.createServer((req, res) => {
   // ==========================================
   // 2. 정적 파일 (Frontend) 제공 라우터
   // ==========================================
-  let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
+  // 정적 파일 경로 매핑
+  let fileName = pathname;
+  if (pathname === '/' || pathname === '/dashboard') {
+    fileName = 'index.html';
+  }
+  let filePath = path.join(__dirname, fileName);
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
