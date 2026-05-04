@@ -111,6 +111,7 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { token, corp_codes, uid } = JSON.parse(body);
+        console.log(`[Watchlist] Register request - UID: ${uid || 'N/A'}, Codes: ${corp_codes?.length || 0}`);
         
         // 구독 정보 저장 (FCM용)
         let subs = {};
@@ -128,6 +129,7 @@ const server = http.createServer((req, res) => {
           if (fs.existsSync(USER_DATA_FILE)) userData = JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8'));
           userData[uid] = corp_codes;
           fs.writeFileSync(USER_DATA_FILE, JSON.stringify(userData, null, 2));
+          console.log(`[Watchlist] Successfully saved for UID: ${uid}`);
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -142,6 +144,7 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api/push/watchlist' || pathname === '/push/watchlist') {
     const uid = parsedUrl.searchParams.get('uid');
+    console.log(`[Watchlist] Fetch request - UID: ${uid || 'unknown'}`);
     if (!uid) {
       res.writeHead(400);
       return res.end(JSON.stringify({ error: 'UID required' }));
