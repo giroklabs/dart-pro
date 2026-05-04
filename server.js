@@ -321,7 +321,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
-  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-04 22:22)`);
+  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-04 22:26)`);
   console.log(`👉 접속 주소: http://localhost:${PORT}`);
   console.log(`==============================================\n`);
   
@@ -356,8 +356,9 @@ async function checkNewDisclosures() {
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const url = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&bgn_de=${today}&page_count=20`;
+  const options = { headers: { 'User-Agent': 'DART-Pro-Monitor' } };
 
-  https.get(url, (res) => {
+  https.get(url, options, (res) => {
     let data = '';
     res.on('data', chunk => data += chunk);
     res.on('end', async () => {
