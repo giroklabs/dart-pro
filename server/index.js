@@ -17,9 +17,15 @@ app.get('/health', (req, res) => {
 // 라우터 연결
 const dartRouter = require('./routes/dart');
 const geminiRouter = require('./routes/gemini');
+const pushRouter = require('./routes/push');
 
 app.use('/api/dart', dartRouter);
 app.use('/api/gemini', geminiRouter);
+app.use('/api/push', pushRouter);
+
+// 실시간 폴링 시작
+const { startPolling } = require('./services/polling');
+startPolling(5 * 60 * 1000); // 5분 주기
 
 // 에러 핸들러
 app.use((err, req, res, next) => {

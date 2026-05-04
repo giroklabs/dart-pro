@@ -1,0 +1,6 @@
+framework module Pods_dart_pro {
+  umbrella header "Pods-dart pro-umbrella.h"
+
+  export *
+  module * { export * }
+}

@@ -2,7 +2,33 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 
+const fs = require('fs');
+const path = require('path');
 const DART_BASE_URL = 'https://opendart.fss.or.kr/api';
+
+// 기업 코드 데이터 로드 (root의 corps.json 사용)
+let corps = [];
+try {
+  const corpsPath = path.join(__dirname, '../../corps.json');
+  if (fs.existsSync(corpsPath)) {
+    corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
+  }
+} catch (e) {
+  console.error('corps.json 로드 실패:', e);
+}
+
+// 기업 검색 API
+router.get('/search', (req, res) => {
+  const { query } = req.query;
+  if (!query || query.length < 2) return res.json([]);
+  
+  const results = corps
+    .filter(c => c.name.includes(query) || c.code.includes(query))
+    .slice(0, 20)
+    .map(c => ({ name: c.name, code: c.code }));
+    
+  res.json(results);
+});
 
 // 공통 프록시 핸들러
 router.get('/:endpoint', async (req, res, next) => {

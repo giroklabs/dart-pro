@@ -1,0 +1,9 @@
+platform :ios, '14.0'
+use_frameworks!
+
+target 'dart pro' do
+  pod 'Firebase/Analytics'
+  pod 'Firebase/Messaging'
+  pod 'Firebase/Auth'
+  pod 'GoogleSignIn'
+end

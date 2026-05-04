@@ -30,8 +30,90 @@ const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
 
+  // 데이터 파일 경로
+  const DATA_DIR = path.join(__dirname, 'data');
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+  const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
+  const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
+
   // ==========================================
-  // 1. DART API 백엔드 프록시 라우터
+  // 1. 종목 검색 API
+  // ==========================================
+  if (pathname === '/api/dart/search') {
+    const query = parsedUrl.searchParams.get('query');
+    if (!query || query.length < 2) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify([]));
+    }
+
+    try {
+      const corpsPath = path.join(__dirname, 'corps.json');
+      const corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
+      const results = corps
+        .filter(c => c.name.includes(query) || c.code.includes(query))
+        .slice(0, 20)
+        .map(c => ({ name: c.name, code: c.code }));
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(results));
+    } catch (e) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: e.message }));
+    }
+  }
+
+  // ==========================================
+  // 2. 구독 및 동기화 API
+  // ==========================================
+  if (pathname === '/api/push/register' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { token, corp_codes, uid } = JSON.parse(body);
+        
+        // 구독 정보 저장 (FCM용)
+        let subs = {};
+        if (fs.existsSync(SUBS_FILE)) subs = JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8'));
+        for (const code in subs) subs[code] = subs[code].filter(t => t !== token);
+        corp_codes.forEach(code => {
+          if (!subs[code]) subs[code] = [];
+          subs[code].push(token);
+        });
+        fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2));
+
+        // 사용자별 관심 종목 저장 (동기화용)
+        if (uid) {
+          let userData = {};
+          if (fs.existsSync(USER_DATA_FILE)) userData = JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8'));
+          userData[uid] = corp_codes;
+          fs.writeFileSync(USER_DATA_FILE, JSON.stringify(userData, null, 2));
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (e) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  if (pathname === '/api/push/watchlist') {
+    const uid = parsedUrl.searchParams.get('uid');
+    if (!uid) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'UID required' }));
+    }
+    let userData = {};
+    if (fs.existsSync(USER_DATA_FILE)) userData = JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8'));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(userData[uid] || []));
+  }
+
+  // ==========================================
+  // 3. DART API 백엔드 프록시 (기존 기능 유지 및 개선)
   // ==========================================
   if (pathname.startsWith('/api/dart/')) {
     const dartPath = pathname.replace('/api/dart/', '');
