@@ -44,6 +44,12 @@ try {
   console.error('❌ Firebase Admin initialization failed:', err.message);
 }
 
+// 데이터 파일 경로 설정 (전역 스코프)
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
+const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
+
 const server = http.createServer((req, res) => {
   // 모든 요청에 대해 CORS 헤더 우선 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -95,12 +101,6 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-
-  // 데이터 파일 경로
-  const DATA_DIR = path.join(__dirname, 'data');
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-  const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
-  const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
 
   // ==========================================
   // 1. 종목 검색 API
