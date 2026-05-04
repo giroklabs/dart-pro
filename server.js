@@ -160,7 +160,6 @@ const server = http.createServer((req, res) => {
   // ==========================================
   if (pathname.startsWith('/api/dart/') || pathname.startsWith('/dart/')) {
     const dartPath = pathname.replace('/api/dart/', '').replace('/dart/', '');
-    // DART API 키 (환경변수에서 로드)
     const DART_API_KEY = process.env.DART_API_KEY;
     
     if (!DART_API_KEY) {
@@ -173,7 +172,7 @@ const server = http.createServer((req, res) => {
     if (!targetUrl.includes('crtfc_key=')) {
       targetUrl += (targetUrl.includes('?') ? '&' : '?') + `crtfc_key=${DART_API_KEY}`;
     }
-    
+
     const corpCode = parsedUrl.searchParams.get('corp_code');
     const options = { headers: { 'User-Agent': 'DART-Pro-Server' } };
 
