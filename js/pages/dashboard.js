@@ -198,58 +198,176 @@ function summarizeDisclosure(item, aiData = null) {
   }
 }
 
-function getQuickInsightHtml(item) {
-  const title = item.report_nm || '';
-  
-  let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
-  let points = ["접수번호: " + item.rcept_no, "제출일자: " + window.DART_API.formatDate(item.rcept_dt)];
-  let impact = "정보 확인";
-  let typeCls = "insight-default";
-  let icon = "campaign";
+const QUICK_RULES = [
+  {
+    id: 'dividend',
+    match: [/배당/, /현금.?현물배당/, /분기배당/, /중간배당/],
+    category: '주주환원',
+    impact: '긍정 가능',
+    urgency: 60,
+    typeCls: 'insight-success',
+    icon: 'payments',
+    insight: '주주환원 정책 관련 공시입니다. 배당 수준과 지속 가능성을 함께 봐야 합니다.',
+    points: [
+      '주당배당금과 시가배당률 확인',
+      '전년 및 직전 배당 대비 증감 확인',
+      '배당성향과 실적 대비 지속 가능성 점검'
+    ]
+  },
+  {
+    id: 'earnings',
+    match: [/사업보고서/, /반기보고서/, /분기보고서/],
+    category: '정기실적',
+    impact: '정보 확인',
+    urgency: 70,
+    typeCls: 'insight-info',
+    icon: 'monitoring',
+    insight: '정기 공시가 접수되었습니다. 실적과 재무상태 변화 확인이 우선입니다.',
+    points: [
+      '매출액·영업이익·순이익 증감 확인',
+      '부채비율 및 현금흐름 변화 확인',
+      '일회성 손익과 가이던스 여부 점검'
+    ]
+  },
+  {
+    id: 'contract',
+    match: [/공급계약/, /단일판매/, /수주/],
+    category: '영업이벤트',
+    impact: '긍정 가능',
+    urgency: 75,
+    typeCls: 'insight-success',
+    icon: 'contract_edit',
+    insight: '매출과 연결될 수 있는 계약 공시입니다. 규모와 지속성을 같이 봐야 합니다.',
+    points: [
+      '계약금액이 최근 매출 대비 몇 %인지 확인',
+      '계약 상대방과 계약기간 확인',
+      '단발성인지 반복 수주인지 점검'
+    ]
+  },
+  {
+    id: 'rights',
+    match: [/유상증자/, /전환사채/, /신주인수권부사채/, /교환사채/],
+    category: '자본조달',
+    impact: '주의',
+    urgency: 90,
+    typeCls: 'insight-warning',
+    icon: 'add_chart',
+    insight: '자본조달 공시입니다. 기존 주주가치 희석 또는 재무구조 개선 여부를 함께 봐야 합니다.',
+    points: [
+      '자금조달 목적과 사용처 확인',
+      '발행 조건 및 전환 조건 확인',
+      '기존 주주 기준 희석 가능성 점검'
+    ]
+  },
+  {
+    id: 'treasury',
+    match: [/자기주식취득/, /자기주식처분/, /소각/],
+    category: '주주환원',
+    impact: '긍정 가능',
+    urgency: 70,
+    typeCls: 'insight-success',
+    icon: 'account_balance',
+    insight: '자사주 취득/소각 등 주주가치 제고 관련 공시입니다.',
+    points: [
+      '취득/소각 규모 및 주식수 확인',
+      '취득 목적(주가안정 등) 확인'
+    ]
+  },
+  {
+    id: 'ownership',
+    match: [/최대주주/, /소유상황/, /대량보유/],
+    category: '지배구조',
+    impact: '내부자 시그널',
+    urgency: 80,
+    typeCls: 'insight-info',
+    icon: 'person_search',
+    insight: '경영진 및 대주주의 지분 변동 공시입니다. 매매 방향을 통한 시그널 판단이 필요합니다.',
+    points: [
+      '매수/매도 여부 확인',
+      '변동된 지분율 및 경영권 영향 확인'
+    ]
+  },
+  {
+    id: 'structure',
+    match: [/합병/, /분할/, /주식교환/, /영업양수도/],
+    category: '구조변화',
+    impact: '변동성 주의',
+    urgency: 95,
+    typeCls: 'insight-warning',
+    icon: 'account_tree',
+    insight: '기업 구조 개편 공시입니다. 주가에 큰 영향을 미칠 수 있으므로 상세 검토가 필수입니다.',
+    points: [
+      '존속법인 및 신설법인 확인',
+      '주식매수청구권 행사 가격 확인',
+      '합병/분할 비율 점검'
+    ]
+  }
+];
 
-  if (title.includes("배당")) {
-    insight = "<strong>현금/현물 배당 결정:</strong> 주주 환원의 핵심 지표가 발표되었습니다.";
-    points = ["과거 배당금 대비 증액 여부 확인", "시가배당률 확인 요망"];
-    impact = "긍정적 (배당수익)";
-    typeCls = "insight-success";
-    icon = "payments";
-  } else if (title.includes("분기보고서") || title.includes("사업보고서")) {
-    insight = "<strong>정기 실적 발표:</strong> 기업의 성적표가 공개되었습니다.";
-    points = ["매출액 및 영업이익 YoY 확인", "어닝 서프라이즈 여부 검토"];
-    impact = "실적 변동";
-    typeCls = "insight-info";
-    icon = "monitoring";
-  } else if (title.includes("공급계약") || title.includes("수주")) {
-    insight = "<strong>신규 수주/공급계약:</strong> 매출 증대로 직결되는 호재입니다.";
-    points = ["계약 금액 비중 확인", "계약 기간 및 상대방 검토"];
-    impact = "매출 증대";
-    typeCls = "insight-success";
-    icon = "contract_edit";
-  } else if (title.includes("유상증자") || title.includes("무상증자")) {
-    insight = "<strong>자본금 변동(증자):</strong> 주식 수 변화에 따른 가치 희석 우려가 있습니다.";
-    points = ["자금 조달 목적(호재/악재) 확인", "신주 배정 비율 확인"];
-    impact = "가치 변동";
-    typeCls = "insight-warning";
-    icon = "add_chart";
-  } else if (title.includes("소유상황") || title.includes("장내매수")) {
-    insight = "<strong>내부자 지분 변동:</strong> 경영진 및 대주주가 주식을 매매했습니다.";
-    points = ["매수/매도 여부에 따른 시그널 판단", "경영권 영향 확인"];
-    impact = "내부자 시그널";
-    typeCls = "insight-success";
-    icon = "person_search";
+function getQuickInsightData(item) {
+  const title = item.report_nm || '';
+  const base = {
+    category: '기타',
+    impact: '정보 확인',
+    urgency: 40,
+    typeCls: 'insight-default',
+    icon: 'campaign',
+    insight: '최근 접수된 공시입니다. 핵심 항목을 직접 확인하세요.',
+    points: [
+      `접수번호: ${item.rcept_no}`,
+      `제출일자: ${window.DART_API.formatDate(item.rcept_dt)}`
+    ],
+    tags: []
+  };
+
+  const rule = QUICK_RULES.find(rule => rule.match.some(rx => rx.test(title)));
+  let result = rule ? { ...base, ...rule } : { ...base };
+
+  if (/정정/.test(title)) {
+    result.tags.push('정정공시');
+    result.urgency += 10;
+    result.points = ['이전 공시 대비 변경사항 확인', ...result.points];
+    result.impact = '확인 요망';
+    result.typeCls = 'insight-warning';
   }
 
+  if (/조회공시|풍문|해명/.test(title)) {
+    result.impact = '변동성 주의';
+    result.urgency += 15;
+    result.tags.push('조회/풍문');
+    result.typeCls = 'insight-warning';
+    result.insight = '풍문이나 보도에 대한 회사 측의 해명 공시입니다. 사실 여부 확인이 필요합니다.';
+    result.points = [
+      '회사 측의 확정/미확정/부인 답변 확인',
+      '추후 재공시 예정일 확인'
+    ];
+  }
+
+  if (item.corp_cls === 'Y') result.tags.push('코스피');
+  if (item.corp_cls === 'K') result.tags.push('코스닥');
+
+  return result;
+}
+
+function getQuickInsightHtml(item) {
+  const data = getQuickInsightData(item);
+  
+  const tagsHtml = data.tags && data.tags.length > 0 
+    ? `<div style="margin-bottom:8px; display:flex; gap:4px;">${data.tags.map(t => `<span class="pill pill-default" style="font-size:10px; padding:2px 6px;">${t}</span>`).join('')}</div>`
+    : '';
+
   return `
-    <div class="insight-banner ${typeCls}">
-      <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
+    <div class="insight-banner ${data.typeCls}">
+      <div class="insight-icon"><span class="material-symbols-outlined">${data.icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">⚡️ QUICK 분석</div>
-          <div class="insight-impact">${impact}</div>
+          <div class="insight-label">⚡️ QUICK 분석 <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:4px;">[${data.category}]</span></div>
+          <div class="insight-impact">${data.impact}</div>
         </div>
-        <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
+        ${tagsHtml}
+        <div class="insight-text"><strong>${item.corp_name}</strong> - ${data.insight}</div>
         <ul class="insight-points">
-          ${points.map(p => `<li>${p}</li>`).join('')}
+          ${data.points.map(p => `<li>${p}</li>`).join('')}
         </ul>
       </div>
       <div class="insight-actions">
@@ -257,7 +375,6 @@ function getQuickInsightHtml(item) {
       </div>
     </div>
   `;
-
 }
 
 async function initDashboard() {
