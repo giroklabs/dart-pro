@@ -1,12 +1,12 @@
 import Foundation
 
-struct AnalysisResult {
+struct AnalysisResult: Codable {
     let category: String
     let insight: String
     let points: [String]
     let impact: String
     let typeCls: String // success, warning, info, danger, default
-    let icon: String
+    let icon: String?
 }
 
 class QuickAnalysisManager {

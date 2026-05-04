@@ -20,6 +20,40 @@ class DARTManager: ObservableObject {
     private let baseURL = "https://dartpro.duckdns.org/api" // 운영 서버 주소 사용
     private var cancellables = Set<AnyCancellable>()
     
+    // Gemini AI 실시간 분석 요청 (캐시 활용)
+    func fetchAIAnalysis(reportName: String, corpName: String, rceptNo: String?, completion: @escaping (AnalysisResult?) -> Void) {
+        guard let url = URL(string: "\(baseURL)/ai/analyze") else {
+            completion(nil)
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        var body: [String: String] = [
+            "reportName": reportName,
+            "corpName": corpName
+        ]
+        if let rNo = rceptNo {
+            body["rceptNo"] = rNo
+        }
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let data = data, let result = try? JSONDecoder().decode(AnalysisResult.self, from: data) {
+                DispatchQueue.main.async {
+                    completion(result)
+                }
+            } else {
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
+            }
+        }.resume()
+    }
+    
     init() {
         isFetchingFromServer = true // 초기화 중 동기화 차단
         loadWatchlist()

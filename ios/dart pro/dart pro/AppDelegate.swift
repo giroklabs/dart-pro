@@ -51,17 +51,25 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         // 알림 클릭 처리 및 저장
         let content = response.notification.request.content
+        let userInfo = content.userInfo
         let title = content.title
         let body = content.body
+        let rceptNo = userInfo["rcept_no"] as? String ?? ""
         
-        saveToHistory(title: title, body: body)
+        saveToHistory(title: title, body: body, rceptNo: rceptNo)
         
-        print("📌 Notification Clicked: \(title)")
+        print("📌 Notification Clicked: \(title), rceptNo: \(rceptNo)")
         completionHandler()
     }
     
-    private func saveToHistory(title: String, body: String) {
-        let newRecord = ["id": UUID().uuidString, "title": title, "body": body, "date": Date().timeIntervalSince1970] as [String : Any]
+    private func saveToHistory(title: String, body: String, rceptNo: String) {
+        let newRecord = [
+            "id": UUID().uuidString, 
+            "title": title, 
+            "body": body, 
+            "rceptNo": rceptNo,
+            "date": Date().timeIntervalSince1970
+        ] as [String : Any]
         
         var history = UserDefaults.standard.array(forKey: "notification_history_raw") as? [[String: Any]] ?? []
         history.insert(newRecord, at: 0)
@@ -75,7 +83,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                   let title = dict["title"] as? String,
                   let body = dict["body"] as? String,
                   let timestamp = dict["date"] as? Double else { return nil }
-            return NotificationRecord(id: id, title: title, body: body, date: Date(timeIntervalSince1970: timestamp))
+            let rNo = dict["rceptNo"] as? String
+            return NotificationRecord(id: id, title: title, body: body, rceptNo: rNo, date: Date(timeIntervalSince1970: timestamp))
         }
         
         if let encoded = try? JSONEncoder().encode(records) {

@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var showingSearch = false
     @State private var showingSettings = false
     @State private var showingNotificationCenter = false
+    @State private var isGeminiEnabled = false
     
     var body: some View {
         NavigationView {
@@ -14,40 +15,30 @@ struct ContentView: View {
                 AppTheme.backgroundGradient.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Header
+                    // Slim Header
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("DART Pro")
-                                .font(AppTheme.largeTitleFont)
-                                .foregroundColor(.primary)
-                            if let user = authManager.user {
-                                Text("\(user.email ?? "사용자")님 환영합니다")
-                                    .font(AppTheme.captionFont)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
+                        Text("공시알리미")
+                            .font(.system(size: 26, weight: .black))
+                            .foregroundColor(.primary)
                         
                         Spacer()
                         
                         HStack(spacing: 12) {
-                            // 알림 센터 버튼
                             Button(action: { showingNotificationCenter = true }) {
                                 Image(systemName: "bell")
-                                    .font(.title3)
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                             }
                             
-                            // 설정 버튼
                             Button(action: { showingSettings = true }) {
                                 Image(systemName: "gearshape")
-                                    .font(.title3)
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                             }
                             
-                            // 검색 버튼
                             Button(action: { showingSearch = true }) {
                                 Image(systemName: "magnifyingglass")
-                                    .font(.title3)
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                             }
                         }
@@ -58,16 +49,56 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 12)
                     
-                    // Main Content
+                    // Global Gemini Analysis Toggle Bar
+                    VStack(spacing: 0) {
+                        HStack {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.purple)
+                                Text("Gemini AI 스마트 분석")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.purple)
+                            }
+                            
+                            Spacer()
+                            
+                            if authManager.isPremium {
+                                Toggle("", isOn: $isGeminiEnabled.animation())
+                                    .labelsHidden()
+                                    .tint(.purple)
+                            } else {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 10))
+                                    Text("Premium")
+                                        .font(.system(size: 10, weight: .bold))
+                                }
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.secondary.opacity(0.1))
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .background(Color.purple.opacity(0.05))
+                        .cornerRadius(12)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.bottom, 10)
+                    
+                    // Main List
                     if manager.disclosures.isEmpty && !manager.isLoading {
                         EmptyStateView()
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 16) {
                                 ForEach(manager.disclosures) { item in
-                                    DisclosureCard(item: item)
+                                    DisclosureCard(item: item, isGeminiEnabled: isGeminiEnabled)
                                         .padding(.horizontal, 16)
                                 }
                             }

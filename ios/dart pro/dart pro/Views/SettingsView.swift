@@ -21,7 +21,7 @@ struct SettingsView: View {
                             VStack(alignment: .leading) {
                                 Text(user.email ?? "사용자")
                                     .font(AppTheme.headlineFont)
-                                Text("DART Pro 프리미엄")
+                                Text("공시알리미 프리미엄")
                                     .font(.caption)
                                     .foregroundColor(AppTheme.primary)
                             }

@@ -7,6 +7,7 @@ import FirebaseCore
 class AuthManager: ObservableObject {
     @Published var user: User?
     @Published var isLoading = false
+    @Published var isPremium = true // 테스트를 위해 기본 true 설정 (나중에 결제 로직 연결)
     
     static let shared = AuthManager()
     

@@ -4,6 +4,7 @@ struct NotificationRecord: Codable, Identifiable {
     let id: String
     let title: String
     let body: String
+    let rceptNo: String? // 상세보기 링크용 접수번호
     let date: Date
 }
 
@@ -26,33 +27,36 @@ struct NotificationCenterView: View {
                 } else {
                     List {
                         ForEach(notifications) { record in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text("공시 알림")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(AppTheme.primary.opacity(0.1))
-                                        .foregroundColor(AppTheme.primary)
-                                        .cornerRadius(4)
+                            NavigationLink(destination: DisclosureDetailView(record: record)) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("공시 알림")
+                                            .font(.caption2)
+                                            .fontWeight(.bold)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(AppTheme.primary.opacity(0.1))
+                                            .foregroundColor(AppTheme.primary)
+                                            .cornerRadius(4)
+                                        
+                                        Spacer()
+                                        
+                                        Text(timeAgo(record.date))
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
                                     
-                                    Spacer()
+                                    Text(record.title)
+                                        .font(.system(size: 15, weight: .bold))
                                     
-                                    Text(timeAgo(record.date))
-                                        .font(.caption2)
+                                    Text(record.body)
+                                        .font(.system(size: 14))
                                         .foregroundColor(.secondary)
+                                        .lineLimit(2)
                                 }
-                                
-                                Text(record.title)
-                                    .font(.system(size: 15, weight: .bold))
-                                
-                                Text(record.body)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
+                                .padding(.vertical, 8)
                             }
-                            .padding(.vertical, 8)
+                            .buttonStyle(PlainButtonStyle())
                         }
                         .onDelete(perform: deleteNotifications)
                     }
