@@ -1,6 +1,6 @@
 // js/firebase-auth.js
 const firebaseConfig = {
-  apiKey: "AIzaSyCuc9XCf3u0DWxke6LD2oXd2tlraACX4Es",
+  apiKey: "RESTRICTED_KEY_ON_SERVER",
   authDomain: "dart-pro-26816.firebaseapp.com",
   projectId: "dart-pro-26816",
   storageBucket: "dart-pro-26816.firebasestorage.app",
@@ -66,9 +66,9 @@ const FB_AUTH = {
       }, { merge: true });
 
       // 2. Node.js 서버 동기화
-      const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') 
-                          ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
-      
+      const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
+
       await fetch(`${BACKEND_URL}/api/push/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,8 +89,8 @@ const FB_AUTH = {
   async syncInterestsFromCloud() {
     if (!this.currentUser) return;
     try {
-      const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') 
-                          ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
+      const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
 
       // 1. Firestore 데이터 가져오기
       const doc = await db.collection('users').doc(this.currentUser.uid).get();
@@ -110,11 +110,11 @@ const FB_AUTH = {
       } catch (e) {
         console.warn('Node.js sync failed:', e);
       }
-      
+
       // 3. 데이터 병합 및 정제
       const localCodes = window.DART_API.getWatchlist();
       const finalSet = new Set();
-      
+
       // 8자리 숫자 형식만 엄격하게 필터링
       [...cloudCodes, ...nodeCodes, ...localCodes].forEach(code => {
         const c = String(code).trim();
@@ -124,7 +124,7 @@ const FB_AUTH = {
       const mergedInterests = Array.from(finalSet);
       localStorage.setItem('dart_watchlist', JSON.stringify(mergedInterests));
       console.log('Firebase: Watchlist merged and cleaned');
-      
+
       // 주의: 무한 루프 방지를 위해 여기서 자동 저장을 수행하지 않음
     } catch (error) {
       console.error('Cloud load failed:', error);
