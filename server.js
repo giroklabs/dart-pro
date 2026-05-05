@@ -64,6 +64,20 @@ const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
 
+  // 파이어베이스 설정 제공 API (보안 강화 - 최우선 처리)
+  if (pathname === '/api/config') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      apiKey: process.env.FIREBASE_API_KEY,
+      authDomain: "dart-pro-26816.firebaseapp.com",
+      projectId: "dart-pro-26816",
+      storageBucket: "dart-pro-26816.firebasestorage.app",
+      messagingSenderId: "184831339253",
+      appId: "1:184831339253:web:f79382f532eb1be0ba73bc",
+      measurementId: "G-7EWXBZJJGT"
+    }));
+  }
+
   // 대시보드 페이지 서빙
   if (pathname === '/dashboard' || pathname === '/') {
     const indexPath = path.join(__dirname, 'public', 'index.html');
