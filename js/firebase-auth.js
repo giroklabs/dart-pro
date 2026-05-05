@@ -67,34 +67,42 @@ const FB_AUTH = {
     }
   },
 
-  // 클라우드 데이터를 로컬로 불러오기 (데이터 병합)
-  async syncInterestsFromCloud() {
+  // 클라우드 데이터를 로컬로 불러오기 및 실시간 감시
+  syncInterestsFromCloud() {
     if (!this.currentUser) return;
-    try {
-      const doc = await db.collection('users').doc(this.currentUser.uid).get();
-      let cloudCodes = [];
-      if (doc.exists) {
-        const data = doc.data();
-        this.isPremium = data.isPremium === true;
-        if (data.interests) {
-          cloudCodes = data.interests.map(i => {
-            if (typeof i === 'object' && i !== null) return i.code || i.corp_code;
-            return String(i);
+    
+    // 이전 리스너 해제 (중복 방지)
+    if (this._unsubscribe) this._unsubscribe();
+
+    this._unsubscribe = db.collection('users').doc(this.currentUser.uid)
+      .onSnapshot((doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          this.isPremium = data.isPremium === true;
+          
+          let cloudCodes = [];
+          if (data.interests) {
+            cloudCodes = data.interests.map(i => String(i.code || i.corp_code || i));
+          }
+
+          const finalSet = new Set();
+          cloudCodes.forEach(code => {
+            if (/^[0-9]{8}$/.test(code.trim())) finalSet.add(code.trim());
           });
+
+          const mergedInterests = Array.from(finalSet);
+          const currentLocal = JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
+          
+          // 데이터가 실제로 바뀐 경우만 로컬 저장 및 이벤트 발생
+          if (JSON.stringify(currentLocal) !== JSON.stringify(mergedInterests)) {
+            localStorage.setItem('dart_watchlist', JSON.stringify(mergedInterests));
+            console.log('Firebase: Watchlist updated in real-time');
+            document.dispatchEvent(new CustomEvent('watchlist-updated'));
+          }
         }
-      }
-      const localCodes = window.DART_API.getWatchlist();
-      const finalSet = new Set();
-      [...cloudCodes, ...localCodes].forEach(code => {
-        const c = String(code).trim();
-        if (/^[0-9]{8}$/.test(c)) finalSet.add(c);
+      }, (error) => {
+        console.error('Cloud listen failed:', error);
       });
-      const mergedInterests = Array.from(finalSet);
-      localStorage.setItem('dart_watchlist', JSON.stringify(mergedInterests));
-      console.log('Firebase: Watchlist merged and cleaned');
-    } catch (error) {
-      console.error('Cloud load failed:', error);
-    }
   }
 };
 

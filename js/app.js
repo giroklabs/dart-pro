@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.router = router;
   window.addEventListener('hashchange', router);
+  
+  // 데이터 변경 시 자동 UI 갱신
+  document.addEventListener('watchlist-updated', () => router());
+  document.addEventListener('auth-changed', () => router());
+
   router();
 });
 
