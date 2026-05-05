@@ -192,7 +192,7 @@ const server = http.createServer((req, res) => {
         }
         `;
 
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const requestBody = JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         });
