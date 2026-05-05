@@ -223,10 +223,36 @@ class DARTManager: ObservableObject {
                         }
                         print("[API] Watchlist synced from Firestore: \(interests.count) items")
                         self?.fetchLatestDisclosures()
+                        
+                        // 공시 목록에 없는 종목들의 이름 서버에서 가져오기
+                        self?.resolveNamesFromServer(codes: interests)
                     }
                 }
             }
         }
+    }
+    
+    private func resolveNamesFromServer(codes: [String]) {
+        let unknownCodes = watchlist.filter { $0.name == $0.code }.map { $0.code }
+        guard !unknownCodes.isEmpty else { return }
+        
+        let codesStr = unknownCodes.joined(separator: ",")
+        let urlString = "https://dartpro.duckdns.org/api/dart/names?codes=\(codesStr)"
+        guard let url = URL(string: urlString) else { return }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let data = data,
+                  let nameMap = try? JSONSerialization.jsonObject(with: data) as? [String: String] else { return }
+            
+            DispatchQueue.main.async {
+                self?.watchlist = self?.watchlist.map { item in
+                    if let newName = nameMap[item.code], item.name == item.code {
+                        return WatchItem(code: item.code, name: newName)
+                    }
+                    return item
+                } ?? []
+            }
+        }.resume()
     }
     
     private func loadWatchlist() {

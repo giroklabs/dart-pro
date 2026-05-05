@@ -59,25 +59,12 @@ const FB_AUTH = {
       // api.js의 getWatchlist를 통해 정제된 코드 배열 가져오기
       const corpCodes = window.DART_API.getWatchlist();
 
-      // 1. Firestore 저장 (문자열 배열로 저장)
+      // Firestore 저장 (문자열 배열로 저장)
       await db.collection('users').doc(this.currentUser.uid).set({
         interests: corpCodes,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
-      // 2. Node.js 서버 동기화
-      const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-        ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
-
-      await fetch(`${BACKEND_URL}/api/push/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid: this.currentUser.uid,
-          corp_codes: corpCodes,
-          token: 'WEB_USER'
-        })
-      });
       console.log('Firebase: Interests synced to cloud successfully');
 
     } catch (error) {
@@ -107,21 +94,12 @@ const FB_AUTH = {
         }
       }
 
-      // 2. Node.js 서버 데이터 가져오기
-      let nodeCodes = [];
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/push/watchlist?uid=${this.currentUser.uid}`);
-        if (res.ok) nodeCodes = await res.json();
-      } catch (e) {
-        console.warn('Node.js sync failed:', e);
-      }
-
-      // 3. 데이터 병합 및 정제
+      // 2. 데이터 병합 및 정제
       const localCodes = window.DART_API.getWatchlist();
       const finalSet = new Set();
 
       // 8자리 숫자 형식만 엄격하게 필터링
-      [...cloudCodes, ...nodeCodes, ...localCodes].forEach(code => {
+      [...cloudCodes, ...localCodes].forEach(code => {
         const c = String(code).trim();
         if (/^[0-9]{8}$/.test(c)) finalSet.add(c);
       });

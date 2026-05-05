@@ -304,6 +304,31 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(userNotifs));
   }
 
+  // 종목명 조회 API (코드 -> 이름)
+  if (pathname === '/api/dart/names' || pathname === '/dart/names') {
+    const codesStr = parsedUrl.searchParams.get('codes') || '';
+    const codes = codesStr.split(',').filter(c => c.length > 0);
+    
+    let corps = {};
+    try {
+      const corpsPath = path.join(__dirname, 'corps.json');
+      if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
+    } catch (e) { console.error('[API] Error loading corps.json', e); }
+
+    const codeToName = {};
+    for (const [name, code] of Object.entries(corps)) {
+      codeToName[code] = name;
+    }
+
+    const result = {};
+    codes.forEach(code => {
+      result[code] = codeToName[code] || code;
+    });
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(result));
+  }
+
 
 
   // ==========================================
