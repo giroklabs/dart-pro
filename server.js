@@ -348,8 +348,29 @@ const server = http.createServer((req, res) => {
     }
     let userData = {};
     if (fs.existsSync(USER_DATA_FILE)) userData = JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8'));
+    
+    const codes = userData[uid] || [];
+    
+    // corps.json 로드하여 이름 매칭
+    let corps = {};
+    try {
+      const corpsPath = path.join(__dirname, 'corps.json');
+      if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
+    } catch (e) { console.error('[Watchlist] Error loading corps.json', e); }
+
+    // [name: code] 구조를 [code: name]으로 변환 (corps.json이 {name: code} 형태인 경우)
+    const codeToName = {};
+    for (const [name, code] of Object.entries(corps)) {
+      codeToName[code] = name;
+    }
+
+    const watchlist = codes.map(code => ({
+      code: code,
+      name: codeToName[code] || '알 수 없는 종목'
+    }));
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify(userData[uid] || []));
+    return res.end(JSON.stringify(watchlist));
   }
 
   // ==========================================
