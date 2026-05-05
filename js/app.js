@@ -7,6 +7,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.router = router;
   window.addEventListener('hashchange', router);
+  
+  // 파이어베이스 데이터 변경 시 UI 갱신
+  document.addEventListener('watchlist-updated', () => {
+    console.log('[App] Watchlist updated from cloud, refreshing...');
+    router();
+  });
+
+  // 인증 상태 변경 시 UI 갱신
+  document.addEventListener('auth-changed', () => {
+    router();
+  });
+
   router();
 });
 
