@@ -192,14 +192,15 @@ const server = http.createServer((req, res) => {
         }
         `;
 
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const requestBody = JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         });
 
         const gReq = https.request(apiURL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 30000 // 30초 타임아웃 추가
         }, (gRes) => {
           let gData = '';
           gRes.on('data', chunk => gData += chunk);
@@ -214,8 +215,13 @@ const server = http.createServer((req, res) => {
               const cleanJson = text.replace(/```json|```/g, '').trim();
               const analysisResult = JSON.parse(cleanJson);
               
+              // 메모리 캐시 먼저 업데이트
               cache[cacheKey] = analysisResult;
-              fs.writeFileSync(cacheFile, JSON.stringify(cache, null, 2));
+              
+              // 비동기로 파일 저장 (지연 방지)
+              fs.writeFile(cacheFile, JSON.stringify(cache, null, 2), (err) => {
+                if (err) console.error('Cache save error:', err);
+              });
               
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(analysisResult));
@@ -227,7 +233,18 @@ const server = http.createServer((req, res) => {
           });
         });
 
-        gReq.on('error', (e) => { throw e; });
+        gReq.on('timeout', () => {
+          gReq.destroy();
+          res.writeHead(504);
+          res.end(JSON.stringify({ error: 'AI 분석 시간 초과 (30초)' }));
+        });
+
+        gReq.on('error', (e) => { 
+          console.error('❌ AI Request Error:', e.message);
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: e.message }));
+        });
+        
         gReq.write(requestBody);
         gReq.end();
 
