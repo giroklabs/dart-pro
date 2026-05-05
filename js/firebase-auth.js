@@ -1,35 +1,45 @@
 // js/firebase-auth.js
-const firebaseConfig = {
-  apiKey: "AIzaSyD2lBztuTHT8LuFtatYl8FOHstfZ1CAHS0",
-  authDomain: "dart-pro-26816.firebaseapp.com",
-  projectId: "dart-pro-26816",
-  storageBucket: "dart-pro-26816.firebasestorage.app",
-  messagingSenderId: "184831339253",
-  appId: "1:184831339253:web:f79382f532eb1be0ba73bc",
-  measurementId: "G-7EWXBZJJGT"
-};
+async function initFirebase() {
+  try {
+    const res = await fetch('/api/config');
+    const config = await res.json();
+    
+    if (!config.apiKey) throw new Error('Firebase Config load failed');
+    
+    firebase.initializeApp(config);
+    
+    // Firestore 설정
+    firebase.firestore().settings({
+      experimentalForceLongPolling: true 
+    });
+    
+    FB_AUTH.init();
+    window.FB_AUTH = FB_AUTH;
+  } catch (err) {
+    console.error('[Firebase] Init Error:', err);
+  }
+}
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-
-// Firestore 통신 에러(CORS/Access Control) 해결을 위한 설정 추가
-firebase.firestore().settings({
-  experimentalForceLongPolling: true // 강제 롱폴링 설정
-});
-const auth = firebase.auth();
-const db = firebase.firestore();
+const auth = () => firebase.auth();
+const db = () => firebase.firestore();
 
 const FB_AUTH = {
   isPremium: false,
+  currentUser: null,
+  _unsubscribe: null,
 
   init() {
-    auth.onAuthStateChanged(async (user) => {
+    auth().onAuthStateChanged(async (user) => {
       this.currentUser = user;
       if (user) {
         console.log('Firebase: User logged in:', user.displayName);
-        await this.syncInterestsFromCloud();
+        this.syncInterestsFromCloud();
       } else {
         this.isPremium = false;
+        if (this._unsubscribe) {
+          this._unsubscribe();
+          this._unsubscribe = null;
+        }
       }
       document.dispatchEvent(new CustomEvent('auth-changed', { detail: user }));
     });
@@ -38,7 +48,7 @@ const FB_AUTH = {
   async login() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
-      await auth.signInWithPopup(provider);
+      await auth().signInWithPopup(provider);
     } catch (error) {
       console.error('Login failed:', error);
       alert('로그인에 실패했습니다.');
@@ -47,17 +57,16 @@ const FB_AUTH = {
 
   async logout() {
     if (confirm('로그아웃 하시겠습니까?')) {
-      await auth.signOut();
+      await auth().signOut();
       location.reload();
     }
   },
 
-  // 로컬 데이터를 클라우드에 강제 동기화 (종목 추가/삭제 시 호출)
   async saveInterestsToCloud() {
     if (!this.currentUser) return;
     try {
       const corpCodes = window.DART_API.getWatchlist();
-      await db.collection('users').doc(this.currentUser.uid).set({
+      await db().collection('users').doc(this.currentUser.uid).set({
         interests: corpCodes,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -67,14 +76,11 @@ const FB_AUTH = {
     }
   },
 
-  // 클라우드 데이터를 로컬로 불러오기 및 실시간 감시
   syncInterestsFromCloud() {
     if (!this.currentUser) return;
-    
-    // 이전 리스너 해제 (중복 방지)
     if (this._unsubscribe) this._unsubscribe();
 
-    this._unsubscribe = db.collection('users').doc(this.currentUser.uid)
+    this._unsubscribe = db().collection('users').doc(this.currentUser.uid)
       .onSnapshot((doc) => {
         if (doc.exists) {
           const data = doc.data();
@@ -93,7 +99,6 @@ const FB_AUTH = {
           const mergedInterests = Array.from(finalSet);
           const currentLocal = JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
           
-          // 데이터가 실제로 바뀐 경우만 로컬 저장 및 이벤트 발생
           if (JSON.stringify(currentLocal) !== JSON.stringify(mergedInterests)) {
             localStorage.setItem('dart_watchlist', JSON.stringify(mergedInterests));
             console.log('Firebase: Watchlist updated in real-time');
@@ -106,5 +111,4 @@ const FB_AUTH = {
   }
 };
 
-FB_AUTH.init();
-window.FB_AUTH = FB_AUTH;
+initFirebase();
