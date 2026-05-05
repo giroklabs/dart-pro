@@ -201,81 +201,127 @@ function summarizeDisclosure(item, aiData = null) {
 const QUICK_RULES = [
   {
     id: 'dividend',
-    match: [/배당/, /현금.?현물배당/, /분기배당/, /중간배당/],
+    match: [/배당/],
     category: '주주환원',
-    impact: '긍정 가능',
+    impact: '긍정적 (배당수익)',
     urgency: 60,
     typeCls: 'insight-success',
     icon: 'payments',
-    insight: '주주환원 정책 관련 공시입니다. 배당 수준과 지속 가능성을 함께 봐야 합니다.',
+    insight: '현금/현물 배당 결정: 주주 환원의 핵심 지표가 발표되었습니다.',
     points: [
-      '주당배당금과 시가배당률 확인',
-      '전년 및 직전 배당 대비 증감 확인',
-      '배당성향과 실적 대비 지속 가능성 점검'
+      '과거 배당금 대비 증액 여부 확인',
+      '시가배당률과 예상 수익률 검토',
+      '배당 기준일까지 보유 여부 판단'
     ]
   },
   {
-    id: 'earnings',
+    id: 'earnings_report',
     match: [/사업보고서/, /반기보고서/, /분기보고서/],
-    category: '정기실적',
-    impact: '정보 확인',
+    category: '정기보고서',
+    impact: '실적 확인',
     urgency: 70,
     typeCls: 'insight-info',
     icon: 'monitoring',
-    insight: '정기 공시가 접수되었습니다. 실적과 재무상태 변화 확인이 우선입니다.',
+    insight: '정기 실적 보고서: 기업의 공식 성적표가 공개되었습니다.',
     points: [
-      '매출액·영업이익·순이익 증감 확인',
-      '부채비율 및 현금흐름 변화 확인',
-      '일회성 손익과 가이던스 여부 점검'
+      '매출·영업이익·순이익 전년 동기 대비 확인',
+      '어닝 서프라이즈/쇼크 여부 판단',
+      '부채비율 및 현금흐름 변화 체크'
+    ]
+  },
+  {
+    id: 'earnings_flash',
+    match: [/매출액/, /영업이익/, /실적/],
+    category: '잠정실적',
+    impact: '실적 변동',
+    urgency: 75,
+    typeCls: 'insight-info',
+    icon: 'trending_up',
+    insight: '실적 관련 공시: 매출 또는 이익 변동 내용이 포함되어 있습니다.',
+    points: [
+      '예상 대비 실적 달성 여부 확인',
+      '가이던스 상향/하향 여부 검토',
+      '업종 내 경쟁사 대비 포지셔닝 확인'
     ]
   },
   {
     id: 'contract',
-    match: [/공급계약/, /단일판매/, /수주/],
-    category: '영업이벤트',
-    impact: '긍정 가능',
+    match: [/공급계약/, /단일판매/, /수주/, /납품계약/, /용역계약/],
+    category: '영업호재',
+    impact: '매출 증대',
     urgency: 75,
     typeCls: 'insight-success',
     icon: 'contract_edit',
-    insight: '매출과 연결될 수 있는 계약 공시입니다. 규모와 지속성을 같이 봐야 합니다.',
+    insight: '신규 수주/공급계약: 매출 증대로 직결되는 호재입니다.',
     points: [
-      '계약금액이 최근 매출 대비 몇 %인지 확인',
-      '계약 상대방과 계약기간 확인',
-      '단발성인지 반복 수주인지 점검'
+      '계약 금액이 연매출 대비 몇 % 수준인지 확인',
+      '계약 기간 및 납품 일정 검토',
+      '상대방 기업 신뢰도 및 반복 거래 여부 체크'
     ]
   },
   {
     id: 'rights',
-    match: [/유상증자/, /전환사채/, /신주인수권부사채/, /교환사채/],
-    category: '자본조달',
-    impact: '주의',
-    urgency: 90,
+    match: [/유상증자/],
+    category: '자금조달',
+    impact: '희석 우려',
+    urgency: 85,
     typeCls: 'insight-warning',
     icon: 'add_chart',
-    insight: '자본조달 공시입니다. 기존 주주가치 희석 또는 재무구조 개선 여부를 함께 봐야 합니다.',
+    insight: '유상증자: 신주 발행으로 주식 수가 증가합니다. 자금 조달 목적 확인이 중요합니다.',
     points: [
-      '자금조달 목적과 사용처 확인',
-      '발행 조건 및 전환 조건 확인',
-      '기존 주주 기준 희석 가능성 점검'
+      '조달 자금 용도(성장 투자 vs 채무 상환) 확인',
+      '할인율 및 신주 배정 비율 검토',
+      '기존 주주 지분 희석 비율 계산'
     ]
   },
   {
-    id: 'treasury',
-    match: [/자기주식취득/, /자기주식처분/, /소각/],
-    category: '주주환원',
-    impact: '긍정 가능',
+    id: 'bonus_issue',
+    match: [/무상증자/],
+    category: '주주친화',
+    impact: '유동성 제고',
     urgency: 70,
     typeCls: 'insight-success',
-    icon: 'account_balance',
-    insight: '자사주 취득/소각 등 주주가치 제고 관련 공시입니다.',
+    icon: 'add_chart',
+    insight: '무상증자: 주식 수 증가로 유동성 제고 효과가 기대됩니다.',
     points: [
-      '취득/소각 규모 및 주식수 확인',
-      '취득 목적(주가안정 등) 확인'
+      '배정 비율(몇 주당 몇 주) 확인',
+      '권리락일 및 신주 상장일 체크',
+      '단기 수급 변화 모니터링'
+    ]
+  },
+  {
+    id: 'treasury_cancel',
+    match: [/자기주식소각/, /자사주소각/],
+    category: '주주환원',
+    impact: '강한 호재',
+    urgency: 90,
+    typeCls: 'insight-success',
+    icon: 'local_fire_department',
+    insight: '자사주 소각: 유통 주식 수 감소로 주급 가치 제고 효과가 있습니다.',
+    points: [
+      '소각 주식 수 및 비율 확인',
+      '소각 후 EPS 상승 효과 계산',
+      '주주 환원 정책 강화 의지 긍정적 평가'
+    ]
+  },
+  {
+    id: 'treasury_buy',
+    match: [/자기주식취득/, /자사주취득/, /자기주식매수/],
+    category: '주주환원',
+    impact: '긍정적 (주가 지지)',
+    urgency: 70,
+    typeCls: 'insight-success',
+    icon: 'savings',
+    insight: '자사주 취득: 경영진의 주가 저평가 인식 신호로 해석될 수 있습니다.',
+    points: [
+      '취득 규모(발행주식 대비 %) 확인',
+      '취득 기간 및 방법(직접/신탁) 확인',
+      '소각 계획 포함 여부 체크(소각 시 호재)'
     ]
   },
   {
     id: 'ownership',
-    match: [/최대주주/, /소유상황/, /대량보유/],
+    match: [/최대주주/, /소유상황/, /장내매수/, /장내매도/, /주식등의대량보유/],
     category: '지배구조',
     impact: '내부자 시그널',
     urgency: 80,
@@ -283,23 +329,114 @@ const QUICK_RULES = [
     icon: 'person_search',
     insight: '경영진 및 대주주의 지분 변동 공시입니다. 매매 방향을 통한 시그널 판단이 필요합니다.',
     points: [
-      '매수/매도 여부 확인',
-      '변동된 지분율 및 경영권 영향 확인'
+      '매수/매도 여부 및 규모 확인',
+      '변동 후 최대주주 지분율 체크',
+      '경영권 안정성 및 내부자 인식 점검'
     ]
   },
   {
     id: 'structure',
-    match: [/합병/, /분할/, /주식교환/, /영업양수도/],
+    match: [/합병/, /분할/, /인수/, /양수도/],
     category: '구조변화',
     impact: '변동성 주의',
     urgency: 95,
     typeCls: 'insight-warning',
-    icon: 'account_tree',
+    icon: 'merge',
     insight: '기업 구조 개편 공시입니다. 주가에 큰 영향을 미칠 수 있으므로 상세 검토가 필수입니다.',
     points: [
-      '존속법인 및 신설법인 확인',
-      '주식매수청구권 행사 가격 확인',
-      '합병/분할 비율 점검'
+      '합병 비율 또는 인수 금액 적정성 검토',
+      '시너지 효과 및 통합 리스크 평가',
+      '주주총회 승인 여부 및 일정 확인'
+    ]
+  },
+  {
+    id: 'exec_change',
+    match: [/임원/, /선임/, /해임/],
+    category: '인사변동',
+    impact: '경영 변화',
+    urgency: 50,
+    typeCls: 'insight-info',
+    icon: 'manage_accounts',
+    insight: '임원진 변동: 경영 전략 방향성에 영향을 줄 수 있는 인사 변화입니다.',
+    points: [
+      '신임 CEO/CFO의 경력 및 전문성 확인',
+      '이전 경영진 정책과의 연속성 여부',
+      '지배구조 투명성 점검'
+    ]
+  },
+  {
+    id: 'convertible',
+    match: [/전환사채/, /신주인수권/, /교환사채/],
+    category: '자본조달',
+    impact: '희석 위험',
+    urgency: 85,
+    typeCls: 'insight-warning',
+    icon: 'currency_exchange',
+    insight: '메자닌(CB/BW) 발행: 향후 주식 전환 시 희석 우려가 있습니다.',
+    points: [
+      '발행 금액 및 전환 가격 확인',
+      '전환 청구 기간 및 리픽싱 조건 체크',
+      '희석 가능 주식 수 사전 계산 권장'
+    ]
+  },
+  {
+    id: 'litigation',
+    match: [/소송/, /제재/, /과징금/, /행정처분/],
+    category: '리스크',
+    impact: '주의 요망',
+    urgency: 90,
+    typeCls: 'insight-warning',
+    icon: 'gavel',
+    insight: '법적 리스크 관련 공시: 재무적 손실 또는 영업 차질 가능성을 검토해야 합니다.',
+    points: [
+      '소송 금액이 자기자본 대비 몇 %인지 확인',
+      '승소/패소 가능성 및 법적 리스크 평가',
+      '영업 정지 등 실질적 타격 여부 체크'
+    ]
+  },
+  {
+    id: 'investment',
+    match: [/출자/, /지분취득/, /신규투자/],
+    category: '사업확장',
+    impact: '성장 투자',
+    urgency: 65,
+    typeCls: 'insight-info',
+    icon: 'business_center',
+    insight: '신규 투자/출자: 사업 확장 또는 포트폴리오 다각화 목적입니다.',
+    points: [
+      '투자 규모가 총자산 대비 적정 수준인지 확인',
+      '투자 대상 기업의 사업 연관성 검토',
+      'ROI 및 회수 기간 예상치 확인'
+    ]
+  },
+  {
+    id: 'delisting',
+    match: [/상장폐지/, /관리종목/, /불성실공시/],
+    category: '긴급위험',
+    impact: '강한 위험',
+    urgency: 100,
+    typeCls: 'insight-danger',
+    icon: 'warning',
+    insight: '투자 주의 공시: 상장폐지 또는 심각한 규정 위반 관련 내용입니다.',
+    points: [
+      '상장 유지 요건 충족 여부 확인',
+      '이의신청 기간 및 절차 파악',
+      '포지션 긴급 재검토 권장'
+    ]
+  },
+  {
+    id: 'audit',
+    match: [/감사보고서/, /감사의견/],
+    category: '회계신뢰',
+    impact: '의견 확인',
+    urgency: 95,
+    typeCls: 'insight-warning',
+    icon: 'fact_check',
+    insight: '감사보고서 제출: 외부감사인의 의견은 기업의 생존과 직결됩니다.',
+    points: [
+      '적정 의견 여부 즉시 확인 (비적정 시 상폐 위험)',
+      '핵심감사사항(KAM) 내용 검토',
+      '계속기업 존속 불확실성 여부 체크'
     ]
   }
 ];
