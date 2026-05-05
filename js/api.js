@@ -188,15 +188,20 @@ const api = {
     }).slice(0, limit);
   },
 
-  // 관심 종목 관리
+  // 관심 종목 관리 (문자열 배열 기반)
   getWatchlist() {
-    return JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
+    const raw = JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
+    // 8자리 숫자 코드만 남기기 (찌꺼기 데이터 정화)
+    return Array.isArray(raw) ? raw.map(i => {
+      if (typeof i === 'object' && i !== null) return i.code || i.corp_code;
+      return String(i);
+    }).filter(code => /^[0-9]{8}$/.test(code)) : [];
   },
 
-  addWatch(corpCode, name) {
+  addWatch(corpCode) {
     const list = this.getWatchlist();
-    if (!list.find(i => i.code === corpCode)) {
-      list.push({ code: corpCode, name: name || "알 수 없는 기업" });
+    if (!list.includes(corpCode)) {
+      list.push(corpCode);
       localStorage.setItem('dart_watchlist', JSON.stringify(list));
       if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
         window.FB_AUTH.saveInterestsToCloud();
@@ -207,8 +212,15 @@ const api = {
   },
 
   removeWatch(corpCode) {
-    const list = this.getWatchlist().filter(i => i.code !== corpCode);
+    const list = this.getWatchlist().filter(c => c !== corpCode);
     localStorage.setItem('dart_watchlist', JSON.stringify(list));
+    if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
+      window.FB_AUTH.saveInterestsToCloud();
+    }
+  },
+
+  clearWatchlist() {
+    localStorage.setItem('dart_watchlist', '[]');
     if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
       window.FB_AUTH.saveInterestsToCloud();
     }

@@ -33,31 +33,32 @@ async function renderSettings() {
 
 async function renderWatchlistTable() {
   const api = window.DART_API;
-  const watchlist = api.getWatchlist();
+  const watchlist = api.getWatchlist(); // 이제 문자열 배열을 반환함
   if (watchlist.length === 0) {
     return '<p style="font-size:13px;color:var(--outline);text-align:center;padding:20px;">등록된 기업이 없습니다.</p>';
   }
 
-  // 이름이 코드 형태(8자리 숫자)인 경우에만 DB로 보완, 정상 이름이면 그대로 사용
-  const rows = await Promise.all(watchlist.map(async item => {
-    const isNameAsCode = /^\d{8}$/.test(item.name);
-    let displayName = item.name;
-    if (isNameAsCode || !item.name) {
-      const corrected = await api.getCorpName(item.code);
-      if (corrected && corrected !== item.code) displayName = corrected;
-    }
+  const rows = await Promise.all(watchlist.map(async code => {
+    let displayName = '불러오는 중...';
+    const corrected = await api.getCorpName(code);
+    displayName = (corrected && corrected !== code) ? corrected : code;
+
     return `
       <tr>
         <td class="bold">${displayName}</td>
-        <td class="mono">${item.code}</td>
+        <td class="mono">${code}</td>
         <td class="text-right">
-          <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${item.code}')">삭제</button>
+          <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${code}')">삭제</button>
         </td>
       </tr>
     `;
   }));
 
   return `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 class="t-title-md">관심 종목 (보유 기업)</h3>
+      <button class="btn-text" style="color:var(--error); font-size:12px;" onclick="clearAllWatchlist()">전체 삭제</button>
+    </div>
     <table class="data-table">
       <tbody>
         ${rows.join('')}
@@ -71,7 +72,6 @@ async function addToWatchlist(providedCode, providedName) {
   const input = document.getElementById('watch-input');
   
   let code = providedCode;
-  let name = providedName;
 
   if (!code) {
     const val = input?.value.trim();
@@ -84,22 +84,14 @@ async function addToWatchlist(providedCode, providedName) {
     return;
   }
 
-  if (!name) {
-    name = await api.getCorpName(code);
-    if (name === code) name = null; 
-  }
-
-  const added = api.addWatch(code, name || '알 수 없는 기업');
+  const added = api.addWatch(code); // 이제 코드만 전달
   if (added) {
-    showToast(`${name || code}이(가) 추가되었습니다.`);
+    showToast(`추가되었습니다.`);
+    if (input) input.value = '';
+    window.router();
   } else {
     showToast('이미 등록된 기업입니다.');
   }
-  
-  if (input) input.value = '';
-  const suggestions = document.getElementById('search-suggestions');
-  if (suggestions) suggestions.style.display = 'none';
-  window.router();
 }
 
 async function handleSearch() {
@@ -210,6 +202,14 @@ function removeFromWatchlist(code) {
   window.router();
 }
 
+async function clearAllWatchlist() {
+  if (confirm('모든 관심종목을 삭제하시겠습니까?')) {
+    window.DART_API.clearWatchlist();
+    showToast('모든 종목이 삭제되었습니다.');
+    window.router();
+  }
+}
+
 function showToast(msg) {
   let toast = document.getElementById('app-toast');
   if (!toast) {
@@ -226,5 +226,6 @@ function showToast(msg) {
 window.showToast = showToast;
 window.addToWatchlist = addToWatchlist;
 window.removeFromWatchlist = removeFromWatchlist;
+window.clearAllWatchlist = clearAllWatchlist;
 window.handleSearch = handleSearch;
 
