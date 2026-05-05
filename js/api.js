@@ -273,11 +273,16 @@ const api = {
       }
 
       const data = await res.json();
+      
+      let parsedData = data;
+      // 만약 원본 구글 API 응답이 넘어올 경우를 대비한 하위 호환성
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
         const text = data.candidates[0].content.parts[0].text;
         const cleanedText = text.replace(/```json|```/g, '').trim();
-        let parsedData = JSON.parse(cleanedText);
-        
+        parsedData = JSON.parse(cleanedText);
+      }
+      
+      if (parsedData && parsedData.insight) {
         // 불필요한 마크다운 기호 제거
         const stripMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
         parsedData.insight = stripMd(parsedData.insight);
@@ -289,6 +294,8 @@ const api = {
         localStorage.setItem(cacheKey, JSON.stringify(parsedData));
         return parsedData;
       }
+      
+      throw new Error("AI 분석 결과를 파싱할 수 없습니다.");
     } catch (err) {
       console.error('Gemini Analysis Critical Error:', err);
       throw err;
