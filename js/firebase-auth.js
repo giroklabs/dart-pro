@@ -11,6 +11,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
+
+// Firestore 통신 에러(CORS/Access Control) 해결을 위한 설정 추가
+firebase.firestore().settings({
+  experimentalForceLongPolling: true // 강제 롱폴링 설정
+});
 const auth = firebase.auth();
 const db = firebase.firestore();
 
