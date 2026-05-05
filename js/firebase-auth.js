@@ -1,6 +1,13 @@
 // js/firebase-auth.js
-// 배포 시 GitHub Actions에 의해 실제 값으로 교체됩니다.
-const firebaseConfig = __FIREBASE_CONFIG__;
+const firebaseConfig = {
+  apiKey: "AIzaSyCuc9XCf3u0DWxke6LD2oXd2tlraACX4Es",
+  authDomain: "dart-pro-26816.firebaseapp.com",
+  projectId: "dart-pro-26816",
+  storageBucket: "dart-pro-26816.firebasestorage.app",
+  messagingSenderId: "184831339253",
+  appId: "1:184831339253:web:f79382f532eb1be0ba73bc",
+  measurementId: "G-7EWXBZJJGT"
+};
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
