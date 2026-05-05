@@ -1,6 +1,6 @@
 // js/firebase-auth.js
 const firebaseConfig = {
-  apiKey: "RESTRICTED_KEY_ON_SERVER",
+  apiKey: "AIzaSyD2lBztuTHT8LuFtatYl8FOHstfZ1CAHS0",
   authDomain: "dart-pro-26816.firebaseapp.com",
   projectId: "dart-pro-26816",
   storageBucket: "dart-pro-26816.firebasestorage.app",
@@ -56,17 +56,12 @@ const FB_AUTH = {
   async saveInterestsToCloud() {
     if (!this.currentUser) return;
     try {
-      // api.js의 getWatchlist를 통해 정제된 코드 배열 가져오기
       const corpCodes = window.DART_API.getWatchlist();
-
-      // Firestore 저장 (문자열 배열로 저장)
       await db.collection('users').doc(this.currentUser.uid).set({
         interests: corpCodes,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-
       console.log('Firebase: Interests synced to cloud successfully');
-
     } catch (error) {
       console.error('Cloud sync failed:', error);
     }
@@ -76,16 +71,11 @@ const FB_AUTH = {
   async syncInterestsFromCloud() {
     if (!this.currentUser) return;
     try {
-      const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-        ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
-
-      // 1. Firestore 데이터 가져오기
       const doc = await db.collection('users').doc(this.currentUser.uid).get();
       let cloudCodes = [];
       if (doc.exists) {
         const data = doc.data();
         this.isPremium = data.isPremium === true;
-        
         if (data.interests) {
           cloudCodes = data.interests.map(i => {
             if (typeof i === 'object' && i !== null) return i.code || i.corp_code;
@@ -93,22 +83,15 @@ const FB_AUTH = {
           });
         }
       }
-
-      // 2. 데이터 병합 및 정제
       const localCodes = window.DART_API.getWatchlist();
       const finalSet = new Set();
-
-      // 8자리 숫자 형식만 엄격하게 필터링
       [...cloudCodes, ...localCodes].forEach(code => {
         const c = String(code).trim();
         if (/^[0-9]{8}$/.test(c)) finalSet.add(c);
       });
-
       const mergedInterests = Array.from(finalSet);
       localStorage.setItem('dart_watchlist', JSON.stringify(mergedInterests));
       console.log('Firebase: Watchlist merged and cleaned');
-
-      // 주의: 무한 루프 방지를 위해 여기서 자동 저장을 수행하지 않음
     } catch (error) {
       console.error('Cloud load failed:', error);
     }
