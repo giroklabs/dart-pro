@@ -248,7 +248,13 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify([]));
     }
-    // ... (기존 검색 로직 유지)
+
+    const INTERNAL_MAP = { 
+      "삼성전자": "00126380", "SK하이닉스": "00164779", "현대자동차": "00164742", "현대차": "00164742", 
+      "미래에셋증권": "00111722", "미래에셋": "00111722", "HL만도": "01042775", "에이치엘만도": "01042775",
+      "하나금융지주": "00547583", "하나금융": "00547583", "카카오": "00258838", "네이버": "00266961", "에코프로": "00305884",
+      "대한항공": "00126431", "한화솔루션": "00155167", "한국전력공사": "00159109", "한국전력": "00159109", "기아": "00106641"
+    };
 
     try {
       const corpsPath = path.join(__dirname, 'corps.json');
@@ -266,12 +272,22 @@ const server = http.createServer((req, res) => {
         results = corps.filter(c => (c.name && c.name.includes(query)) || (c.code && c.code.includes(query)));
       } else {
         results = Object.entries(corps)
-          .filter(([key, val]) => !/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) // 이름:코드 쌍만 추출
+          .filter(([key, val]) => !/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val))
           .filter(([name, code]) => name.includes(query) || code.includes(query))
           .map(([name, code]) => ({ code, name }));
       }
+
+      // INTERNAL_MAP 데이터 병합 (중복 제거)
+      const internalResults = Object.entries(INTERNAL_MAP)
+        .filter(([name, code]) => name.includes(query) || code.includes(query))
+        .map(([name, code]) => ({ code, name }));
       
-      results = results.slice(0, 20);
+      const allResults = [...internalResults];
+      results.forEach(r => {
+        if (!allResults.some(ir => ir.code === r.code)) allResults.push(r);
+      });
+      
+      results = allResults.slice(0, 20);
       console.log(`[Search] Found ${results.length} results`);
       
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -314,10 +330,18 @@ const server = http.createServer((req, res) => {
       if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
     } catch (e) { console.error('[API] Error loading corps.json', e); }
 
-    const codeToName = {};
+    const INTERNAL_MAP_REVERSE = {
+      "00126380": "삼성전자", "00164779": "SK하이닉스", "00164742": "현대자동차",
+      "00111722": "미래에셋증권", "01042775": "HL만도", "00547583": "하나금융지주",
+      "00570387": "빌리앙뜨", "00258838": "카카오", "00266961": "NAVER",
+      "00305884": "에코프로", "00126431": "대한항공", "00155167": "한화솔루션",
+      "00159109": "한국전력공사", "00106641": "기아"
+    };
+
+    const codeToName = { ...INTERNAL_MAP_REVERSE };
     for (const [key, val] of Object.entries(corps)) {
       if (!/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) {
-        codeToName[val] = key;
+        if (!codeToName[val]) codeToName[val] = key;
       }
     }
 
