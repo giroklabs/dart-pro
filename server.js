@@ -206,19 +206,23 @@ const server = http.createServer((req, res) => {
           gRes.on('end', () => {
             try {
               const gJson = JSON.parse(gData);
+              if (!gJson.candidates || !gJson.candidates[0]) {
+                const errMsg = gJson.error?.message || 'AI 응답 형식이 올바르지 않습니다.';
+                throw new Error(errMsg);
+              }
               const text = gJson.candidates[0].content.parts[0].text;
               const cleanJson = text.replace(/```json|```/g, '').trim();
               const analysisResult = JSON.parse(cleanJson);
               
-              // 2. 캐시 저장
               cache[cacheKey] = analysisResult;
               fs.writeFileSync(cacheFile, JSON.stringify(cache, null, 2));
               
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(analysisResult));
             } catch (e) {
+              console.error('❌ AI Parsing Error:', e.message);
               res.writeHead(500);
-              res.end(JSON.stringify({ error: 'AI 응답 파싱 실패' }));
+              res.end(JSON.stringify({ error: `AI 분석 실패: ${e.message}` }));
             }
           });
         });
@@ -399,8 +403,9 @@ const server = http.createServer((req, res) => {
 
       Promise.all(fetchPromises).then(results => {
         const mergedList = [].concat(...results).sort((a, b) => {
-          // rcept_no(접수번호) 기준 내림차순 정렬
-          return (b.rcept_no || 0) - (a.rcept_no || 0);
+          const aNo = String(a.rcept_no || '0');
+          const bNo = String(b.rcept_no || '0');
+          return bNo.localeCompare(aNo);
         });
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.writeHead(200, { 'Content-Type': 'application/json' });

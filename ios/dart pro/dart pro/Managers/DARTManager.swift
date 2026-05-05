@@ -260,6 +260,8 @@ class DARTManager: ObservableObject {
                 print("[API] Sync success")
             }
         }.resume()
+    }
+
     // 서버에서 알림 내역 가져오기
     func fetchNotificationsFromServer(completion: @escaping ([NotificationRecord]) -> Void) {
         guard let uid = AuthManager.shared.user?.uid else { return }
