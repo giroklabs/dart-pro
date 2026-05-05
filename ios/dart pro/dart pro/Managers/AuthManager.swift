@@ -3,16 +3,39 @@ import Combine
 import FirebaseAuth
 import GoogleSignIn
 import FirebaseCore
+import FirebaseFirestore
 
 class AuthManager: ObservableObject {
     @Published var user: User?
     @Published var isLoading = false
-    @Published var isPremium = true // 테스트를 위해 기본 true 설정 (나중에 결제 로직 연결)
+    @Published var isPremium = false
     
+    private var listener: ListenerRegistration?
     static let shared = AuthManager()
     
     private init() {
         self.user = Auth.auth().currentUser
+        if let uid = self.user?.uid {
+            startUserListener(uid: uid)
+        }
+    }
+    
+    func startUserListener(uid: String) {
+        listener?.remove()
+        
+        let db = Firestore.firestore()
+        listener = db.collection("users").document(uid).addSnapshotListener { [weak self] snapshot, error in
+            guard let data = snapshot?.data() else { return }
+            
+            DispatchQueue.main.async {
+                self?.isPremium = data["isPremium"] as? Bool ?? false
+            }
+            
+            // FCM 토큰도 함께 업데이트 (있을 경우)
+            if let token = UserDefaults.standard.string(forKey: "fcm_token") {
+                db.collection("users").document(uid).setData(["fcmToken": token], merge: true)
+            }
+        }
     }
     
     func signInWithGoogle() {
@@ -47,7 +70,11 @@ class AuthManager: ObservableObject {
                     print("Firebase Auth Error: \(error.localizedDescription)")
                     return
                 }
-                self?.user = authResult?.user
+                
+                if let user = authResult?.user {
+                    self?.user = user
+                    self?.startUserListener(uid: user.uid)
+                }
                 print("Successfully signed in: \(authResult?.user.email ?? "")")
             }
         }
@@ -55,9 +82,11 @@ class AuthManager: ObservableObject {
     
     func signOut() {
         do {
+            listener?.remove()
             try Auth.auth().signOut()
             GIDSignIn.sharedInstance.signOut()
             self.user = nil
+            self.isPremium = false
         } catch {
             print("Sign Out Error")
         }

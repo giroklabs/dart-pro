@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import FirebaseAuth
+import FirebaseFirestore
 
 class DARTManager: ObservableObject {
     @Published var disclosures: [DisclosureItem] = []
@@ -120,8 +121,20 @@ class DARTManager: ObservableObject {
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     if response.status == "000" {
-                        self?.disclosures = response.list ?? []
-                        print("[API] Disclosures updated: \(self?.disclosures.count ?? 0) items")
+                        let list = response.list ?? []
+                        self?.disclosures = list
+                        print("[API] Disclosures updated: \(list.count) items")
+                        
+                        // 공시 데이터의 corp_name으로 watchlist 이름 자동 갱신
+                        let nameMap: [String: String] = list.reduce(into: [:]) { dict, item in
+                            if let code = item.corp_code, !code.isEmpty,
+                               let name = item.corp_name, !name.isEmpty {
+                                dict[code] = name
+                            }
+                        }
+                        self?.watchlist = self?.watchlist.map { item in
+                            WatchItem(code: item.code, name: nameMap[item.code] ?? item.name)
+                        } ?? []
                     } else {
                         print("[API] Server message: \(response.message ?? "no message")")
                         self?.disclosures = []
@@ -192,31 +205,28 @@ class DARTManager: ObservableObject {
             return 
         }
         
-        print("[API] Fetching for UID: \(uid)")
-        isFetchingFromServer = true // 루프 방지 시작
+        print("[API] Fetching from Firestore for UID: \(uid)")
+        isFetchingFromServer = true
         
-        let urlString = "https://dartpro.duckdns.org/api/push/watchlist?uid=\(uid)"
-        guard let url = URL(string: urlString) else { 
-            isFetchingFromServer = false
-            return 
-        }
-        
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            defer { 
-                DispatchQueue.main.async { self?.isFetchingFromServer = false } 
-            }
+        let db = Firestore.firestore()
+        db.collection("users").document(uid).getDocument { [weak self] (document, error) in
+            defer { DispatchQueue.main.async { self?.isFetchingFromServer = false } }
             
-            guard let data = data, error == nil else { return }
-            
-            if let codes = try? JSONDecoder().decode([String].self, from: data) {
-                DispatchQueue.main.async {
-                    // 서버에서 받은 코드를 WatchItem 객체로 변환
-                    self?.watchlist = codes.map { WatchItem(code: $0, name: "동기화 종목") }
-                    print("[API] Watchlist synced from server: \(codes.count) items")
-                    self?.fetchLatestDisclosures() // 종목이 생겼으니 공시 바로 조회
+            if let document = document, document.exists {
+                if let interests = document.data()?["interests"] as? [String] {
+                    DispatchQueue.main.async {
+                        // 기존에 들고있던 이름 유지용 딕셔너리
+                        let existingNames = self?.watchlist.reduce(into: [String: String]()) { $0[$1.code] = $1.name } ?? [:]
+                        
+                        self?.watchlist = interests.map { code in
+                            WatchItem(code: code, name: existingNames[code] ?? code)
+                        }
+                        print("[API] Watchlist synced from Firestore: \(interests.count) items")
+                        self?.fetchLatestDisclosures()
+                    }
                 }
             }
-        }.resume()
+        }
     }
     
     private func loadWatchlist() {
@@ -232,34 +242,29 @@ class DARTManager: ObservableObject {
         }
     }
     
-    // 백엔드에 FCM 토큰 및 관심 종목 동기화
+    // 백엔드(Firestore)에 FCM 토큰 및 관심 종목 동기화
     func syncWithBackend() {
-        let fcmToken = UserDefaults.standard.string(forKey: "fcm_token") ?? ""
-        guard !fcmToken.isEmpty else { return }
+        guard let uid = AuthManager.shared.user?.uid else { return }
         
+        let fcmToken = UserDefaults.standard.string(forKey: "fcm_token") ?? ""
         let codes = watchlist.map { $0.code }
-        var body: [String: Any] = [
-            "token": fcmToken,
-            "corp_codes": codes
+        
+        var dataToSave: [String: Any] = [
+            "interests": codes,
+            "updatedAt": FieldValue.serverTimestamp()
         ]
         
-        if let uid = AuthManager.shared.user?.uid {
-            body["uid"] = uid
+        if !fcmToken.isEmpty {
+            dataToSave["fcmToken"] = fcmToken
         }
         
-        guard let url = URL(string: "\(baseURL)/push/register") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        Firestore.firestore().collection("users").document(uid).setData(dataToSave, merge: true) { error in
             if let error = error {
-                print("[API] Sync error:", error)
+                print("[Firestore] Sync error: \(error)")
             } else {
-                print("[API] Sync success")
+                print("[Firestore] Sync success")
             }
-        }.resume()
+        }
     }
 
     // 서버에서 알림 내역 가져오기

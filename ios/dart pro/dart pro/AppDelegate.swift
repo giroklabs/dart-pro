@@ -1,6 +1,8 @@
 import UIKit
 import FirebaseCore
 import FirebaseMessaging
+import FirebaseFirestore
+import FirebaseAuth
 import GoogleSignIn
 import UserNotifications
 
@@ -37,6 +39,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         print("🚀 Firebase FCM Token: \(String(describing: fcmToken))")
         if let token = fcmToken {
             UserDefaults.standard.set(token, forKey: "fcm_token")
+            
+            // 로그인 상태라면 Firestore 업데이트
+            if let uid = Auth.auth().currentUser?.uid {
+                Firestore.firestore().collection("users").document(uid).setData(["fcmToken": token], merge: true)
+            }
+            
             // 토큰이 갱신되었음을 알림
             NotificationCenter.default.post(name: Notification.Name("FCMTokenUpdated"), object: nil)
         }

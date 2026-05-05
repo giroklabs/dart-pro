@@ -37,9 +37,9 @@ struct ContentView: View {
                             }
                             
                             Button(action: { showingSearch = true }) {
-                                Image(systemName: "magnifyingglass")
+                                Image(systemName: "star.fill")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.yellow)
                             }
                         }
                         .padding(.horizontal, 16)
@@ -101,7 +101,7 @@ struct ContentView: View {
                             LazyVStack(spacing: 16) {
                                 ForEach(manager.disclosures) { item in
                                     DisclosureCard(item: item, isGeminiEnabled: isGeminiEnabled)
-                                        .padding(.horizontal, 16)
+                                        .padding(.horizontal, 4)
                                 }
                             }
                             .padding(.top, 8)
@@ -122,7 +122,7 @@ struct ContentView: View {
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingSearch) {
-            SearchView(manager: manager)
+            WatchlistView(manager: manager)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(manager: manager)

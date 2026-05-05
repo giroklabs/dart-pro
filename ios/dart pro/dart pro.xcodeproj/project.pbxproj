@@ -41,16 +41,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4AD9ECD12FA8AE980004FB85 /* dart pro */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "dart pro";
 			sourceTree = "<group>";
 		};
 		4AD9ECE12FA8AE9A0004FB85 /* dart proTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "dart proTests";
 			sourceTree = "<group>";
 		};
 		4AD9ECEB2FA8AE9A0004FB85 /* dart proUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "dart proUITests";
 			sourceTree = "<group>";
 		};
@@ -267,13 +273,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-dart pro/Pods-dart pro-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-dart pro/Pods-dart pro-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

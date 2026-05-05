@@ -77,7 +77,9 @@ struct DisclosureDetailView: View {
                     
                     Button(action: {
                         if authManager.isPremium {
-                            showAISafari = true
+                            if let url = URL(string: "https://dartpro.duckdns.org/dashboard") {
+                                UIApplication.shared.open(url)
+                            }
                         } else {
                             showPremiumAlert = true
                         }
@@ -92,11 +94,6 @@ struct DisclosureDetailView: View {
                         .background(Color.purple)
                         .foregroundColor(.white)
                         .cornerRadius(12)
-                    }
-                    .sheet(isPresented: $showAISafari) {
-                        if let url = URL(string: "https://dartpro.duckdns.org/dashboard") {
-                            SafariView(url: url)
-                        }
                     }
                 }
                 .alert("프리미엄 전용 기능", isPresented: $showPremiumAlert) {

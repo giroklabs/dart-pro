@@ -67,7 +67,9 @@ struct DisclosureCard: View {
                 
                 Button(action: {
                     if authManager.isPremium {
-                        showAISafari = true
+                        if let url = URL(string: "https://dartpro.duckdns.org/dashboard") {
+                            UIApplication.shared.open(url)
+                        }
                     } else {
                         showPremiumAlert = true
                     }
@@ -78,11 +80,6 @@ struct DisclosureCard: View {
                     }
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.purple)
-                }
-                .sheet(isPresented: $showAISafari) {
-                    if let url = URL(string: "https://dartpro.duckdns.org/dashboard") {
-                        SafariView(url: url)
-                    }
                 }
             }
             
@@ -153,7 +150,6 @@ struct DisclosureCard: View {
         } message: {
             Text("Gemini AI 심층 분석은 프리미엄 구독자에게만 제공됩니다. 웹 대시보드에서 전문적인 리포트를 확인해 보세요!")
         }
-        .padding(.horizontal)
         .onChange(of: isGeminiEnabled) { newValue in
             if newValue && authManager.isPremium && geminiResult == nil {
                 startGeminiAnalysis()
