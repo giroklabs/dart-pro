@@ -6,7 +6,7 @@ const BACKEND_URL = _IS_LOCAL ? 'http://localhost:3000' : 'https://dartpro.duckd
 
 const api = {
   BASE: `${BACKEND_URL}/api/dart`,
-  GEMINI_BASE: `${BACKEND_URL}/api/gemini`,
+  GEMINI_BASE: `${BACKEND_URL}/api/ai`,
   
   // 상태 관리
   _corpDb: null,
@@ -256,7 +256,7 @@ const api = {
       const res = await fetch(`${this.GEMINI_BASE}/analyze`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ corpName, reportNm })
+        body: JSON.stringify({ corpName, reportName: reportNm })
       });
 
       if (!res.ok) {

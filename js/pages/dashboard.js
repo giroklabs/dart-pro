@@ -403,24 +403,24 @@ async function initDashboard() {
     const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
     // 2. 관심 종목별 공시 데이터 개별 조회 (병렬 처리)
-    const promises = watchlist.map(item => 
+    const promises = watchlist.map(code => 
       api.searchDisclosures({ 
-        corp_code: item.code, 
+        corp_code: code, 
         bgn_de: bgnDe30, 
         end_de: endDe, 
-        page_count: 3 // 각 종목별 최근 3건
+        page_count: 3 
       })
     );
     
     const results = await Promise.all(promises);
 
-    // 데이터를 종목별로 그룹화 + 이름 교정 (Reverse Lookup)
-    const groups = await Promise.all(watchlist.map(async (item, index) => {
+    // 데이터를 종목별로 그룹화 + 이름 교정
+    const groups = await Promise.all(watchlist.map(async (code, index) => {
       const res = results[index];
       const corpList = res.list || [];
-      const correctedName = await api.getCorpName(item.code);
+      const correctedName = await api.getCorpName(code);
       return {
-        company: { ...item, name: correctedName || item.name },
+        company: { code: code, name: correctedName },
         latestDate: corpList.length > 0 ? corpList[0].rcept_no : '0',
         list: corpList
       };
