@@ -191,11 +191,18 @@ const api = {
   // 관심 종목 관리 (문자열 배열 기반)
   getWatchlist() {
     const raw = JSON.parse(localStorage.getItem('dart_watchlist') || '[]');
-    // 8자리 숫자 코드만 남기기 (찌꺼기 데이터 정화)
-    return Array.isArray(raw) ? raw.map(i => {
+    if (!Array.isArray(raw)) return [];
+    
+    const cleaned = raw.map(i => {
       if (typeof i === 'object' && i !== null) return i.code || i.corp_code;
       return String(i);
-    }).filter(code => /^[0-9]{8}$/.test(code)) : [];
+    }).filter(code => {
+      const isValid = /^[0-9]{8}$/.test(code);
+      if (!isValid && code !== '[]') console.warn('[API] Junk data filtered out:', code);
+      return isValid;
+    });
+
+    return cleaned;
   },
 
   addWatch(corpCode) {
