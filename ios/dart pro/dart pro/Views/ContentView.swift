@@ -16,10 +16,17 @@ struct ContentView: View {
                 
                 VStack(spacing: 0) {
                     // Slim Header
-                    HStack {
-                        Text("공시알리미")
-                            .font(.system(size: 26, weight: .black))
-                            .foregroundColor(.primary)
+                    HStack(alignment: .bottom) {
+                        HStack(alignment: .bottom, spacing: 6) {
+                            Text("공시알리미")
+                                .font(.system(size: 26, weight: .black))
+                                .foregroundColor(.primary)
+                            
+                            Text("Dart Pro")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 2)
+                        }
                         
                         Spacer()
                         
