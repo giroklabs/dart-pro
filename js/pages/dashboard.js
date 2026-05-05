@@ -492,8 +492,8 @@ function renderDashboardUI(groups, stats) {
         <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
           <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:12px;">
-              <div class="corp-logo">${group.company.name[0]}</div>
-              <h3 class="t-headline-sm">${group.company.name}</h3>
+              <div class="corp-logo">${(group.company.name && group.company.name[0]) || '?'}</div>
+              <h3 class="t-headline-sm">${group.company.name || group.company.code}</h3>
             </div>
             <button class="btn-text" onclick="location.hash='#/company?q=${group.company.code}'">전체보기 &rarr;</button>
           </div>
