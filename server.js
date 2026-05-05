@@ -261,13 +261,12 @@ const server = http.createServer((req, res) => {
       }
 
       const corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
-      // corps.json 형식이 { "code": "name" } 인지 [{code, name}] 인지 확인 필요
-      // 여기서는 두 형식 모두 대응하도록 유연하게 처리
       let results = [];
       if (Array.isArray(corps)) {
         results = corps.filter(c => (c.name && c.name.includes(query)) || (c.code && c.code.includes(query)));
       } else {
         results = Object.entries(corps)
+          .filter(([key, val]) => !/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) // 이름:코드 쌍만 추출
           .filter(([name, code]) => name.includes(query) || code.includes(query))
           .map(([name, code]) => ({ code, name }));
       }
@@ -316,8 +315,10 @@ const server = http.createServer((req, res) => {
     } catch (e) { console.error('[API] Error loading corps.json', e); }
 
     const codeToName = {};
-    for (const [name, code] of Object.entries(corps)) {
-      codeToName[code] = name;
+    for (const [key, val] of Object.entries(corps)) {
+      if (!/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) {
+        codeToName[val] = key;
+      }
     }
 
     const result = {};
