@@ -160,7 +160,7 @@ function summarizeDisclosure(item, aiData = null) {
         <div class="insight-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
         <div class="insight-content">
           <div class="insight-header">
-            <div class="insight-label">${isCached}GEMINI 1.5 FLASH</div>
+            <div class="insight-label">${isCached}GEMINI 1.5 FLASH <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:6px;">${api.formatDate(item.rcept_dt)}</span></div>
             <div class="insight-impact">${impact}</div>
           </div>
           <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
@@ -182,7 +182,7 @@ function summarizeDisclosure(item, aiData = null) {
         <div class="insight-icon"><span class="material-symbols-outlined spin">sync</span></div>
         <div class="insight-content">
           <div class="insight-header">
-            <div class="insight-label">GEMINI 1.5 FLASH</div>
+            <div class="insight-label">GEMINI 1.5 FLASH <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:6px;">${api.formatDate(item.rcept_dt)}</span></div>
             <div class="insight-impact">분석 중...</div>
           </div>
           <div class="insight-text"><strong>${item.corp_name}</strong> - 실시간 공시 내용을 AI가 분석하고 있습니다.</div>
@@ -361,7 +361,7 @@ function getQuickInsightHtml(item) {
       <div class="insight-icon"><span class="material-symbols-outlined">${data.icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">⚡️ QUICK 분석 <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:4px;">[${data.category}]</span></div>
+          <div class="insight-label">⚡️ QUICK 분석 <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:4px;">[${data.category}]</span> <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:6px;">${api.formatDate(item.rcept_dt)}</span></div>
           <div class="insight-impact">${data.impact}</div>
         </div>
         ${tagsHtml}
@@ -572,62 +572,6 @@ function fmt(d) {
 }
 
 window.renderDashboard = renderDashboard;
-window.initDashboard = initDashboard;
-
-function getQuickInsightHtml(item) {
-  const title = item.report_nm || '';
-  let insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요.";
-  let points = ["공시 제목: " + title.split('[')[0].trim(), "제출일자: " + window.DART_API.formatDate(item.rcept_dt)];
-  let impact = "정보 확인";
-  let typeCls = "insight-default";
-  let icon = "campaign";
-
-  if (title.includes("배당")) {
-    insight = "현금/현물 배당 결정: 주주 환원의 핵심 지표가 발표되었습니다.";
-    points = ["과거 배당금 대비 증액 여부 확인", "시가배당률과 예상 수익률 검토", "배당 기준일까지 보유 여부 판단"];
-    impact = "긍정적 (배당수익)"; typeCls = "insight-success"; icon = "payments";
-
-  } else if (title.includes("사업보고서") || title.includes("분기보고서") || title.includes("반기보고서")) {
-    insight = "정기 실적 보고서: 기업의 공식 성적표가 공개되었습니다.";
-    points = ["매출·영업이익·순이익 전년 동기 대비 확인", "어닝 서프라이즈/쇼크 여부 판단", "부채비율 및 현금흐름 변화 체크"];
-    impact = "실적 변동"; typeCls = "insight-info"; icon = "monitoring";
-
-  } else if (title.includes("매출액") || title.includes("영업이익") || title.includes("실적")) {
-    insight = "실적 관련 공시: 매출 또는 이익 변동 내용이 포함되어 있습니다.";
-    points = ["예상 대비 실적 달성 여부 확인", "가이던스 상향/하향 여부 검토", "업종 내 경쟁사 대비 포지셔닝 확인"];
-    impact = "실적 변동"; typeCls = "insight-info"; icon = "trending_up";
-
-  } else if (title.includes("공급계약") || title.includes("수주") || title.includes("납품계약") || title.includes("용역계약")) {
-    insight = "신규 수주/공급계약: 매출 증대로 직결되는 호재입니다.";
-    points = ["계약 금액이 연매출 대비 몇 % 수준인지 확인", "계약 기간 및 납품 일정 검토", "상대방 기업 신뢰도 및 반복 거래 여부 체크"];
-    impact = "매출 증대"; typeCls = "insight-success"; icon = "contract_edit";
-
-  } else if (title.includes("유상증자")) {
-    insight = "유상증자: 신주 발행으로 주식 수가 증가합니다. 자금 조달 목적 확인이 중요합니다.";
-    points = ["조달 자금 용도(성장 투자 vs 채무 상환) 확인", "할인율 및 신주 배정 비율 검토", "기존 주주 지분 희석 비율 계산"];
-    impact = "희석 우려"; typeCls = "insight-warning"; icon = "add_chart";
-
-  } else if (title.includes("무상증자")) {
-    insight = "무상증자: 주식 수 증가로 유동성 제고 효과가 기대됩니다.";
-    points = ["배정 비율(몇 주당 몇 주) 확인", "권리락일 및 신주 상장일 체크", "단기 수급 변화 모니터링"];
-    impact = "유동성 제고"; typeCls = "insight-success"; icon = "add_chart";
-
-  } else if (title.includes("자기주식") || title.includes("자사주")) {
-    const isBuyback = title.includes("취득") || title.includes("매수");
-    const isCancel = title.includes("소각");
-    if (isCancel) {
-      insight = "자사주 소각: 유통 주식 수 감소로 주주 가치 제고 효과가 있습니다.";
-      points = ["소각 주식 수 및 비율 확인", "소각 후 EPS 상승 효과 계산", "주주 환원 정책 강화 의지 긍정적 평가"];
-      impact = "강한 호재"; typeCls = "insight-success"; icon = "local_fire_department";
-    } else if (isBuyback) {
-      insight = "자사주 취득: 경영진의 주가 저평가 인식 신호로 해석될 수 있습니다.";
-      points = ["취득 규모(발행주식 대비 %) 확인", "취득 기간 및 방법(직접/신탁) 확인", "소각 계획 포함 여부 체크(소각 시 호재)"];
-      impact = "긍정적 (주가 지지)"; typeCls = "insight-success"; icon = "savings";
-    } else {
-      insight = "자사주 관련 공시: 취득, 처분, 소각 등 세부 내용을 확인하세요.";
-      points = ["취득/처분/소각 여부 구분", "규모 및 시장 영향 검토"];
-      impact = "주의 필요"; typeCls = "insight-warning"; icon = "savings";
-    }
 
   } else if (title.includes("소유상황") || title.includes("장내매수") || title.includes("장내매도") || title.includes("주식등의대량보유")) {
     const isBuy = title.includes("매수") || title.includes("취득");

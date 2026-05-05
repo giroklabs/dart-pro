@@ -4,10 +4,13 @@ function renderCompany() {
   const watchlist = api.getWatchlist ? api.getWatchlist() : [];
 
   const watchlistButtons = watchlist.length > 0
-    ? watchlist.map(item => `
-        <span style="cursor:pointer;color:var(--secondary);margin-left:8px;white-space:nowrap;"
-              onclick="document.getElementById('company-corp-code').value='${item.code}';doCompanySearch()"
-        >${item.name}</span>`).join('')
+    ? watchlist.map(code => {
+        const name = api.corpCodeMap ? api.corpCodeMap[code] : code;
+        return `
+          <span class="pill pill-default" style="cursor:pointer; margin-left:8px;"
+                onclick="document.getElementById('company-corp-code').value='${code}';doCompanySearch()"
+          >${name}</span>`;
+      }).join('')
     : '<span style="color:var(--on-surface-variant);margin-left:8px;">관심 종목 없음 (설정에서 추가하세요)</span>';
 
   return `
