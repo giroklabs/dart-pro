@@ -233,7 +233,8 @@ class DARTManager: ObservableObject {
     }
     
     private func resolveNamesFromServer(codes: [String]) {
-        let unknownCodes = watchlist.filter { $0.name == $0.code }.map { $0.code }
+        // 이름이 코드와 같거나, '알 수 없는 종목'인 경우 서버에 요청
+        let unknownCodes = watchlist.filter { $0.name == $0.code || $0.name == "알 수 없는 종목" }.map { $0.code }
         guard !unknownCodes.isEmpty else { return }
         
         let codesStr = unknownCodes.joined(separator: ",")
@@ -246,7 +247,7 @@ class DARTManager: ObservableObject {
             
             DispatchQueue.main.async {
                 self?.watchlist = self?.watchlist.map { item in
-                    if let newName = nameMap[item.code], item.name == item.code {
+                    if let newName = nameMap[item.code], (item.name == item.code || item.name == "알 수 없는 종목") {
                         return WatchItem(code: item.code, name: newName)
                     }
                     return item
