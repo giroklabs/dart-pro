@@ -95,11 +95,16 @@ const FB_AUTH = {
       // 1. Firestore 데이터 가져오기
       const doc = await db.collection('users').doc(this.currentUser.uid).get();
       let cloudCodes = [];
-      if (doc.exists && doc.data().interests) {
-        cloudCodes = doc.data().interests.map(i => {
-          if (typeof i === 'object' && i !== null) return i.code || i.corp_code;
-          return String(i);
-        });
+      if (doc.exists) {
+        const data = doc.data();
+        this.isPremium = data.isPremium === true;
+        
+        if (data.interests) {
+          cloudCodes = data.interests.map(i => {
+            if (typeof i === 'object' && i !== null) return i.code || i.corp_code;
+            return String(i);
+          });
+        }
       }
 
       // 2. Node.js 서버 데이터 가져오기
