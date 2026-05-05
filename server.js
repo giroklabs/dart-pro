@@ -287,42 +287,7 @@ const server = http.createServer((req, res) => {
   // ==========================================
   // 2. 구독 및 동기화 API
   // ==========================================
-  if ((pathname === '/api/push/register' || pathname === '/push/register') && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        const { token, corp_codes, uid } = JSON.parse(body);
-        console.log(`[Watchlist] Register request - UID: ${uid || 'N/A'}, Codes: ${corp_codes?.length || 0}`);
-        
-        // 구독 정보 저장 (FCM용)
-        let subs = {};
-        if (fs.existsSync(SUBS_FILE)) subs = JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8'));
-        for (const code in subs) subs[code] = subs[code].filter(t => t !== token);
-        corp_codes.forEach(code => {
-          if (!subs[code]) subs[code] = [];
-          subs[code].push(token);
-        });
-        fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2));
 
-        // 사용자별 관심 종목 저장 (동기화용)
-        if (uid) {
-          let userData = {};
-          if (fs.existsSync(USER_DATA_FILE)) userData = JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8'));
-          userData[uid] = corp_codes;
-          fs.writeFileSync(USER_DATA_FILE, JSON.stringify(userData, null, 2));
-          console.log(`[Watchlist] Successfully saved for UID: ${uid}`);
-        }
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true }));
-      } catch (e) {
-        res.writeHead(400);
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    });
-    return;
-  }
 
   if (pathname === '/api/user/notifications' || pathname === '/user/notifications') {
     const uid = parsedUrl.searchParams.get('uid');
@@ -339,39 +304,7 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(userNotifs));
   }
 
-  if (pathname === '/api/push/watchlist' || pathname === '/push/watchlist') {
-    const uid = parsedUrl.searchParams.get('uid');
-    console.log(`[Watchlist] Fetch request - UID: ${uid || 'unknown'}`);
-    if (!uid) {
-      res.writeHead(400);
-      return res.end(JSON.stringify({ error: 'UID required' }));
-    }
-    let userData = {};
-    if (fs.existsSync(USER_DATA_FILE)) userData = JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8'));
-    
-    const codes = userData[uid] || [];
-    
-    // corps.json 로드하여 이름 매칭
-    let corps = {};
-    try {
-      const corpsPath = path.join(__dirname, 'corps.json');
-      if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
-    } catch (e) { console.error('[Watchlist] Error loading corps.json', e); }
 
-    // [name: code] 구조를 [code: name]으로 변환 (corps.json이 {name: code} 형태인 경우)
-    const codeToName = {};
-    for (const [name, code] of Object.entries(corps)) {
-      codeToName[code] = name;
-    }
-
-    const watchlist = codes.map(code => ({
-      code: code,
-      name: codeToName[code] || '알 수 없는 종목'
-    }));
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify(watchlist));
-  }
 
   // ==========================================
   // 3. DART API 백엔드 프록시 (기존 기능 유지 및 개선)
@@ -564,32 +497,30 @@ async function checkNewDisclosures() {
         if (newItems.length > 0) {
           console.log(`[Monitor] Found ${newItems.length} new disclosures!`);
           
-          // 구독 정보 및 사용자 관심 종목 데이터 로드
-          const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
-          const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
-          
-          if (fs.existsSync(SUBS_FILE)) {
-            const subs = JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8'));
-            const userData = fs.existsSync(USER_DATA_FILE) ? JSON.parse(fs.readFileSync(USER_DATA_FILE, 'utf8')) : {};
-            
-            for (let item of newItems.reverse()) { 
-              // 1. 푸시 발송 (토큰 기준)
-              const targets = subs[item.corp_code] || [];
-              if (targets.length > 0) {
-                console.log(`[Monitor] Sending push for ${item.corp_name} to ${targets.length} devices`);
-                for (let token of targets) {
-                  const message = {
-                    notification: { title: `🔔 [${item.corp_name}] 공시 알림`, body: item.report_nm.trim() },
-                    data: { rcept_no: item.rcept_no, corp_code: item.corp_code, type: 'DISCLOSURE' },
-                    token: token
-                  };
-                  admin.messaging().send(message).catch(() => {});
-                }
-              }
-
-              // 2. 알림 내역 저장 (UID 기준)
-              Object.entries(userData).forEach(([uid, codes]) => {
-                if (codes.includes(item.corp_code)) {
+          // Firebase에서 푸시 대상을 조회하여 알림 발송
+          for (let item of newItems.reverse()) { 
+            try {
+              const snapshot = await admin.firestore().collection('users')
+                .where('interests', 'array-contains', item.corp_code)
+                .get();
+              
+              if (!snapshot.empty) {
+                console.log(`[Monitor] Found ${snapshot.size} users tracking ${item.corp_name}`);
+                snapshot.forEach(doc => {
+                  const uid = doc.id;
+                  const data = doc.data();
+                  
+                  // 1. 푸시 발송 (토큰 기준)
+                  if (data.fcmToken) {
+                    const message = {
+                      notification: { title: `🔔 [${item.corp_name}] 공시 알림`, body: item.report_nm.trim() },
+                      data: { rcept_no: item.rcept_no, corp_code: item.corp_code, type: 'DISCLOSURE' },
+                      token: data.fcmToken
+                    };
+                    admin.messaging().send(message).catch(() => {});
+                  }
+                  
+                  // 2. 알림 내역 저장 (UID 기준 - 기존 웹 호환성 유지)
                   const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
                   let userNotifs = [];
                   if (fs.existsSync(userNotifFile)) userNotifs = JSON.parse(fs.readFileSync(userNotifFile, 'utf8'));
@@ -603,9 +534,10 @@ async function checkNewDisclosures() {
                     isRead: false
                   });
                   fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
-                  console.log(`[Monitor] Saved history for UID: ${uid}`);
-                }
-              });
+                });
+              }
+            } catch (err) {
+              console.error(`[Monitor] Error querying Firestore for ${item.corp_code}:`, err);
             }
           }
 
