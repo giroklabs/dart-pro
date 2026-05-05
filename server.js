@@ -268,8 +268,8 @@ const server = http.createServer((req, res) => {
         results = corps.filter(c => (c.name && c.name.includes(query)) || (c.code && c.code.includes(query)));
       } else {
         results = Object.entries(corps)
-          .filter(([code, name]) => name.includes(query) || code.includes(query))
-          .map(([code, name]) => ({ code, name }));
+          .filter(([name, code]) => name.includes(query) || code.includes(query))
+          .map(([name, code]) => ({ code, name }));
       }
       
       results = results.slice(0, 20);
