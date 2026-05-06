@@ -206,7 +206,7 @@ const server = http.createServer((req, res) => {
         }
         `;
 
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const requestBody = JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         });
@@ -514,7 +514,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
-  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-04 22:26)`);
+  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-06 13:52)`);
   console.log(`👉 접속 주소: http://localhost:${PORT}`);
   console.log(`==============================================\n`);
   
@@ -581,12 +581,14 @@ async function checkNewDisclosures() {
           // Firebase에서 푸시 대상을 조회하여 알림 발송
           for (let item of newItems.reverse()) { 
             try {
-              const snapshot = await admin.firestore().collection('users')
-                .where('interests', 'array-contains', item.corp_code)
-                .get();
-              
-              if (!snapshot.empty) {
-                console.log(`[Monitor] Found ${snapshot.size} users tracking ${item.corp_name}`);
+              // Firebase 앱이 초기화된 경우에만 쿼리 실행
+              if (admin.apps.length > 0) {
+                const snapshot = await admin.firestore().collection('users')
+                  .where('interests', 'array-contains', item.corp_code)
+                  .get();
+                
+                if (!snapshot.empty) {
+                  console.log(`[Monitor] Found ${snapshot.size} users tracking ${item.corp_name}`);
                 snapshot.forEach(doc => {
                   const uid = doc.id;
                   const data = doc.data();
@@ -617,10 +619,11 @@ async function checkNewDisclosures() {
                   fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
                 });
               }
-            } catch (err) {
-              console.error(`[Monitor] Error querying Firestore for ${item.corp_code}:`, err);
             }
+          } catch (err) {
+            console.error(`[Monitor] Error querying Firestore for ${item.corp_code}:`, err);
           }
+        }
 
           // 마지막 번호 업데이트 및 저장
           lastProcessedRceptNo = latest.rcept_no;

@@ -233,19 +233,20 @@ const api = {
     }
   },
 
-  async getGeminiAnalysis(corpName, reportNm) {
+  async getGeminiAnalysis(corpName, reportNm, rceptNo = null) {
+    if (!corpName || !reportNm) {
+      console.warn('[Gemini] 필수 파라미터 누락:', { corpName, reportNm, rceptNo });
+      return null;
+    }
+
     if (this._geminiRateLimitUntil && Date.now() < this._geminiRateLimitUntil) {
       throw new Error(`할당량 초과 (429): 분당 요청 제한에 걸렸습니다. 잠시 후 다시 시도하세요.`);
     }
 
-    const cacheKey = `gemini_cache_${corpName}_${reportNm}`;
+    const cacheKey = rceptNo ? `gemini_cache_${rceptNo}` : `gemini_cache_${corpName}_${reportNm}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        localStorage.removeItem(cacheKey);
-      }
+      try { return JSON.parse(cached); } catch (e) { localStorage.removeItem(cacheKey); }
     }
 
     try {
@@ -256,43 +257,30 @@ const api = {
       const res = await fetch(`${this.GEMINI_BASE}/analyze`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ corpName, reportName: reportNm })
+        body: JSON.stringify({ corpName, reportName: reportNm, rceptNo })
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        const msg = errData.error?.message || '';
+        const errMsg = errData?.error?.message || errData?.error || errData?.message || res.statusText || 'Unknown';
+        
         if (res.status === 429) {
           this._geminiRateLimitUntil = Date.now() + 60000;
-          throw new Error(`할당량 초과 (429): 분당 요청 제한에 걸렸습니다. 1분 후 다시 시도하세요.`);
         }
-        if (res.status === 401 || res.status === 403) {
-          throw new Error(`Premium 사용자만 이용 가능합니다.`);
-        }
-        throw new Error(`분석 요청 실패 (${res.status}): ${msg || 'Unknown'}`);
+        throw new Error(`분석 요청 실패 (${res.status}): ${errMsg}`);
       }
 
       const data = await res.json();
+      const stripMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
       
-      let parsedData = data;
-      // 만약 원본 구글 API 응답이 넘어올 경우를 대비한 하위 호환성
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        const text = data.candidates[0].content.parts[0].text;
-        const cleanedText = text.replace(/```json|```/g, '').trim();
-        parsedData = JSON.parse(cleanedText);
-      }
-      
-      if (parsedData && parsedData.insight) {
-        // 불필요한 마크다운 기호 제거
-        const stripMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
-        parsedData.insight = stripMd(parsedData.insight);
-        parsedData.impact = stripMd(parsedData.impact);
-        if (Array.isArray(parsedData.points)) {
-          parsedData.points = parsedData.points.map(p => stripMd(p));
+      if (data && data.insight) {
+        data.insight = stripMd(data.insight);
+        data.impact = stripMd(data.impact);
+        if (Array.isArray(data.points)) {
+          data.points = data.points.map(p => stripMd(p));
         }
-
-        localStorage.setItem(cacheKey, JSON.stringify(parsedData));
-        return parsedData;
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        return data;
       }
       
       throw new Error("AI 분석 결과를 파싱할 수 없습니다.");
@@ -300,7 +288,6 @@ const api = {
       console.error('Gemini Analysis Critical Error:', err);
       throw err;
     }
-    return null;
   },
 
   // 1. 공시검색

@@ -46,20 +46,27 @@ async function renderDashboard() {
 }
 
 async function renderInsight(containerId, item) {
+  // [가이드 3-2] 임시 디버그 로그 추가
+  console.log('[DEBUG] renderInsight 호출값:', {
+    corpName: item?.corp_name,
+    reportName: item?.report_nm,
+    rceptNo: item?.rcept_no,
+    rawItem: item
+  });
+
   const api = window.DART_API;
   const container = document.getElementById(containerId);
   if (!container) return;
 
   const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
 
-  // 1. 퀵 분석 모드일 경우 즉시 렌더링하고 종료
   if (aiMode === 'quick') {
     container.innerHTML = getQuickInsightHtml(item);
     return;
   }
 
-  // 2. 캐시 확인 (Gemini 전용) — api.js와 동일한 키 사용
-  const cacheKey = `gemini_cache_${item.corp_name}_${item.report_nm}`;
+  // 캐시 확인 (rcept_no 기반으로 우선 확인)
+  const cacheKey = item.rcept_no ? `gemini_cache_${item.rcept_no}` : `gemini_cache_${item.corp_name}_${item.report_nm}`;
   const cached = localStorage.getItem(cacheKey);
   
   if (cached) {
@@ -73,13 +80,11 @@ async function renderInsight(containerId, item) {
     }
   }
 
-  // 3. 기본 요약 표시 (로딩 중 대용)
   container.innerHTML = summarizeDisclosure(item, null);
 
-  // 4. 실시간 분석 시도 (프리미엄 검증은 백엔드에서도 수행됨)
   try {
-    const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm);
-    // api.js 내부에서 캐시 저장 완료
+    // [가이드 4-1] rcept_no를 포함하여 요청
+    const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm, item.rcept_no);
     if (aiData) {
       container.innerHTML = summarizeDisclosure(item, aiData);
     }
@@ -572,15 +577,16 @@ async function initDashboard() {
     const updateInsights = async () => {
       if (groups.some(g => g.list.length > 0)) {
         const activeGroups = groups.filter(g => g.list.length > 0);
-        for (let i = 0; i < activeGroups.length; i += 3) {
-          const chunk = activeGroups.slice(i, i + 3);
+        const CHUNK_SIZE = 2; // [가이드 4-3] 요청 분산 처리
+        for (let i = 0; i < activeGroups.length; i += CHUNK_SIZE) {
+          const chunk = activeGroups.slice(i, i + CHUNK_SIZE);
           await Promise.all(chunk.map((g, idx) => {
             const globalIdx = i + idx;
             const divId = `insight-item-${globalIdx}`;
             return renderInsight(divId, g.list[0]);
           }));
-          if (i + 3 < activeGroups.length) {
-            await new Promise(r => setTimeout(r, 1000)); // 다음 청크 전 1초 대기
+          if (i + CHUNK_SIZE < activeGroups.length) {
+            await new Promise(r => setTimeout(r, 500)); // [가이드 4-3] 500ms 대기
           }
         }
       }
