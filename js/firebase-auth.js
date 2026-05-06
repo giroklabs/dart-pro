@@ -1,7 +1,9 @@
 // js/firebase-auth.js
 async function initFirebase() {
   try {
-    const res = await fetch('/api/config');
+    // api.js에 정의된 BACKEND_URL 사용 (없을 경우 로컬 기본값 사용)
+    const baseUrl = typeof BACKEND_URL !== 'undefined' ? BACKEND_URL : '';
+    const res = await fetch(`${baseUrl}/api/config`);
     const config = await res.json();
     
     if (!config.apiKey) throw new Error('Firebase Config load failed');
