@@ -443,6 +443,126 @@ const QUICK_RULES = [
       '핵심감사사항(KAM) 내용 검토',
       '계속기업 존속 불확실성 여부 체크'
     ]
+  },
+  {
+    id: 'bond_issuance',
+    match: [/일괄신고/, /증권발행실적/, /파생결합사채/, /파생결합증권/, /구조화증권/],
+    category: '채권발행',
+    impact: '자금조달',
+    urgency: 45,
+    typeCls: 'insight-info',
+    icon: 'receipt_long',
+    insight: '채권/파생상품 발행 공시: 자금 조달 규모와 조건을 확인하세요.',
+    points: [
+      '발행 금액 및 만기 조건 확인',
+      '조달 자금 사용 목적 검토',
+      '기발행 잔액 대비 총 부채 영향 체크'
+    ]
+  },
+  {
+    id: 'ir',
+    match: [/기업설명회/, /IR개최/, /IR 개최/],
+    category: '투자자소통',
+    impact: '정보 공개',
+    urgency: 40,
+    typeCls: 'insight-info',
+    icon: 'campaign',
+    insight: '기업설명회(IR) 개최: 경영진이 사업 현황과 전망을 직접 공개합니다.',
+    points: [
+      '설명회 일정 및 참가 방법 확인',
+      '주요 발표 내용(실적·전략·가이던스) 모니터링',
+      '설명회 이후 시장 반응 및 주가 흐름 확인'
+    ]
+  },
+  {
+    id: 'agm',
+    match: [/주주총회/],
+    category: '주주총회',
+    impact: '의결 확인',
+    urgency: 65,
+    typeCls: 'insight-info',
+    icon: 'how_to_vote',
+    insight: '주주총회 소집/결과 공시: 주요 안건의 가결 여부가 경영 방향에 영향을 줍니다.',
+    points: [
+      '주요 안건(배당·정관변경·임원선임 등) 확인',
+      '반대 의결 비율이 높은 안건 체크',
+      '가결된 결의 사항의 향후 일정 모니터링'
+    ]
+  },
+  {
+    id: 'capital_reduction',
+    match: [/감자/, /자본감소/],
+    category: '자본감소',
+    impact: '주의 요망',
+    urgency: 88,
+    typeCls: 'insight-warning',
+    icon: 'trending_down',
+    insight: '감자(자본감소) 공시: 유상감자는 주주 손실, 무상감자는 재무구조 개선 목적입니다.',
+    points: [
+      '유상/무상 감자 여부 구분 필수',
+      '감자 비율 및 주주 환급금 확인',
+      '감자 후 재무건전성 및 주가 희석 영향 계산'
+    ]
+  },
+  {
+    id: 'amendment',
+    match: [/기재정정/],
+    category: '정정공시',
+    impact: '변경 확인',
+    urgency: 72,
+    typeCls: 'insight-warning',
+    icon: 'edit_note',
+    insight: '기재정정 공시: 기존 공시의 내용이 수정되었습니다. 변경 항목을 반드시 확인하세요.',
+    points: [
+      '원본 공시 대비 변경된 핵심 항목 파악',
+      '금액·일정·비율 등 수치 변경 여부 체크',
+      '정정 사유가 단순 오기인지 실질 변경인지 판단'
+    ]
+  },
+  {
+    id: 'acquisition_result',
+    match: [/취득결과/, /처분결과/, /발행결과/],
+    category: '이행결과',
+    impact: '결과 확인',
+    urgency: 55,
+    typeCls: 'insight-info',
+    icon: 'task_alt',
+    insight: '취득/처분/발행 이행 결과 공시: 계획 대비 실제 실행 결과를 확인하세요.',
+    points: [
+      '예정 대비 실제 취득/처분 규모 비교',
+      '미이행 또는 변경 사항 여부 체크',
+      '잔여 물량의 향후 처리 계획 확인'
+    ]
+  },
+  {
+    id: 'investment_other',
+    match: [/타법인출자/, /영업양수/, /사업양수/, /영업양도/],
+    category: '사업확장',
+    impact: '전략 변화',
+    urgency: 78,
+    typeCls: 'insight-info',
+    icon: 'business_center',
+    insight: '타법인 출자/사업 양수도: 사업 영역 확대 또는 구조 재편 신호입니다.',
+    points: [
+      '투자 규모가 자기자본 대비 몇 %인지 확인',
+      '인수 대상의 수익성·부채 현황 검토',
+      '사업 시너지 및 통합 리스크 평가'
+    ]
+  },
+  {
+    id: 'dividend_date',
+    match: [/배당기준일/, /중간배당/],
+    category: '배당일정',
+    impact: '배당 일정',
+    urgency: 62,
+    typeCls: 'insight-success',
+    icon: 'event',
+    insight: '배당기준일/중간배당 공시: 배당 수령을 위한 보유 기한을 확인하세요.',
+    points: [
+      '배당 기준일 전일까지 매수 완료 필요',
+      '예상 배당금 및 시가배당률 확인',
+      '기존 연간 배당 정책과의 일관성 체크'
+    ]
   }
 ];
 
