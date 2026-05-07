@@ -6,3 +6,4 @@ service-account.json
 .env
 /dart pro/dart pro.xcworkspace/xcuserdata/
 data/
+ios/dart pro/GoogleService-Info.plist
