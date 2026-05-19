@@ -95,6 +95,12 @@ class DartLeanEngine:
                 logger.debug("[%s] 이미 처리됨", rcept_no)
                 continue
 
+            report_nm = filing.get("report_nm", "")
+            # 집합투자증권, 투자설명서 등 대용량 펀드/금융상품 관련 무관한 공시는 분석 대상에서 사전 차단하여 대역폭 및 DART 쿼터를 절약합니다.
+            if any(k in report_nm for k in ["집합투자증권", "투자설명서", "효력발생안내", "일괄신고서", "자산운용보고서"]):
+                logger.debug("[%s] 자산운용/펀드 공시 스킵: %s", rcept_no, report_nm)
+                continue
+
             try:
                 logger.info("[%s] %s 처리 중...", rcept_no, filing.get("report_nm"))
                 time.sleep(0.3)  # DART API 과부하 및 차단 방지용 안전 마이크로 딜레이
