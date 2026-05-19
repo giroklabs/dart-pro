@@ -427,9 +427,19 @@ class FinancialExtractor:
         candidates = []
 
         for idx, table in enumerate(soup.find_all("table")):
+            table_text = table.get_text(" ", strip=True)
+
+            if self._is_noise_table(table_text):
+                logger.debug("table[%s] skipped by noise table rule preview=%s", idx, table_text[:200])
+                continue
+
+            # 재무제표 핵심 키워드가 전혀 잡히지 않는 비재무 테이블(직원/주주 현황 등 95%의 테이블)은 matrix 생성을 생략하고 사전 스킵합니다.
+            priority = self._table_priority(table_text)
+            if priority <= 0:
+                continue
+
             rows = table.find_all("tr")
             matrix = []
-
             for tr in rows:
                 cells = [cell.get_text(" ", strip=True) for cell in tr.find_all(["th", "td"])]
                 cells = [c for c in cells if c]
@@ -440,12 +450,6 @@ class FinancialExtractor:
                 continue
 
             if self._is_numeric_noise_table(matrix):
-                continue
-
-            table_text = table.get_text(" ", strip=True)
-
-            if self._is_noise_table(table_text):
-                logger.debug("table[%s] skipped by noise table rule preview=%s", idx, table_text[:200])
                 continue
 
             score = self._score_financial_table(matrix, table_text)
