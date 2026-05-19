@@ -109,7 +109,7 @@ def parse_unit_to_million(value_text: str, unit_hint: str = "", explicit_unit: b
     # 단위 힌트가 "백만원" 또는 "억원"으로 명시/암묵 감지되었으나 수치가 1천만 이상으로 지나치게 큰 경우,
     # 이는 단위 감지 오류(실제는 원 단위임)로 판정하고 원(KRW) 단위로 강제 간주하여 처리합니다.
     # 단, "천원" 또는 "원" 단위인 경우는 대형 수치가 정상 범위이므로 감지 결과를 전적으로 신뢰합니다.
-    is_misdetected_million_unit = (unit_hint in ("백만원", "억원")) and abs(val) >= 10_000_000
+    is_misdetected_million_unit = (not explicit_unit) and (unit_hint in ("백만원", "억원")) and abs(val) >= 10_000_000
     is_no_hint_but_large = (not explicit_unit or not unit_hint) and abs(val) >= 10_000_000
 
     if is_misdetected_million_unit or is_no_hint_but_large:
