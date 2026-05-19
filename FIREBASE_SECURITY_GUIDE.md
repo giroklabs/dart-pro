@@ -25,3 +25,17 @@
 - **민감 정보 하드코딩 금지**: 어떠한 경우에도 소스코드(.js, .swift, .html)에 API 키나 비밀번호를 직접 적지 않음.
 - **.gitignore 선제적 적용**: 새로운 파일을 만들기 전에 반드시 .gitignore에 등록되어 있는지 확인.
 - **주기적 키 점검**: 유출 여부와 관계없이 주기적으로 API 키를 교체하여 보안성 유지.
+
+---
+
+## 5. 2차 사고 이력 (2026-05-07)
+- **현상**: `ios/dart pro/GoogleService-Info.plist`가 커밋에 포함되어 GitHub에 재노출. GitHub Secret Scanning이 자동 감지.
+- **노출 키**: `AIzaSyDUB-Ji1nyB46JBZLFSTbsKPNLp6wGKT80` (즉시 삭제 조치)
+- **원인**: `.gitignore`에 등록되어 있었으나 git 인덱스에 여전히 추적 중인 상태에서 커밋됨 (1차 사고와 동일 원인).
+- **조치**:
+  1. Firebase 콘솔에서 노출 키 삭제 및 새 plist 재발급.
+  2. `git rm --cached "ios/dart pro/GoogleService-Info.plist"` 로 git 추적 완전 제거.
+  3. `.gitignore`에 해당 경로 재확인 및 커밋.
+  4. Xcode에 새 plist 적용 완료.
+- **교훈**: 파일을 `.gitignore`에 추가하는 것만으로는 부족. **이미 추적 중인 파일은 반드시 `git rm --cached`로 인덱스에서 제거해야 함.**
+

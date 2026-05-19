@@ -31,7 +31,7 @@ async function renderDashboard() {
       </div>
       <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
         <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${quickStyle}" onclick="switchAiMode('quick')">⚡️ QUICK 분석</button>
-        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${geminiStyle}" onclick="switchAiMode('gemini')">✨ 제미나이</button>
+        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${geminiStyle}" onclick="switchAiMode('gemini')">✨ 제미나이(유료)</button>
       </div>
     </div>
     <div id="quick-insight-container"></div>
@@ -60,6 +60,17 @@ async function renderInsight(containerId, item) {
 
   const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
 
+  // 1. Lean Engine 요약 먼저 시도 (초고속, 캐시보다 우선)
+  try {
+    const leanSummary = await api.getLeanSummary(item.rcept_no);
+    if (leanSummary) {
+      container.innerHTML = summarizeDisclosure(item, null, leanSummary);
+      return;
+    }
+  } catch (e) {
+    console.warn('Lean Engine Error:', e);
+  }
+
   if (aiMode === 'quick') {
     container.innerHTML = getQuickInsightHtml(item);
     return;
@@ -83,7 +94,9 @@ async function renderInsight(containerId, item) {
   container.innerHTML = summarizeDisclosure(item, null);
 
   try {
-    // [가이드 4-1] rcept_no를 포함하여 요청
+
+
+    // 2. Gemini AI 분석 (기존 로직 유지)
     const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm, item.rcept_no);
     if (aiData) {
       container.innerHTML = summarizeDisclosure(item, aiData);
@@ -112,8 +125,40 @@ async function renderInsight(containerId, item) {
   }
 }
 
-function summarizeDisclosure(item, aiData = null) {
+// ==========================================
+// 1.6 Disclosure Ranker 스코어링 (QUICK/Gemini 공통)
+// ==========================================
+function calculateDisclosureScore(reportName) {
+  let score = 0;
+  if (/[0-9]+억|[0-9,]+원|[0-9]+백만/.test(reportName)) score += 2.0;
+  if (/[0-9.]+%/.test(reportName)) score += 1.2;
+  if (/[0-9]{4}[./-][0-9]{1,2}[./-][0-9]{1,2}/.test(reportName)) score += 0.8;
+  const keywords = ['결정', '체결', '취득', '처분', '변경', '발생', '해지', '완료', '승인', '의결', '정정', '연장', '배당', '수주', '공급계약', '유상증자', '무상증자', '합병', '분할'];
+  if (keywords.some(k => reportName.includes(k))) score += 1.5;
+  const amountMatches = (reportName.match(/[0-9]+억|[0-9,]+원|[0-9]+백만/g) || []).length;
+  score += Math.min(amountMatches, 3) * 0.5;
+  const percentMatches = (reportName.match(/[0-9.]+%/g) || []).length;
+  score += Math.min(percentMatches, 2) * 0.3;
+  const riskKeywords = ['리스크', '불확실성', '위험', '손실', '하락', '변동성', '소송', '제재', '과징금', '관리종목', '상장폐지'];
+  if (riskKeywords.some(k => reportName.includes(k))) score += 2.0;
+  return parseFloat(score.toFixed(1));
+}
+
+function getRankLabel(score) {
+  if (score >= 4.0) return 3; // 매우 중요
+  if (score >= 2.5) return 2; // 중요
+  if (score >= 1.0) return 1; // 보통
+  return 0; // 참고
+}
+
+function summarizeDisclosure(item, aiData = null, leanSummary = null) {
+  const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
   const title = item.report_nm || '';
+  const isPeriodic = title.startsWith("사업보고서") || title.startsWith("반기보고서") || title.startsWith("분기보고서");
+
+  if (aiMode === 'quick' && !isPeriodic) {
+    return getQuickInsightHtml(item);
+  }
   const cleanMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
   
   // 삼성전자 배당 공시인 경우 고퀄리티 제미나이 분석 예시 제공
@@ -153,19 +198,88 @@ function summarizeDisclosure(item, aiData = null) {
     };
   }
 
+  // Lean Engine 데이터가 있는 경우 표시 (Gemini 데이터가 없을 때 우선순위)
+  if (leanSummary && !aiData) {
+    // 공시 성격에 따른 동적 라벨 생성
+    let impactLabel = "핵심 정보 추출";
+    const title = item.report_nm || "";
+    if (title.includes('사업보고서')) impactLabel = "사업보고서";
+    else if (title.includes('반기보고서')) impactLabel = "반기보고서";
+    else if (title.includes('분기보고서')) impactLabel = "분기보고서";
+    else if (title.includes('감사보고서')) impactLabel = "감사보고서";
+    else if (title.includes('배당')) impactLabel = "현금 배당 정보";
+    else if (title.includes('영업(잠정)실적') || title.includes('결산')) impactLabel = "실적 확인 필요";
+    else if (title.includes('정정')) impactLabel = "기재 정정 사항";
+    else if (title.includes('공급계약')) impactLabel = "수주 계약 체결";
+    else if (title.includes('유상증자')) impactLabel = "자금 조달 안내";
+    else if (title.includes('소유상황')) impactLabel = "지분 변동 감지";
+
+    const isPeriodic = title.startsWith("사업보고서") || title.startsWith("반기보고서") || title.startsWith("분기보고서");
+
+    let headerText = '';
+    const bulletLines = [];
+    const lines = (leanSummary || '').split('\n').map(l => l.trim()).filter(Boolean);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cleanedLine = line.replace(/^[-▪💡📢\s]+/, '');
+      
+      // 첫 줄이면서 불릿/이모지 시작이 아닌 경우 헤더로 지정
+      if (!headerText && !line.startsWith('-') && !line.startsWith('▪') && !line.startsWith('💡')) {
+        headerText = cleanedLine;
+      } else {
+        bulletLines.push(`<li>${cleanedLine}</li>`);
+      }
+    }
+
+    let finalHeader = headerText || `<strong>${item.corp_name}</strong> - ${item.report_nm}`;
+    finalHeader = finalHeader.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // 구버전 캐시 데이터 포맷 온더플라이 동적 변환 보정 필터
+    const legacyRegex = /^(.+?)의\s+(분기|반기|사업|정기|사업\(연간\))\s*보고서가\s+공시되었습니다\.?$/;
+    finalHeader = finalHeader.replace(legacyRegex, '<strong>$1</strong> - $2 보고서가 공시되었습니다.');
+    
+    const pointsHtml = bulletLines.join('');
+
+    return `
+      <div class="insight-banner insight-info">
+        <div class="insight-icon"><span class="material-symbols-outlined">bolt</span></div>
+        <div class="insight-content">
+          <div class="insight-header">
+            <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
+            <div class="insight-impact">${impactLabel}</div>
+          </div>
+          <div class="insight-text">${finalHeader}</div>
+          <ul class="insight-points">
+            ${pointsHtml}
+          </ul>
+        </div>
+        <div class="insight-actions">
+          <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
+        </div>
+      </div>
+    `;
+  }
+
   // Gemini 데이터가 있는 경우 우선 사용
   if (aiData) {
     const isCached = aiData._cached ? '⚡️ ' : '';
     const insight = cleanMd(aiData.insight || '');
     const impact = cleanMd(aiData.impact || '분석 중');
     const points = (aiData.points || []).map(p => cleanMd(p));
+    
+    // Ranker 정보 추출
+    const score = aiData.rankScore || 0;
+    const label = aiData.rankLabel || 0;
+    const rankText = ['참고', '보통', '중요', '매우 중요'][label];
+    const rankColor = ['var(--outline)', '#34a853', '#fbbc05', '#ea4335'][label];
 
     return `
-      <div class="insight-banner insight-info ai-glow">
+      <div class="insight-banner insight-info">
         <div class="insight-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
         <div class="insight-content">
           <div class="insight-header">
-            <div class="insight-label">${isCached}GEMINI 1.5 FLASH <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:6px;">${api.formatDate(item.rcept_dt)}</span></div>
+            <div class="insight-label">${isCached}GEMINI RANKER <span style="background:${rankColor}; color:white; padding:1px 6px; border-radius:4px; font-size:10px; margin-left:6px; font-weight:700;">${rankText}</span></div>
             <div class="insight-impact">${impact}</div>
           </div>
           <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
@@ -183,7 +297,7 @@ function summarizeDisclosure(item, aiData = null) {
   // Gemini 데이터가 없는 경우 (로딩 중 상태)
   if (!aiData) {
     return `
-      <div class="insight-banner insight-info ai-glow" style="opacity: 0.7;">
+      <div class="insight-banner insight-info" style="opacity: 0.7;">
         <div class="insight-icon"><span class="material-symbols-outlined spin">sync</span></div>
         <div class="insight-content">
           <div class="insight-header">
@@ -420,7 +534,7 @@ const QUICK_RULES = [
     category: '긴급위험',
     impact: '강한 위험',
     urgency: 100,
-    typeCls: 'insight-danger',
+    typeCls: 'insight-major',
     icon: 'warning',
     insight: '투자 주의 공시: 상장폐지 또는 심각한 규정 위반 관련 내용입니다.',
     points: [
@@ -433,7 +547,7 @@ const QUICK_RULES = [
     id: 'audit',
     match: [/감사보고서/, /감사의견/],
     category: '회계신뢰',
-    impact: '의견 확인',
+    impact: '감사보고서',
     urgency: 95,
     typeCls: 'insight-warning',
     icon: 'fact_check',
@@ -568,10 +682,15 @@ const QUICK_RULES = [
 
 function getQuickInsightData(item) {
   const title = item.report_nm || '';
+  const rankScore = calculateDisclosureScore(title);
+  const rankLabel = getRankLabel(rankScore);
+
   const base = {
     category: '기타',
     impact: '정보 확인',
-    urgency: 40,
+    urgency: 40 + (rankScore * 5), // 점수에 따른 긴급도 보정
+    rankScore,
+    rankLabel,
     typeCls: 'insight-default',
     icon: 'campaign',
     insight: '최근 접수된 공시입니다. 핵심 항목을 직접 확인하세요.',
@@ -614,19 +733,17 @@ function getQuickInsightData(item) {
 function getQuickInsightHtml(item) {
   const data = getQuickInsightData(item);
   
-  const tagsHtml = data.tags && data.tags.length > 0 
-    ? `<div style="margin-bottom:8px; display:flex; gap:4px;">${data.tags.map(t => `<span class="pill pill-default" style="font-size:10px; padding:2px 6px;">${t}</span>`).join('')}</div>`
-    : '';
+  const rankText = ['참고', '보통', '중요', '매우 중요'][data.rankLabel];
+  const rankColor = ['var(--outline)', '#34a853', '#fbbc05', '#ea4335'][data.rankLabel];
 
   return `
-    <div class="insight-banner ${data.typeCls}">
+    <div class="insight-banner ${data.typeCls}" id="quick-insight-${item.rcept_no}">
       <div class="insight-icon"><span class="material-symbols-outlined">${data.icon}</span></div>
       <div class="insight-content">
         <div class="insight-header">
-          <div class="insight-label">⚡️ QUICK 분석 <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:4px;">[${data.category}]</span> <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:6px;">${api.formatDate(item.rcept_dt)}</span></div>
+          <div class="insight-label">${window.DART_API.formatDate(item.rcept_dt)}</div>
           <div class="insight-impact">${data.impact}</div>
         </div>
-        ${tagsHtml}
         <div class="insight-text"><strong>${item.corp_name}</strong> - ${data.insight}</div>
         <ul class="insight-points">
           ${data.points.map(p => `<li>${p}</li>`).join('')}
@@ -638,6 +755,8 @@ function getQuickInsightHtml(item) {
     </div>
   `;
 }
+
+
 
 async function initDashboard() {
   const api = window.DART_API;
@@ -700,10 +819,10 @@ async function initDashboard() {
         const CHUNK_SIZE = 2; // [가이드 4-3] 요청 분산 처리
         for (let i = 0; i < activeGroups.length; i += CHUNK_SIZE) {
           const chunk = activeGroups.slice(i, i + CHUNK_SIZE);
-          await Promise.all(chunk.map((g, idx) => {
+          await Promise.all(chunk.map(async (g, idx) => {
             const globalIdx = i + idx;
             const divId = `insight-item-${globalIdx}`;
-            return renderInsight(divId, g.list[0]);
+            await renderInsight(divId, g.list[0]);
           }));
           if (i + CHUNK_SIZE < activeGroups.length) {
             await new Promise(r => setTimeout(r, 500)); // [가이드 4-3] 500ms 대기
@@ -711,7 +830,7 @@ async function initDashboard() {
         }
       }
     };
-    updateInsights(); // await 없이 백그라운드 실행
+    updateInsights(); 
 
     // 대시보드 상태 저장
     localStorage.setItem('dashboard_cache', JSON.stringify({ watchlist, groups }));

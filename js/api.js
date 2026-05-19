@@ -2,7 +2,7 @@
 // 백엔드(BFF) 연동 모드로 작동합니다. 모든 외부 API 통신은 서버를 거칩니다.
 const _IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 // 배포 시 발급받은 실제 백엔드 도메인으로 변경해야 합니다. (예: https://my-dart-backend.duckdns.org)
-const BACKEND_URL = _IS_LOCAL ? 'http://localhost:3000' : 'https://dartpro.duckdns.org';
+const BACKEND_URL = _IS_LOCAL ? 'http://localhost:3002' : 'https://dartpro.duckdns.org';
 
 const api = {
   BASE: `${BACKEND_URL}/api/dart`,
@@ -230,6 +230,19 @@ const api = {
     localStorage.setItem('dart_watchlist', '[]');
     if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
       window.FB_AUTH.saveInterestsToCloud();
+    }
+  },
+
+  async getLeanSummary(rceptNo) {
+    if (!rceptNo) return null;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/lean/summary/${rceptNo}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.success ? data.summary : null;
+    } catch (err) {
+      console.warn('[LeanAPI] Error fetching summary:', err);
+      return null;
     }
   },
 

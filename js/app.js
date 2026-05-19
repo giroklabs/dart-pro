@@ -38,13 +38,26 @@ async function router() {
         break;
       case '#/disclosures':
         content.innerHTML = renderDisclosures();
+        doDisclosureSearch(1);
         break;
       case '#/company':
-        content.innerHTML = renderCompany();
+        content.innerHTML = await renderCompany();
         const params = new URLSearchParams(hash.split('?')[1] || '');
         if (params.get('q')) {
           const input = document.getElementById('company-corp-code');
-          if (input) input.value = params.get('q');
+          if (input) {
+            input.value = params.get('q');
+            doCompanySearch();
+          }
+        } else {
+          const watchlist = DART_API.getWatchlist ? DART_API.getWatchlist() : [];
+          if (watchlist.length > 0) {
+            const input = document.getElementById('company-corp-code');
+            if (input) {
+              input.value = watchlist[0];
+              doCompanySearch();
+            }
+          }
         }
         break;
       case '#/settings':

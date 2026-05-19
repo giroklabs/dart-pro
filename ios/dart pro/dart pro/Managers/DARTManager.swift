@@ -69,16 +69,23 @@ class DARTManager: ObservableObject {
         }
         
         // 로그인 상태 변경 시 서버에서 관심 종목 가져오기
+        // @Published는 willSet에 발행 → 직접 uid를 파라미터로 전달해야 타이밍 버그 방지
         AuthManager.shared.$user
-            .sink { user in
-                if user != nil {
-                    self.fetchWatchlistFromServer()
-                }
+            .dropFirst()           // 초기 nil 값 스킵
+            .compactMap { $0?.uid } // nil 제거, uid만 추출
+            .sink { uid in
+                self.fetchWatchlistFromServer(uid: uid)
             }
             .store(in: &cancellables)
+        
+        // 로그아웃 시 메모리 데이터 초기화
+        NotificationCenter.default.addObserver(forName: Notification.Name("UserDidSignOut"), object: nil, queue: .main) { [weak self] _ in
+            self?.isFetchingFromServer = true
+            self?.watchlist = []
+            self?.disclosures = []
+            self?.isFetchingFromServer = false
+        }
     }
-    
-
     
     func fetchLatestDisclosures() {
         guard !isLoading else { return }
@@ -102,7 +109,7 @@ class DARTManager: ObservableObject {
         }
         
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            self?.isLoading = false
+            DispatchQueue.main.async { self?.isLoading = false }
             
             if let error = error {
                 print("[API] Disclosures error: \(error.localizedDescription)")
@@ -199,10 +206,12 @@ class DARTManager: ObservableObject {
     }
     
     // 서버에서 관심 종목 리스트 가져오기 (동기화)
-    func fetchWatchlistFromServer() {
-        guard let uid = AuthManager.shared.user?.uid else { 
+    func fetchWatchlistFromServer(uid: String? = nil) {
+        // @Published 타이밍 문제로 파라미터 uid를 우선 사용
+        let resolvedUID = uid ?? AuthManager.shared.user?.uid
+        guard let uid = resolvedUID else {
             print("[API] Fetch skipped: User not logged in")
-            return 
+            return
         }
         
         print("[API] Fetching from Firestore for UID: \(uid)")
@@ -215,6 +224,20 @@ class DARTManager: ObservableObject {
             if let document = document, document.exists {
                 if let interests = document.data()?["interests"] as? [String] {
                     DispatchQueue.main.async {
+                        // Firestore가 빈 배열을 반환하고 로컬에 데이터가 있으면
+                        // 로컬 데이터를 보존하고 Firestore에 역업로드
+                        guard !interests.isEmpty else {
+                            if let localItems = self?.watchlist, !localItems.isEmpty {
+                                print("[API] Firestore empty, uploading local watchlist (\(localItems.count) items) to Firestore")
+                                let codes = localItems.map { $0.code }
+                                db.collection("users").document(uid).setData(
+                                    ["interests": codes], merge: true
+                                )
+                            } else {
+                                print("[API] Firestore returned 0 items, local also empty")
+                            }
+                            return
+                        }
                         // 기존에 들고있던 이름 유지용 딕셔너리
                         let existingNames = self?.watchlist.reduce(into: [String: String]()) { $0[$1.code] = $1.name } ?? [:]
                         
@@ -304,9 +327,18 @@ class DARTManager: ObservableObject {
         URLSession.shared.dataTask(with: url) { data, _, error in
             guard let data = data, error == nil else { return }
             
-            // 서버 날짜 형식을 위한 디코더 설정
+            // 서버 날짜 형식을 위한 디코더 설정 (밀리초 포함 ISO8601 대응)
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let str = try container.decode(String.self)
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = formatter.date(from: str) { return date }
+                formatter.formatOptions = [.withInternetDateTime]
+                if let date = formatter.date(from: str) { return date }
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "날짜 파싱 실패: \(str)")
+            }
             
             if let decoded = try? decoder.decode([NotificationRecord].self, from: data) {
                 DispatchQueue.main.async {

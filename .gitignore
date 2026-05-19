@@ -7,3 +7,9 @@ service-account.json
 /dart pro/dart pro.xcworkspace/xcuserdata/
 data/
 ios/dart pro/GoogleService-Info.plist
+
+# SQLite DB
+lean_engine.db*
+*.db
+*.db-shm
+*.db-wal

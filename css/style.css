@@ -309,7 +309,7 @@ table { border-collapse: collapse; width: 100%; }
 
 /* Page Header */
 .page-header { margin-bottom: var(--sp-xl); }
-.page-header h2 { font-family: 'Manrope'; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--on-surface); margin-bottom: 4px; }
+.page-header h2 { font-family: 'Manrope'; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--on-surface); margin-bottom: 10px; }
 .page-header p { color: var(--on-surface-variant); font-size: 14px; }
 
 /* Two Column Layout */

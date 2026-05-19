@@ -4374,6 +4374,16 @@ FirestoreEncoder
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>Copyright 2025 Google LLC</string>
+			<key>License</key>
+			<string>Copyright</string>
+			<key>Title</key>
+			<string>Google-Mobile-Ads-SDK</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>Copyright 2024 Google</string>
 			<key>License</key>
 			<string>Copyright</string>
@@ -4813,6 +4823,16 @@ FirestoreEncoder
 			<string>Apache</string>
 			<key>Title</key>
 			<string>GoogleSignIn</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Copyright 2025 Google LLC</string>
+			<key>License</key>
+			<string>Copyright</string>
+			<key>Title</key>
+			<string>GoogleUserMessagingPlatform</string>
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 		</dict>

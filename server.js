@@ -1,7 +1,81 @@
-const http = require('http');
+const fcmAdmin = require('firebase-admin');
+const { GoogleAuth } = require('google-auth-library');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+
+// 🔥 FCM 직접 발송용 인증 객체
+const saPath = path.resolve(__dirname, 'service-account.json');
+const auth = new GoogleAuth({
+  keyFile: saPath,
+  scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
+});
+
+// FCM REST API 직접 발송 (google-auth-library 토큰 + FCM v1 API)
+async function sendFcmDirect(message) {
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  const accessToken = tokenResponse.token;
+  const projectId = JSON.parse(fs.readFileSync(saPath, 'utf8')).project_id;
+  const postData = JSON.stringify({ message });
+
+  const options = {
+    hostname: 'fcm.googleapis.com',
+    path: `/v1/projects/${projectId}/messages:send`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let resData = '';
+      res.on('data', (chunk) => resData += chunk);
+      res.on('end', () => {
+        if (res.statusCode < 300) resolve(JSON.parse(resData));
+        else reject(new Error(`FCM Error (${res.statusCode}): ${resData}`));
+      });
+    });
+    req.on('error', (e) => reject(e));
+    req.write(postData);
+    req.end();
+  });
+}
+
+try {
+  if (fcmAdmin.apps.length === 0) {
+    fcmAdmin.initializeApp({
+      credential: fcmAdmin.credential.cert(JSON.parse(fs.readFileSync(saPath, 'utf8')))
+    });
+  }
+  console.log('🚀 FCM Ready (cert + REST hybrid).');
+} catch (err) {
+  console.error('❌ Initialization failed:', err.message);
+}
+
+// .env 파일 읽기 로직 (파싱 버그 수정)
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf8');
+    envConfig.split('\n').forEach(line => {
+      const idx = line.indexOf('=');
+      if (idx > -1) {
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (key) process.env[key] = value;
+      }
+    });
+    console.log('✅ .env configuration loaded.');
+  }
+} catch (err) {
+  console.log('⚠️ .env file not found or unreadable.');
+}
+
+const http = require('http');
 const url = require('url');
 
 const PORT = 3000;
@@ -16,41 +90,32 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
-const admin = require('firebase-admin');
-
-// .env 파일 읽기 로직
-try {
-  const envPath = path.join(__dirname, '.env');
-  if (fs.existsSync(envPath)) {
-    const envConfig = fs.readFileSync(envPath, 'utf8');
-    envConfig.split('\n').forEach(line => {
-      const [key, value] = line.split('=');
-      if (key && value) process.env[key.trim()] = value.trim();
-    });
-    console.log('✅ .env configuration loaded.');
-  }
-} catch (err) {
-  console.log('⚠️ .env file not found or unreadable.');
-}
-
-// Firebase Admin 초기화
-try {
-  const serviceAccount = require('./service-account.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log('🚀 Firebase Admin SDK initialized.');
-} catch (err) {
-  console.error('❌ Firebase Admin initialization failed:', err.message);
-}
-
 // 데이터 파일 경로 설정 (전역 스코프)
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
 const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
 
+// 실시간 로그를 임시 저장할 배열
+let mlLogs = [];
+
+// Lean Engine DB 연결
+const sqlite3 = require('sqlite3').verbose();
+const LEAN_DB_PATH = path.join(__dirname, 'lean_engine.db');
+const leanDb = new sqlite3.Database(LEAN_DB_PATH, (err) => {
+  if (err) console.warn('[LeanDB] DB 연결 실패 (lean_engine.db 없음):', err.message);
+  else console.log('[LeanDB] lean_engine.db 연결 완료.');
+});
+
+const addLog = (msg) => {
+  const timestamp = new Date().toLocaleTimeString();
+  const formattedMsg = `[${timestamp}] ${msg}`;
+  mlLogs.push(formattedMsg);
+  if (mlLogs.length > 100) mlLogs.shift(); // 최근 100개만 유지
+};
+
 const server = http.createServer((req, res) => {
+
   // 모든 요청에 대해 CORS 헤더 우선 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
@@ -63,6 +128,27 @@ const server = http.createServer((req, res) => {
 
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
+
+  // 실시간 로그 스트리밍 엔드포인트 (SSE)
+  if (pathname === '/api/ml/logs-stream') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    });
+    
+    // 1초마다 새로운 로그가 있는지 확인하여 전송
+    const interval = setInterval(() => {
+      if (mlLogs.length > 0) {
+        const logsToSend = [...mlLogs];
+        mlLogs = [];
+        res.write(`data: ${JSON.stringify(logsToSend)}\n\n`);
+      }
+    }, 500);
+
+    req.on('close', () => clearInterval(interval));
+    return;
+  }
 
   // 파이어베이스 설정 제공 API (보안 강화 - 최우선 처리)
   if (pathname === '/api/config') {
@@ -101,6 +187,32 @@ const server = http.createServer((req, res) => {
   }
 
   // ==========================================
+  // Lean Engine: 공시 요약 조회 API
+  // ==========================================
+  const summaryMatch = pathname.match(/^\/api\/lean\/summary\/(.+)$/);
+  if (summaryMatch) {
+    const rcept_no = summaryMatch[1];
+    leanDb.get(
+      'SELECT summary_text FROM summaries WHERE rcept_no = ?',
+      [rcept_no],
+      (err, row) => {
+        if (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, message: err.message }));
+        }
+        if (row) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, summary: row.summary_text }));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, message: '아직 요약이 생성되지 않았습니다.' }));
+        }
+      }
+    );
+    return;
+  }
+
+  // ==========================================
   // 0. 테스트 푸시 알림 발송 API
   // ==========================================
   if (pathname === '/api/test-push' && req.method === 'POST') {
@@ -108,21 +220,19 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { fcmToken } = JSON.parse(body);
+        const parsedBody = JSON.parse(body);
+        const { fcmToken, uid } = parsedBody;
         if (!fcmToken) throw new Error('FCM 토큰이 없습니다.');
 
-        const message = {
-          notification: {
-            title: '🔔 DART Pro 알림 테스트',
-            body: '축하합니다! 서버와의 알림 연동이 성공적으로 완료되었습니다.'
-          },
-          token: fcmToken
-        };
+        // 🧼 토큰 정제 (iOS Optional 래퍼 제거)
+        let cleanToken = fcmToken;
+        if (cleanToken.includes('Optional("')) {
+          const match = cleanToken.match(/Optional\("(.+)"\)/);
+          if (match) cleanToken = match[1];
+        }
+        cleanToken = cleanToken.replace(/Optional\("/g, '').replace(/"\)/g, '').trim();
 
-        await admin.messaging().send(message);
-
-        // 알림 센터 내역에 저장
-        const { uid } = JSON.parse(body);
+        // 알림 센터에 먼저 저장 (FCM 성공 여부와 무관)
         if (uid) {
           const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
           let userNotifs = [];
@@ -137,10 +247,43 @@ const server = http.createServer((req, res) => {
             rceptNo: 'TEST_000',
             isRead: false
           });
-          // 최대 50개까지만 유지
+          
+          // FCM 전송 (직접 REST API 발송 - SDK 거치지 않음)
+          try {
+            const message = {
+              notification: {
+                title: '🔔 DART Pro 알림 테스트',
+                body: '축하합니다! 서버와의 알림 연동이 성공적으로 완료되었습니다.'
+              },
+              apns: {
+                headers: {
+                  'apns-push-type': 'alert',
+                  'apns-priority': '10'
+                },
+                payload: {
+                  aps: {
+                    alert: {
+                      title: '🔔 DART Pro 알림 테스트',
+                      body: '축하합니다! 서버와의 알림 연동이 성공적으로 완료되었습니다.'
+                    },
+                    sound: 'default'
+                  }
+                }
+              },
+              token: cleanToken
+            };
+            
+            await sendFcmDirect(message);
+            console.log('🚀 FCM 알림 발송 성공 (REST API)');
+          } catch (fcmErr) {
+            console.warn('[TestPush] FCM 발송 실패:', fcmErr.message);
+          }
+          
           fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
           console.log(`[TestPush] Notification saved for UID: ${uid}`);
         }
+
+        
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: '000', message: '테스트 알림 발송 및 저장 성공' }));
@@ -153,78 +296,112 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ==========================================
-  // 1.5 Gemini AI 분석 API (캐시 적용 버전)
-  // ==========================================
+
+
+// ==========================================
+// 1.5 Disclosure Ranker 스코어링 유틸리티
+// ==========================================
+function calculateDisclosureScore(reportName) {
+  let score = 0;
+  // 1. 수치 데이터 포함 여부 (금액, 비율, 날짜)
+  if (/[0-9]+억|[0-9,]+원|[0-9]+백만/.test(reportName)) score += 2.0;
+  if (/[0-9.]+%/.test(reportName)) score += 1.2;
+  if (/[0-9]{4}[./-][0-9]{1,2}[./-][0-9]{1,2}/.test(reportName)) score += 0.8;
+  
+  // 2. 핵심 의사결정 키워드
+  const keywords = ['결정', '체결', '취득', '처분', '변경', '발생', '해지', '완료', '승인', '의결', '정정', '연장', '배당', '수주', '공급계약', '유상증자', '무상증자', '합병', '분할'];
+  if (keywords.some(k => reportName.includes(k))) score += 1.5;
+
+  // 3. 추가 수치 가중치
+  const amountMatches = (reportName.match(/[0-9]+억|[0-9,]+원|[0-9]+백만/g) || []).length;
+  score += Math.min(amountMatches, 3) * 0.5;
+
+  const percentMatches = (reportName.match(/[0-9.]+%/g) || []).length;
+  score += Math.min(percentMatches, 2) * 0.3;
+
+  // 4. 리스크 관련 키워드
+  const riskKeywords = ['리스크', '불확실성', '위험', '손실', '하락', '변동성', '소송', '제재', '과징금', '관리종목', '상장폐지'];
+  if (riskKeywords.some(k => reportName.includes(k))) score += 2.0;
+
+  return parseFloat(score.toFixed(1));
+}
+
+function getRankLabel(score) {
+  if (score >= 4.0) return 3; // 매우 중요
+  if (score >= 2.5) return 2; // 중요
+  if (score >= 1.0) return 1; // 보통
+  return 0; // 참고
+}
+
+// ==========================================
+// 1.5 Gemini AI 분석 API (캐시 및 Ranker 적용)
+// ==========================================
   if (pathname === '/api/ai/analyze' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { reportName, corpName, rceptNo } = JSON.parse(body);
+        const { corpName, reportName, rceptNo } = JSON.parse(body);
+        console.log(`[AI Request] Analysing: ${corpName} - ${reportName}`);
         const apiKey = process.env.GEMINI_API_KEY;
         const cacheFile = path.join(DATA_DIR, 'ai_analysis_cache.json');
         
-        // 1. 캐시 확인
+        // 1. 랭킹 스코어 계산 (Rule-based Logic)
+        const rankScore = calculateDisclosureScore(reportName);
+        const rankLabel = getRankLabel(rankScore);
+
+        // 2. 캐시 확인
         let cache = {};
         if (fs.existsSync(cacheFile)) cache = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
         
         const cacheKey = rceptNo || `${corpName}_${reportName}`;
         if (cache[cacheKey]) {
           console.log(`[AI Cache] Hit! Returning cached analysis for: ${cacheKey}`);
+          const result = { ...cache[cacheKey], rankScore, rankLabel };
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify(cache[cacheKey]));
+          return res.end(JSON.stringify(result));
         }
 
         if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
 
         console.log(`[AI Cache] Miss. Requesting new analysis for: ${cacheKey}`);
         const prompt = `
-너는 금융감독원 DART 공시를 요약·분석하는 범용 어시스턴트다.
+너는 금융감독원 DART 공시를 분석하는 랭킹 전문 AI 어시스턴트다.
+
+분석 대상:
+- 기업명: ${corpName}
+- 공시제목: ${reportName}
+- 계산된 중요도 점수: ${rankScore} (0~10점 사이, 높을수록 중요)
 
 목표:
-- 어떤 공시든 핵심만 빠르게 전달한다.
-- 공시유형을 먼저 분류하고, 그 유형에 맞는 중요한 정보만 남긴다.
-- 사용자가 투자 판단에 필요한 사실을 짧고 명확하게 이해하도록 돕는다.
+1. 위 공시제목에서 핵심 수치(금액, 비율, 날짜)를 추출하고 그 의미를 분석한다.
+2. 중요도 점수(${rankScore})를 기반으로 이 공시가 투자자에게 왜 중요한지(또는 참고용인지) 설명한다.
+3. 한국어 형태소 분석 관점에서 '의사결정 동사'와 '리스크 명사'를 찾아 영향력을 평가한다.
 
 핵심 원칙:
-1. 공시유형을 먼저 판단한다.
-2. 핵심 사건, 대상 회사, 금액, 일정, 변경사항을 우선 요약한다.
-3. 공시에 없는 내용은 추측하지 말고 "언급 없음"으로 처리한다.
-4. 장황한 배경 설명, 반복, 수식어는 제거한다.
-5. 숫자와 날짜가 있으면 반드시 포함한다.
-6. 리스크, 영향, 확인 필요 사항이 있으면 짧게 제시한다.
-7. 한 줄 한 줄이 독립적으로 이해되도록 작성한다.
-8. 문장은 짧고 간결하게 유지한다.
-9. 어떤 공시 유형에도 적용 가능해야 한다.
-10. 출력은 5줄 내외로 제한한다.
-
-유형별 우선 관점:
-- 정기공시: 실적, 재무상태, 사업 변화, 전망.
-- 주요사항보고: 사건의 내용, 금액, 일정, 회사 영향.
-- 발행공시: 증자, CB/BW, 자금조달 목적, 희석 가능성.
-- 지분공시: 지분 변동, 보고 의무, 경영권 관련 여부.
-- 기타공시: 사실관계 확인, 정정 여부, 공시 배경.
-- 외부감사 관련: 감사의견, 사유, 계속기업 불확실성, 영향.
-
-기업명: ${corpName}
-공시제목: ${reportName}
+- 공시유형을 먼저 판단한다.
+- 핵심 사건, 대상 회사, 금액, 일정, 변경사항을 우선 요약한다.
+- 숫자와 날짜가 있으면 반드시 포함한다.
+- 리스크, 영향, 확인 필요 사항이 있으면 짧게 제시한다.
+- 출력은 5줄 내외로 제한한다.
 
 답변은 반드시 다음 JSON 형식으로만 보내줘 (다른 텍스트 없이 JSON만):
 {
   "category": "공시유형 (정기공시/주요사항보고/발행공시/지분공시/외부감사/기타공시 중 하나)",
   "insight": "[핵심요약] 1문장. [핵심수치/일정] 숫자·날짜 포함 1문장.",
   "points": [
-    "[영향/의미] 투자자 관점 핵심 영향 1문장",
-    "[확인포인트] 반드시 확인해야 할 사항 1문장",
-    "추가 리스크 또는 긍정 요인 (없으면 '추가 언급 없음')"
+    "[데이터 피처] 공시에서 발견된 수치나 키워드 특징 1문장",
+    "[영향/의미] 중요도 점수 기반 투자자 관점 영향 1문장",
+    "[확인포인트] 반드시 확인해야 할 사항 1문장"
   ],
   "impact": "핵심어 중심 한 줄 요약 (숫자/날짜 포함 시 필수 기재)",
-  "typeCls": "success, warning, info, danger 중 이 공시의 투자 영향도에 맞는 등급"
+  "typeCls": "success, warning, info, danger 중 이 공시의 투자 영향도에 맞는 등급",
+  "rankScore": ${rankScore},
+  "rankLabel": ${rankLabel}
 }
         `;
 
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const requestBody = JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         });
@@ -502,6 +679,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+
   // ==========================================
   // 2. 정적 파일 (Frontend) 제공 라우터
   // ==========================================
@@ -600,43 +778,52 @@ async function checkNewDisclosures() {
           for (let item of newItems.reverse()) { 
             try {
               // Firebase 앱이 초기화된 경우에만 쿼리 실행
-              if (admin.apps.length > 0) {
-                const snapshot = await admin.firestore().collection('users')
+              if (fcmAdmin.apps.length > 0) {
+                const snapshot = await fcmAdmin.firestore().collection('users')
                   .where('interests', 'array-contains', item.corp_code)
                   .get();
                 
                 if (!snapshot.empty) {
                   console.log(`[Monitor] Found ${snapshot.size} users tracking ${item.corp_name}`);
-                snapshot.forEach(doc => {
-                  const uid = doc.id;
-                  const data = doc.data();
                   
-                  // 1. 푸시 발송 (토큰 기준)
-                  if (data.fcmToken) {
-                    const message = {
-                      notification: { title: `🔔 [${item.corp_name}] 공시 알림`, body: item.report_nm.trim() },
-                      data: { rcept_no: item.rcept_no, corp_code: item.corp_code, type: 'DISCLOSURE' },
-                      token: data.fcmToken
-                    };
-                    admin.messaging().send(message).catch(() => {});
-                  }
-                  
-                  // 2. 알림 내역 저장 (UID 기준 - 기존 웹 호환성 유지)
-                  const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
-                  let userNotifs = [];
-                  if (fs.existsSync(userNotifFile)) userNotifs = JSON.parse(fs.readFileSync(userNotifFile, 'utf8'));
-                  
-                  userNotifs.unshift({
-                    id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
-                    title: `🔔 [${item.corp_name}] 공시 알림`,
-                    body: item.report_nm.trim(),
-                    date: new Date().toISOString(),
-                    rceptNo: item.rcept_no,
-                    isRead: false
+                  snapshot.forEach(async doc => {
+                    const uid = doc.id;
+                    const data = doc.data();
+                    
+                    // 1. 푸시 발송 (토큰 기준)
+                    if (data.fcmToken) {
+                      let cleanToken = data.fcmToken;
+                      if (cleanToken.includes('Optional("')) {
+                        const match = cleanToken.match(/Optional\("(.+)"\)/);
+                        if (match) cleanToken = match[1];
+                      }
+                      cleanToken = cleanToken.replace(/Optional\("/g, '').replace(/"\)/g, '').trim();
+
+                      const message = {
+                        notification: { title: `🔔 [${item.corp_name}] 공시 알림`, body: item.report_nm.trim() },
+                        data: { rcept_no: item.rcept_no, corp_code: item.corp_code, type: 'DISCLOSURE' },
+                        token: cleanToken
+                      };
+                      sendFcmDirect(message).catch((e) => console.error('Push Error:', e.message));
+                    }
+                    
+                    // 2. 알림 내역 저장 (UID 기준 - 기존 웹 호환성 유지)
+                    const userNotifFile = path.join(DATA_DIR, `notifications_${uid}.json`);
+                    let userNotifs = [];
+                    if (fs.existsSync(userNotifFile)) userNotifs = JSON.parse(fs.readFileSync(userNotifFile, 'utf8'));
+                    
+                    userNotifs.unshift({
+                      id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+                      title: `🔔 [${item.corp_name}] 공시 알림`,
+                      body: item.report_nm.trim(),
+                      date: new Date().toISOString(),
+                      rceptNo: item.rcept_no,
+                      isRead: false
+                    });
+                    fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
                   });
-                  fs.writeFileSync(userNotifFile, JSON.stringify(userNotifs.slice(0, 50), null, 2));
-                });
-              }
+                  
+                }
             }
           } catch (err) {
             console.error(`[Monitor] Error querying Firestore for ${item.corp_code}:`, err);

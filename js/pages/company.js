@@ -1,16 +1,21 @@
 // Company Page
-function renderCompany() {
+async function renderCompany() {
   const api = window.DART_API;
   const watchlist = api.getWatchlist ? api.getWatchlist() : [];
 
+  const buttons = [];
+  if (watchlist.length > 0) {
+    for (const code of watchlist) {
+      const name = await api.getCorpName(code);
+      buttons.push(`
+        <span class="pill pill-default" style="cursor:pointer; margin-left:8px;"
+              onclick="document.getElementById('company-corp-code').value='${code}';doCompanySearch()"
+        >${name}</span>`);
+    }
+  }
+
   const watchlistButtons = watchlist.length > 0
-    ? watchlist.map(code => {
-        const name = api.corpCodeMap ? api.corpCodeMap[code] : code;
-        return `
-          <span class="pill pill-default" style="cursor:pointer; margin-left:8px;"
-                onclick="document.getElementById('company-corp-code').value='${code}';doCompanySearch()"
-          >${name}</span>`;
-      }).join('')
+    ? buttons.join('')
     : '<span style="color:var(--on-surface-variant);margin-left:8px;">관심 종목 없음 (설정에서 추가하세요)</span>';
 
   return `

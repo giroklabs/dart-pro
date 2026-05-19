@@ -8,6 +8,12 @@ struct ContentView: View {
     @State private var showingSettings = false
     @State private var showingNotificationCenter = false
     @State private var isGeminiEnabled = false
+    @State private var selectedCorpCode: String? = nil // nil = 전체
+    
+    var filteredDisclosures: [DisclosureItem] {
+        guard let code = selectedCorpCode else { return manager.disclosures }
+        return manager.disclosures.filter { $0.corp_code == code }
+    }
     
     var body: some View {
         NavigationView {
@@ -30,7 +36,13 @@ struct ContentView: View {
                         
                         Spacer()
                         
-                        HStack(spacing: 12) {
+                        HStack(spacing: 16) {
+                            Button(action: { showingSearch = true }) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.yellow)
+                            }
+                            
                             Button(action: { showingNotificationCenter = true }) {
                                 Image(systemName: "bell")
                                     .font(.system(size: 18, weight: .semibold))
@@ -42,17 +54,9 @@ struct ContentView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                             }
-                            
-                            Button(action: { showingSearch = true }) {
-                                Image(systemName: "star.fill")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.yellow)
-                            }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 8)
                         .padding(.vertical, 8)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(Capsule())
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
@@ -100,13 +104,46 @@ struct ContentView: View {
                     .padding(.bottom, 10)
                     */
                     
-                    // Main List
+                    // 관심종목 필터 바
+                    if !manager.watchlist.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                // 전체 버튼
+                                Button(action: { selectedCorpCode = nil }) {
+                                    Text("전체")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 7)
+                                        .background(selectedCorpCode == nil ? AppTheme.primary : Color.secondary.opacity(0.12))
+                                        .foregroundColor(selectedCorpCode == nil ? .white : .primary)
+                                        .clipShape(Capsule())
+                                }
+                                // 종목별 버튼
+                                ForEach(manager.watchlist, id: \.code) { item in
+                                    Button(action: {
+                                        selectedCorpCode = selectedCorpCode == item.code ? nil : item.code
+                                    }) {
+                                        Text(item.name)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 7)
+                                            .background(selectedCorpCode == item.code ? AppTheme.primary : Color.secondary.opacity(0.12))
+                                            .foregroundColor(selectedCorpCode == item.code ? .white : .primary)
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                        .padding(.bottom, 8)
+                    }
+                    
                     if manager.disclosures.isEmpty && !manager.isLoading {
                         EmptyStateView()
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 16) {
-                                ForEach(manager.disclosures) { item in
+                                ForEach(filteredDisclosures) { item in
                                     DisclosureCard(item: item, isGeminiEnabled: isGeminiEnabled)
                                         .padding(.horizontal, 4)
                                 }
@@ -125,6 +162,16 @@ struct ContentView: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: AppTheme.primary))
                         .scaleEffect(1.5)
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 0) {
+                    BannerAdView(adUnitID: "ca-app-pub-4376736198197573/3393455290")
+                        .frame(width: 320, height: 50)
+                        .padding(.top, 8)
+                        .padding(.bottom, 0)
+                }
+                .frame(maxWidth: .infinity)
+                .background(Color(hex: "F5F5F7").ignoresSafeArea(edges: .bottom))
             }
             .navigationBarHidden(true)
         }

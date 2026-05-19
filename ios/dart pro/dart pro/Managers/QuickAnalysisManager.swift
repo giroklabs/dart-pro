@@ -116,6 +116,78 @@ class QuickAnalysisManager {
             typeCls = isBad ? "danger" : "info"
             icon = "checkerboard.shield"
         }
+        // 10. 채권/파생 발행
+        else if reportName.contains("일괄신고") || reportName.contains("증권발행실적") || reportName.contains("파생결합사채") || reportName.contains("파생결합증권") {
+            insight = "채권/파생상품 발행 공시: 자금 조달 규모와 조건을 확인하세요."
+            points = ["발행 금액 및 만기 조건 확인", "조달 자금 사용 목적 검토", "기발행 잔액 대비 총 부채 영향 체크"]
+            impact = "자금조달"
+            category = "채권발행"
+            typeCls = "info"
+            icon = "doc.text.fill"
+        }
+        // 11. IR/기업설명회
+        else if reportName.contains("기업설명회") || reportName.contains("IR개최") || reportName.contains("IR 개최") {
+            insight = "기업설명회(IR) 개최: 경영진이 사업 현황과 전망을 직접 공개합니다."
+            points = ["설명회 일정 및 참가 방법 확인", "주요 발표 내용(실적·전략·가이던스) 모니터링", "설명회 이후 시장 반응 및 주가 흐름 확인"]
+            impact = "정보 공개"
+            category = "투자자소통"
+            typeCls = "info"
+            icon = "megaphone.fill"
+        }
+        // 12. 주주총회
+        else if reportName.contains("주주총회") {
+            insight = "주주총회 소집/결과 공시: 주요 안건의 가결 여부가 경영 방향에 영향을 줍니다."
+            points = ["주요 안건(배당·정관변경·임원선임 등) 확인", "반대 의결 비율이 높은 안건 체크", "가결된 결의 사항의 향후 일정 모니터링"]
+            impact = "의결 확인"
+            category = "주주총회"
+            typeCls = "info"
+            icon = "checkmark.seal.fill"
+        }
+        // 13. 감자/자본감소
+        else if reportName.contains("감자") || reportName.contains("자본감소") {
+            insight = "감자(자본감소) 공시: 유상감자는 주주 손실, 무상감자는 재무구조 개선 목적입니다."
+            points = ["유상/무상 감자 여부 구분 필수", "감자 비율 및 주주 환급금 확인", "감자 후 재무건전성 및 주가 희석 영향 계산"]
+            impact = "주의 요망"
+            category = "자본감소"
+            typeCls = "warning"
+            icon = "arrow.down.circle.fill"
+        }
+        // 14. 기재정정
+        else if reportName.contains("기재정정") {
+            insight = "기재정정 공시: 기존 공시의 내용이 수정되었습니다. 변경 항목을 반드시 확인하세요."
+            points = ["원본 공시 대비 변경된 핵심 항목 파악", "금액·일정·비율 등 수치 변경 여부 체크", "정정 사유가 단순 오기인지 실질 변경인지 판단"]
+            impact = "변경 확인"
+            category = "정정공시"
+            typeCls = "warning"
+            icon = "pencil.and.list.clipboard"
+        }
+        // 15. 취득/처분/발행 결과
+        else if reportName.contains("취득결과") || reportName.contains("처분결과") || reportName.contains("발행결과") {
+            insight = "취득/처분/발행 이행 결과 공시: 계획 대비 실제 실행 결과를 확인하세요."
+            points = ["예정 대비 실제 취득/처분 규모 비교", "미이행 또는 변경 사항 여부 체크", "잔여 물량의 향후 처리 계획 확인"]
+            impact = "결과 확인"
+            category = "이행결과"
+            typeCls = "info"
+            icon = "checkmark.circle.fill"
+        }
+        // 16. 타법인 출자 / 사업 양수도
+        else if reportName.contains("타법인출자") || reportName.contains("영업양수") || reportName.contains("사업양수") || reportName.contains("영업양도") {
+            insight = "타법인 출자/사업 양수도: 사업 영역 확대 또는 구조 재편 신호입니다."
+            points = ["투자 규모가 자기자본 대비 몇 %인지 확인", "인수 대상의 수익성·부채 현황 검토", "사업 시너지 및 통합 리스크 평가"]
+            impact = "전략 변화"
+            category = "사업확장"
+            typeCls = "info"
+            icon = "building.2.fill"
+        }
+        // 17. 배당기준일 / 중간배당
+        else if reportName.contains("배당기준일") || reportName.contains("중간배당") {
+            insight = "배당기준일/중간배당 공시: 배당 수령을 위한 보유 기한을 확인하세요."
+            points = ["배당 기준일 전일까지 매수 완료 필요", "예상 배당금 및 시가배당률 확인", "기존 연간 배당 정책과의 일관성 체크"]
+            impact = "배당 일정"
+            category = "배당일정"
+            typeCls = "success"
+            icon = "calendar.badge.checkmark"
+        }
 
         return AnalysisResult(
             category: category,

@@ -1,0 +1,55 @@
+import time
+import schedule
+import logging
+import datetime
+import threading
+from core_engine import DartLeanEngine
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler("lean_engine_scheduler.log", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+engine = DartLeanEngine()
+job_lock = threading.Lock()
+
+
+def job():
+    if not job_lock.acquire(blocking=False):
+        logger.warning("이전 작업이 아직 실행 중이어서 이번 주기 실행은 건너뜁니다.")
+        return
+
+    try:
+        today = datetime.date.today()
+        start_date = (today - datetime.timedelta(days=3)).strftime('%Y%m%d')
+        end_date = today.strftime('%Y%m%d')
+
+        logger.info("전 종목 공시 수집 시작: %s ~ %s", start_date, end_date)
+        engine.run_pipeline(None, start_date, end_date)
+        logger.info("정기 작업 완료")
+    except Exception:
+        logger.exception("작업 실패")
+    finally:
+        job_lock.release()
+
+
+def main():
+    logger.info("Lean Engine 스케줄러 시작 (주기: 1분)")
+    job()
+    schedule.every(1).minutes.do(job)
+
+    while True:
+        schedule.run_pending()
+        idle = schedule.idle_seconds()
+        time.sleep(1 if idle is None else max(1, min(idle, 1)))
+
+
+if __name__ == "__main__":
+    main()

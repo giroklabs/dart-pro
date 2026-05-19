@@ -5,6 +5,7 @@ import FirebaseFirestore
 import FirebaseAuth
 import GoogleSignIn
 import UserNotifications
+import GoogleMobileAds
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     
@@ -20,6 +21,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { _, _ in }
         
         application.registerForRemoteNotifications()
+        
+        // AdMob 초기화 (v11+)
+        MobileAds.shared.start()
         
         return true
     }
@@ -52,8 +56,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     // MARK: - UNUserNotificationCenterDelegate
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // 포그라운드에서도 알림 표시
-        completionHandler([.banner, .sound, .badge])
+        // 포그라운드에서도 배너 표시 및 알림 센터(list)에 유지
+        completionHandler([.banner, .list, .sound, .badge])
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {

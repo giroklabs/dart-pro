@@ -7,4 +7,5 @@ target 'dart pro' do
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
   pod 'GoogleSignIn'
+  pod 'Google-Mobile-Ads-SDK'
 end

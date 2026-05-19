@@ -1,0 +1,67 @@
+2026-05-18 20:09:55,256 [INFO] [00137207] 공시 수집 시작...
+2026-05-18 20:09:55,261 [DEBUG] Starting new HTTPS connection (1): opendart.fss.or.kr:443
+2026-05-18 20:09:55,261 [WARNING] Retry 1/3 after error: HTTPSConnectionPool(host='opendart.fss.or.kr', port=443): Max retries exceeded with url: /api/list.json?crtfc_key=d8a92c1dcf4a12e05148b67dc87de958e91dcea6&bgn_de=20260515&end_de=20260515&page_count=100&page_no=1&corp_code=00137207 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x101905280>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)"))
+2026-05-18 20:09:56,271 [DEBUG] Starting new HTTPS connection (1): opendart.fss.or.kr:443
+2026-05-18 20:09:56,272 [WARNING] Retry 2/3 after error: HTTPSConnectionPool(host='opendart.fss.or.kr', port=443): Max retries exceeded with url: /api/list.json?crtfc_key=d8a92c1dcf4a12e05148b67dc87de958e91dcea6&bgn_de=20260515&end_de=20260515&page_count=100&page_no=1&corp_code=00137207 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x10182c1c0>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)"))
+2026-05-18 20:09:58,278 [DEBUG] Starting new HTTPS connection (1): opendart.fss.or.kr:443
+2026-05-18 20:09:58,279 [WARNING] Retry 3/3 after error: HTTPSConnectionPool(host='opendart.fss.or.kr', port=443): Max retries exceeded with url: /api/list.json?crtfc_key=d8a92c1dcf4a12e05148b67dc87de958e91dcea6&bgn_de=20260515&end_de=20260515&page_count=100&page_no=1&corp_code=00137207 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x101905c70>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)"))
+2026-05-18 20:10:01,290 [DEBUG] Starting new HTTPS connection (1): opendart.fss.or.kr:443
+2026-05-18 20:10:01,291 [ERROR] Retry failed after 3 attempts: HTTPSConnectionPool(host='opendart.fss.or.kr', port=443): Max retries exceeded with url: /api/list.json?crtfc_key=d8a92c1dcf4a12e05148b67dc87de958e91dcea6&bgn_de=20260515&end_de=20260515&page_count=100&page_no=1&corp_code=00137207 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x101915670>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)"))
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/util/connection.py", line 60, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/socket.py", line 953, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+socket.gaierror: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connection.py", line 753, in connect
+    self.sock = sock = self._new_conn()
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connection.py", line 205, in _new_conn
+    raise NameResolutionError(self.host, self, e) from e
+urllib3.exceptions.NameResolutionError: <urllib3.connection.HTTPSConnection object at 0x101915670>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='opendart.fss.or.kr', port=443): Max retries exceeded with url: /api/list.json?crtfc_key=d8a92c1dcf4a12e05148b67dc87de958e91dcea6&bgn_de=20260515&end_de=20260515&page_count=100&page_no=1&corp_code=00137207 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x101915670>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/greego/Desktop/dart pro/lean_engine/core_engine.py", line 86, in run_pipeline
+    filings = self._fetch_filing_list(corp_code, bgn_de, end_de)
+  File "/Users/greego/Desktop/dart pro/lean_engine/core_engine.py", line 42, in wrapper
+    return fn(*args, **kwargs)
+  File "/Users/greego/Desktop/dart pro/lean_engine/core_engine.py", line 353, in _fetch_filing_list
+    res = requests.get(url, params=params, timeout=30)
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/requests/api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/requests/adapters.py", line 519, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='opendart.fss.or.kr', port=443): Max retries exceeded with url: /api/list.json?crtfc_key=d8a92c1dcf4a12e05148b67dc87de958e91dcea6&bgn_de=20260515&end_de=20260515&page_count=100&page_no=1&corp_code=00137207 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x101915670>: Failed to resolve 'opendart.fss.or.kr' ([Errno 8] nodename nor servname provided, or not known)"))

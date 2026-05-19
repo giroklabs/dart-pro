@@ -9,5 +9,10 @@
   },
   "keywords": [],
   "author": "giroklabs",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "firebase-admin": "^13.9.0",
+    "sqlite3": "^6.0.1"
+  }
 }

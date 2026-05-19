@@ -8,6 +8,7 @@ async function initFirebase() {
     
     if (!config.apiKey) throw new Error('Firebase Config load failed');
     
+    console.log('[Firebase] Loaded API Key:', config.apiKey ? (config.apiKey.slice(0, 10) + '...') : 'None');
     firebase.initializeApp(config);
     
     // Firestore 설정
@@ -54,6 +55,18 @@ const FB_AUTH = {
     } catch (error) {
       console.error('Login failed:', error);
       alert('로그인에 실패했습니다.');
+    }
+  },
+  
+  async loginWithApple() {
+    const provider = new firebase.auth.OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    try {
+      await auth().signInWithPopup(provider);
+    } catch (error) {
+      console.error('Apple Login failed:', error);
+      alert(`애플 로그인 실패: [${error.code}] ${error.message}`);
     }
   },
 
