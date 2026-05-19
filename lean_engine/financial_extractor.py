@@ -227,9 +227,9 @@ class FinancialExtractor:
             return raw
         try:
             # DART XML 파일들은 &nbsp; 등 비표준 XML 엔티티를 포함하여 XML 파서가 조기 중단(Truncate)되는 문제가 발생합니다.
-            # 따라서 항상 100% 안전하고 강인한 내장 html.parser를 강제 적용합니다.
-            xml_soup = BeautifulSoup(raw, "html.parser")
-            logger.debug("[_extract_markup] parser used: html.parser")
+            # 따라서 항상 100% 안전하고 강인한 내장 html.parser 대신 초고속 C 파서인 lxml을 적용합니다.
+            xml_soup = BeautifulSoup(raw, "lxml")
+            logger.debug("[_extract_markup] parser used: lxml")
 
             for tag_name in ["DOCUMENT", "document", "TEXT", "text", "BODY", "body", "SECTION", "section"]:
                 nodes = xml_soup.find_all(tag_name)
@@ -252,9 +252,9 @@ class FinancialExtractor:
     def _parse_html_table(self, raw: str, corp_code: str, period_label: str, period_type: str):
         markup = self._extract_markup_from_document_xml(raw)
         logger.debug("markup head=%s", markup[:500])
-        logger.debug("table count=%s", len(BeautifulSoup(markup, "html.parser").find_all("table")))
+        logger.debug("table count=%s", len(BeautifulSoup(markup, "lxml").find_all("table")))
 
-        soup = BeautifulSoup(markup, "html.parser")
+        soup = BeautifulSoup(markup, "lxml")
         found = {}
 
         full_text = soup.get_text(" ", strip=True)

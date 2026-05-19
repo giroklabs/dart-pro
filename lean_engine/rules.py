@@ -74,7 +74,7 @@ class SummaryRuleEngine:
             raw = str(content)
 
         markup = self._extract_markup_from_document_xml(raw)
-        soup = BeautifulSoup(markup, "html.parser")
+        soup = BeautifulSoup(markup, "lxml")
 
         for s in soup(["script", "style", "meta", "link", "iframe"]):
             s.decompose()

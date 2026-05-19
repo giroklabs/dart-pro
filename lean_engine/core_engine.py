@@ -97,6 +97,7 @@ class DartLeanEngine:
 
             try:
                 logger.info("[%s] %s 처리 중...", rcept_no, filing.get("report_nm"))
+                time.sleep(0.3)  # DART API 과부하 및 차단 방지용 안전 마이크로 딜레이
 
                 raw_content, raw_text = self._download_and_parse(rcept_no)
                 if not raw_text:
