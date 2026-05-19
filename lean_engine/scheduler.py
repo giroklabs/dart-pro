@@ -28,7 +28,7 @@ def job():
 
     try:
         today = datetime.date.today()
-        start_date = (today - datetime.timedelta(days=3)).strftime('%Y%m%d')
+        start_date = (today - datetime.timedelta(days=7)).strftime('%Y%m%d')
         end_date = today.strftime('%Y%m%d')
 
         logger.info("전 종목 공시 수집 시작: %s ~ %s", start_date, end_date)
