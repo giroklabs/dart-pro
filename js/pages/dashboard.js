@@ -1,11 +1,4 @@
 window.switchAiMode = function(mode) {
-  if (mode === 'gemini') {
-    const isPremium = window.FB_AUTH && window.FB_AUTH.isPremium;
-    if (!isPremium) {
-      if (window.showToast) window.showToast('AI 제미나이 분석은 프리미엄(유료) 사용자만 이용할 수 있습니다.');
-      return;
-    }
-  }
   localStorage.setItem('dart_ai_mode', mode);
   window.router();
 };
@@ -14,12 +7,7 @@ window.switchAiMode = function(mode) {
 async function renderDashboard() {
   const isPremium = window.FB_AUTH && window.FB_AUTH.isPremium;
   
-  // 프리미엄 유저가 아닌 경우 항상 quick 모드로 강제 설정
-  if (!isPremium && localStorage.getItem('dart_ai_mode') === 'gemini') {
-    localStorage.setItem('dart_ai_mode', 'quick');
-  }
-
-  const aiMode = localStorage.getItem('dart_ai_mode') || 'quick';
+  let aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
   const quickStyle = aiMode === 'quick' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
   const geminiStyle = aiMode === 'gemini' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
 
@@ -30,8 +18,8 @@ async function renderDashboard() {
         <p>DART 전자공시 실시간 모니터링</p>
       </div>
       <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
-        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${quickStyle}" onclick="switchAiMode('quick')">⚡️ QUICK 분석</button>
-        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${geminiStyle}" onclick="switchAiMode('gemini')">✨ 제미나이(유료)</button>
+        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${geminiStyle}" onclick="switchAiMode('gemini')">🤖 학습모델</button>
+        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${quickStyle}" onclick="switchAiMode('quick')">⚡️ QUICK 분석</button>
       </div>
     </div>
     <div id="quick-insight-container"></div>
@@ -58,7 +46,8 @@ async function renderInsight(containerId, item) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  let aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
 
   // 1. Lean Engine 요약 먼저 시도 (초고속, 캐시보다 우선)
   try {
@@ -198,23 +187,13 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
     };
   }
 
-  // Lean Engine 데이터가 있는 경우 표시 (Gemini 데이터가 없을 때 우선순위)
-  if (leanSummary && !aiData) {
+  // Lean Engine 데이터가 있는 경우 표시 (최우선 적용)
+  if (leanSummary) {
     // 공시 성격에 따른 동적 라벨 생성
-    let impactLabel = "핵심 정보 추출";
-    const title = item.report_nm || "";
-    if (title.includes('사업보고서')) impactLabel = "사업보고서";
-    else if (title.includes('반기보고서')) impactLabel = "반기보고서";
-    else if (title.includes('분기보고서')) impactLabel = "분기보고서";
-    else if (title.includes('감사보고서')) impactLabel = "감사보고서";
-    else if (title.includes('배당')) impactLabel = "현금 배당 정보";
-    else if (title.includes('영업(잠정)실적') || title.includes('결산')) impactLabel = "실적 확인 필요";
-    else if (title.includes('정정')) impactLabel = "기재 정정 사항";
-    else if (title.includes('공급계약')) impactLabel = "수주 계약 체결";
-    else if (title.includes('유상증자')) impactLabel = "자금 조달 안내";
-    else if (title.includes('소유상황')) impactLabel = "지분 변동 감지";
-
-    const isPeriodic = title.startsWith("사업보고서") || title.startsWith("반기보고서") || title.startsWith("분기보고서");
+    const quickData = getQuickInsightData(item);
+    const impactLabel = quickData.impact;
+    const typeCls = quickData.typeCls;
+    const icon = quickData.icon;
 
     let headerText = '';
     const bulletLines = [];
@@ -222,18 +201,24 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const cleanedLine = line.replace(/^[-▪💡📢\s]+/, '');
+      const cleanedLine = line.replace(/^[-▪💡📢📌▯\s]+/, '');
       
       // 첫 줄이면서 불릿/이모지 시작이 아닌 경우 헤더로 지정
-      if (!headerText && !line.startsWith('-') && !line.startsWith('▪') && !line.startsWith('💡')) {
+      if (!headerText && !line.startsWith('-') && !line.startsWith('▪') && !line.startsWith('💡') && !line.startsWith('📢') && !line.startsWith('📌') && !line.startsWith('▯')) {
         headerText = cleanedLine;
       } else {
-        bulletLines.push(`<li>${cleanedLine}</li>`);
+        const cleanedBullet = cleanedLine.replace(/\*\*/g, '');
+        bulletLines.push(`<li>${cleanedBullet}</li>`);
       }
     }
 
     let finalHeader = headerText || `<strong>${item.corp_name}</strong> - ${item.report_nm}`;
     finalHeader = finalHeader.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // 종목명 볼드 처리 (이미 <strong>으로 감싸져 있지 않고, 종목명으로 시작하는 경우)
+    if (!finalHeader.includes(`<strong>${item.corp_name}</strong>`) && finalHeader.startsWith(item.corp_name)) {
+      finalHeader = finalHeader.replace(item.corp_name, `<strong>${item.corp_name}</strong>`);
+    }
     
     // 구버전 캐시 데이터 포맷 온더플라이 동적 변환 보정 필터
     const legacyRegex = /^(.+?)의\s+(분기|반기|사업|정기|사업\(연간\))\s*보고서가\s+공시되었습니다\.?$/;
@@ -242,8 +227,8 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
     const pointsHtml = bulletLines.join('');
 
     return `
-      <div class="insight-banner insight-info">
-        <div class="insight-icon"><span class="material-symbols-outlined">bolt</span></div>
+      <div class="insight-banner ${typeCls}">
+        <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
         <div class="insight-content">
           <div class="insight-header">
             <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
@@ -263,23 +248,25 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
 
   // Gemini 데이터가 있는 경우 우선 사용
   if (aiData) {
-    const isCached = aiData._cached ? '⚡️ ' : '';
     const insight = cleanMd(aiData.insight || '');
-    const impact = cleanMd(aiData.impact || '분석 중');
+    let impact = cleanMd(aiData.impact || '분석 중');
     const points = (aiData.points || []).map(p => cleanMd(p));
     
-    // Ranker 정보 추출
-    const score = aiData.rankScore || 0;
-    const label = aiData.rankLabel || 0;
-    const rankText = ['참고', '보통', '중요', '매우 중요'][label];
-    const rankColor = ['var(--outline)', '#34a853', '#fbbc05', '#ea4335'][label];
+    // 실시간 대기 또는 원점수 기반 뱃지가 포함된 문구인 경우 일반 필터로 대체
+    const quickData = getQuickInsightData(item);
+    if (impact.includes('실시간 대기 중') || impact.includes('점)')) {
+      impact = quickData.impact;
+    }
+    
+    const typeCls = quickData.typeCls || 'insight-info';
+    const icon = quickData.icon || 'info';
 
     return `
-      <div class="insight-banner insight-info">
-        <div class="insight-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
+      <div class="insight-banner ${typeCls}">
+        <div class="insight-icon"><span class="material-symbols-outlined">${icon}</span></div>
         <div class="insight-content">
           <div class="insight-header">
-            <div class="insight-label">${isCached}GEMINI RANKER <span style="background:${rankColor}; color:white; padding:1px 6px; border-radius:4px; font-size:10px; margin-left:6px; font-weight:700;">${rankText}</span></div>
+            <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
             <div class="insight-impact">${impact}</div>
           </div>
           <div class="insight-text"><strong>${item.corp_name}</strong> - ${insight}</div>
@@ -301,13 +288,10 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         <div class="insight-icon"><span class="material-symbols-outlined spin">sync</span></div>
         <div class="insight-content">
           <div class="insight-header">
-            <div class="insight-label">GEMINI 1.5 FLASH <span style="color:var(--outline); font-weight:500; font-size:11px; margin-left:6px;">${api.formatDate(item.rcept_dt)}</span></div>
+            <div class="insight-label"><span style="color:var(--outline); font-weight:500; font-size:11px;">${api.formatDate(item.rcept_dt)}</span></div>
             <div class="insight-impact">분석 중...</div>
           </div>
-          <div class="insight-text"><strong>${item.corp_name}</strong> - 실시간 공시 내용을 AI가 분석하고 있습니다.</div>
-          <ul class="insight-points">
-            <li style="color:var(--on-surface-variant);">잠시만 기다려주세요...</li>
-          </ul>
+          <div class="insight-text"><strong>${item.corp_name}</strong> - 로딩중</div>
         </div>
         <div class="insight-actions">
           <button class="btn-text" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">상세보기</button>
@@ -780,25 +764,23 @@ async function initDashboard() {
 
   try {
     const endDe = fmt(new Date());
-    const bgnDeToday = endDe;
     const bgnDe30 = fmt(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     
-    // 2. 관심 종목별 공시 데이터 개별 조회 (병렬 처리)
-    const promises = watchlist.map(code => 
-      api.searchDisclosures({ 
-        corp_code: code, 
-        bgn_de: bgnDe30, 
-        end_de: endDe, 
-        page_count: 3 
-      })
-    );
-    
-    const results = await Promise.all(promises);
+    // 2. 관심 종목의 공시들만 정확히 조회하기 위해 corp_code 파라미터에 콤마로 연결하여 전송 (전체 공시 100건 한계 버그 해결)
+    const params = {
+      bgn_de: bgnDe30,
+      end_de: endDe,
+      page_count: 100
+    };
+    if (watchlist && watchlist.length > 0) {
+      params.corp_code = watchlist.join(',');
+    }
+    const res = await api.searchDisclosures(params);
+    const allDisclosures = res.list || [];
 
     // 데이터를 종목별로 그룹화 + 이름 교정
-    const groups = await Promise.all(watchlist.map(async (code, index) => {
-      const res = results[index];
-      const corpList = res.list || [];
+    const groups = await Promise.all(watchlist.map(async (code) => {
+      const corpList = allDisclosures.filter(item => item.corp_code === code).slice(0, 3);
       const correctedName = await api.getCorpName(code);
       return {
         company: { code: code, name: correctedName },
@@ -836,11 +818,45 @@ async function initDashboard() {
     localStorage.setItem('dashboard_cache', JSON.stringify({ watchlist, groups }));
 
   } catch (err) {
-    console.error(err);
+    console.error('[Dashboard Init Error]', err);
+    
+    // 💡 Premium Fallback: API 에러 시 기존 로컬 캐시를 로드하여 대화형 화면 유지
+    const cached = localStorage.getItem('dashboard_cache');
+    if (cached) {
+      try {
+        const cachedData = JSON.parse(cached);
+        renderDashboardUI(cachedData.groups, cachedData.stats);
+        
+        // 사용자 피드백 안내 배너 표시
+        const feedEl = document.getElementById('dashboard-feed');
+        if (feedEl) {
+          const warningBanner = document.createElement('div');
+          warningBanner.className = 'insight-banner revised';
+          warningBanner.style.marginBottom = '16px';
+          warningBanner.style.backgroundColor = 'rgba(234, 67, 53, 0.1)';
+          warningBanner.style.borderColor = 'rgba(234, 67, 53, 0.3)';
+          warningBanner.innerHTML = `
+            <div class="insight-icon" style="color: #ea4335;"><span class="material-symbols-outlined">warning</span></div>
+            <div class="insight-content">
+              <div class="insight-text" style="color: var(--on-surface);"><strong>DART API 요청 제한 안내</strong></div>
+              <div style="font-size: 12px; color: var(--on-surface-variant); margin-top: 4px;">
+                DART API 요청 제한(020)을 초과하여 임시 저장된 이전 데이터를 표시하고 있습니다. 잠시 후 새로고침해 주세요.
+              </div>
+            </div>
+          `;
+          feedEl.insertBefore(warningBanner, feedEl.firstChild);
+        }
+        return;
+      } catch (e) {
+        console.error('Failed to parse dashboard cache fallback:', e);
+      }
+    }
+
     document.getElementById('dashboard-feed').innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">!</div>
         <div>데이터 로드 실패: ${err.message}</div>
+        <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">DART API 요청 초과 상태입니다. 잠시 후 다시 시도해 주세요.</div>
       </div>
     `;
   }
