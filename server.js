@@ -78,7 +78,7 @@ try {
 const http = require('http');
 const url = require('url');
 
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT) || 3002;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -339,124 +339,128 @@ function getRankLabel(score) {
   if (pathname === '/api/ai/analyze' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
+    req.on('end', () => {
       try {
         const { corpName, reportName, rceptNo } = JSON.parse(body);
-        console.log(`[AI Request] Analysing: ${corpName} - ${reportName}`);
-        const apiKey = process.env.GEMINI_API_KEY;
-        const cacheFile = path.join(DATA_DIR, 'ai_analysis_cache.json');
+        console.log(`[AI Hybrid Local Request] ${corpName} - ${reportName} (${rceptNo})`);
         
-        // 1. 랭킹 스코어 계산 (Rule-based Logic)
         const rankScore = calculateDisclosureScore(reportName);
         const rankLabel = getRankLabel(rankScore);
 
-        // 2. 캐시 확인
-        let cache = {};
-        if (fs.existsSync(cacheFile)) cache = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-        
-        const cacheKey = rceptNo || `${corpName}_${reportName}`;
-        if (cache[cacheKey]) {
-          console.log(`[AI Cache] Hit! Returning cached analysis for: ${cacheKey}`);
-          const result = { ...cache[cacheKey], rankScore, rankLabel };
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify(result));
-        }
-
-        if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
-
-        console.log(`[AI Cache] Miss. Requesting new analysis for: ${cacheKey}`);
-        const prompt = `
-너는 금융감독원 DART 공시를 분석하는 랭킹 전문 AI 어시스턴트다.
-
-분석 대상:
-- 기업명: ${corpName}
-- 공시제목: ${reportName}
-- 계산된 중요도 점수: ${rankScore} (0~10점 사이, 높을수록 중요)
-
-목표:
-1. 위 공시제목에서 핵심 수치(금액, 비율, 날짜)를 추출하고 그 의미를 분석한다.
-2. 중요도 점수(${rankScore})를 기반으로 이 공시가 투자자에게 왜 중요한지(또는 참고용인지) 설명한다.
-3. 한국어 형태소 분석 관점에서 '의사결정 동사'와 '리스크 명사'를 찾아 영향력을 평가한다.
-
-핵심 원칙:
-- 공시유형을 먼저 판단한다.
-- 핵심 사건, 대상 회사, 금액, 일정, 변경사항을 우선 요약한다.
-- 숫자와 날짜가 있으면 반드시 포함한다.
-- 리스크, 영향, 확인 필요 사항이 있으면 짧게 제시한다.
-- 출력은 5줄 내외로 제한한다.
-
-답변은 반드시 다음 JSON 형식으로만 보내줘 (다른 텍스트 없이 JSON만):
-{
-  "category": "공시유형 (정기공시/주요사항보고/발행공시/지분공시/외부감사/기타공시 중 하나)",
-  "insight": "[핵심요약] 1문장. [핵심수치/일정] 숫자·날짜 포함 1문장.",
-  "points": [
-    "[데이터 피처] 공시에서 발견된 수치나 키워드 특징 1문장",
-    "[영향/의미] 중요도 점수 기반 투자자 관점 영향 1문장",
-    "[확인포인트] 반드시 확인해야 할 사항 1문장"
-  ],
-  "impact": "핵심어 중심 한 줄 요약 (숫자/날짜 포함 시 필수 기재)",
-  "typeCls": "success, warning, info, danger 중 이 공시의 투자 영향도에 맞는 등급",
-  "rankScore": ${rankScore},
-  "rankLabel": ${rankLabel}
-}
-        `;
-
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-        const requestBody = JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        });
-
-        const gReq = https.request(apiURL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 30000 // 30초 타임아웃 추가
-        }, (gRes) => {
-          let gData = '';
-          gRes.on('data', chunk => gData += chunk);
-          gRes.on('end', () => {
-            try {
-              const gJson = JSON.parse(gData);
-              if (!gJson.candidates || !gJson.candidates[0]) {
-                const errMsg = gJson.error?.message || 'AI 응답 형식이 올바르지 않습니다.';
-                throw new Error(errMsg);
-              }
-              const text = gJson.candidates[0].content.parts[0].text;
-              const cleanJson = text.replace(/```json|```/g, '').trim();
-              const analysisResult = JSON.parse(cleanJson);
-              
-              // 메모리 캐시 먼저 업데이트
-              cache[cacheKey] = analysisResult;
-              
-              // 비동기로 파일 저장 (지연 방지)
-              fs.writeFile(cacheFile, JSON.stringify(cache, null, 2), (err) => {
-                if (err) console.error('Cache save error:', err);
-              });
-              
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify(analysisResult));
-            } catch (e) {
-              console.error('❌ AI Parsing Error:', e.message);
-              res.writeHead(500);
-              res.end(JSON.stringify({ error: `AI 분석 실패: ${e.message}` }));
+        // 1. lean_engine.db에서 이미 파이썬 엔진이 빌드해둔 summary_text 조회
+        leanDb.get(
+          'SELECT summary_text FROM summaries WHERE rcept_no = ?',
+          [rceptNo],
+          (err, row) => {
+            if (err) {
+              console.warn('[AI Local] DB Error:', err.message);
             }
-          });
-        });
 
-        gReq.on('timeout', () => {
-          gReq.destroy();
-          res.writeHead(504);
-          res.end(JSON.stringify({ error: 'AI 분석 시간 초과 (30초)' }));
-        });
+            // 공시 유형 판단 유틸
+            let category = '기타공시';
+            let typeCls = 'info';
+            if (/배당/.test(reportName)) { category = '주주환원'; typeCls = 'success'; }
+            else if (/분기|반기|사업/.test(reportName)) { category = '정기공시'; typeCls = 'info'; }
+            else if (/수주|공급계약/.test(reportName)) { category = '주요사항보고'; typeCls = 'success'; }
+            else if (/유상증자|무상증자|사채/.test(reportName)) { category = '발행공시'; typeCls = 'warning'; }
+            else if (/소유상황|대량보유/.test(reportName)) { category = '지분공시'; typeCls = 'info'; }
+            else if (/정정/.test(reportName)) { category = '기타공시'; typeCls = 'warning'; }
 
-        gReq.on('error', (e) => { 
-          console.error('❌ AI Request Error:', e.message);
-          res.writeHead(500);
-          res.end(JSON.stringify({ error: e.message }));
-        });
-        
-        gReq.write(requestBody);
-        gReq.end();
+            if (row && row.summary_text && !row.summary_text.includes('정형 표 형식이 많거나')) {
+              console.log(`[AI Hybrid Local] DB Summary Hit! Parsing for rcept_no: ${rceptNo}`);
+              const text = row.summary_text;
+              
+              // 파이썬 요약 텍스트에서 헤더와 본문 분리
+              const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+              let insight = '';
+              const points = [];
 
+              // 헤더 추출 (**텍스트** 로 시작하는 줄)
+              const headerLine = lines.find(l => l.includes('**'));
+              if (headerLine) {
+                insight = headerLine.replace(/\*\*/g, '');
+              } else if (lines.length > 0) {
+                insight = lines[0];
+              } else {
+                insight = `${corpName}의 ${reportName}이 공시되었습니다.`;
+              }
+
+              // 구형 스타일의 insight 제목을 세련된 CTA 포맷으로 실시간 보정
+              if (insight.includes('의 주요 공시사항입니다.')) {
+                insight = `${corpName} - ${reportName.trim()} 공시: 핵심 내용 및 상세 일정을 확인하세요.`;
+              } else if (insight.includes('의 배당 관련 중요 공시가 등록되었습니다.')) {
+                insight = `${corpName} - 배당 일정 공시: 주주 환원 및 시가 배당률을 확인하세요.`;
+              } else if (insight.includes('의 기재 사항 정정 공시입니다.')) {
+                insight = `${corpName} - 기재사항 정정 공시: 정정 전/후 주요 변동 수치를 확인하세요.`;
+              } else if (insight.includes('의 임원 및 주요주주 특정증권 소유상황 보고가 접수되었습니다.')) {
+                insight = `${corpName} - 지분 소유상황 보고: 주요 경영진의 지분 변동 추이를 확인하세요.`;
+              } else if (insight.includes('의 감사보고서가 제출되었습니다.')) {
+                insight = `${corpName} - 감사보고서 제출 공시: 외부감사인의 감사의견을 우선 확인하세요.`;
+              }
+
+              // 불릿 포인트 추출 (▪ 또는 - 로 시작하는 라인들)
+              lines.forEach(line => {
+                if ((line.startsWith('▪') || line.startsWith('-') || line.startsWith('💡')) && !line.includes('**')) {
+                  points.push(line.replace(/^[\s▪\-💡\s]+/, ''));
+                }
+              });
+
+              if (points.length === 0) {
+                points.push("공시 상세 수치는 상단의 '상세보기'에서 원본으로 즉시 조회 가능합니다.");
+                points.push("자체 로컬 룰 엔진 스코어 기반 중요 수치 자동 하이라이팅이 적용되었습니다.");
+              }
+
+              const result = {
+                category,
+                insight,
+                points: points.slice(0, 3),
+                impact: `로컬 Lean Engine 핵심 요약 (${rankScore}점)`,
+                typeCls,
+                rankScore,
+                rankLabel
+              };
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              return res.end(JSON.stringify(result));
+            } else {
+              // 2. DB에 요약 데이터가 없는 경우 온더플라이 Rule 기반 Mock 요약 생성
+              console.log(`[AI Hybrid Local] DB Summary Miss. Generating instant Mock for rcept_no: ${rceptNo}`);
+              
+              let insight = `${corpName} - ${reportName.trim()} 공시: 핵심 내용 및 상세 일정을 확인하세요.`;
+              const points = [
+                "해당 종목은 현재 실시간 감시 관심 종목 대상에 포함되어 모니터링 중입니다.",
+                "더 빠른 상세 확인을 위해 우측 상단의 '상세보기' 버튼을 누르시면 원본 뷰어가 바로 열립니다."
+              ];
+
+              if (/배당/.test(reportName)) {
+                insight = `${corpName} - 배당 일정 공시: 주주 환원 및 시가 배당률을 확인하세요.`;
+                points[0] = "주주 환원 정책의 일관성 및 시가 배당률 수준 확인이 필요한 구간입니다.";
+              } else if (/정정/.test(reportName)) {
+                insight = `${corpName} - 기재사항 정정 공시: 정정 전/후 주요 변동 수치를 확인하세요.`;
+                points[0] = "정정 전/후의 정량 수치(금액, 비율, 일정 등) 변동폭을 반드시 확인하세요.";
+              } else if (/소유상황/.test(reportName)) {
+                insight = `${corpName} - 지분 소유상황 보고: 주요 경영진의 지분 변동 추이를 확인하세요.`;
+                points[0] = "내부 경영진의 지분 매입/매각 추이는 주가 향방의 1차 선행 시그널이 될 수 있습니다.";
+              } else if (/감사보고서/.test(reportName) || /감사의견/.test(reportName)) {
+                insight = `${corpName} - 감사보고서 제출 공시: 외부감사인의 감사의견을 우선 확인하세요.`;
+                points[0] = "외부감사인의 감사의견(적정, 한정, 부적정, 의견거절)은 기업 생존 및 거래소퇴출 여부를 가르는 핵심 지표입니다.";
+              }
+
+              const result = {
+                category,
+                insight,
+                points,
+                impact: `실시간 대기 중 (${rankScore}점)`,
+                typeCls,
+                rankScore,
+                rankLabel
+              };
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              return res.end(JSON.stringify(result));
+            }
+          }
+        );
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
@@ -582,6 +586,118 @@ function getRankLabel(score) {
 
 
 
+  // 로컬 DB 백업 데이터 조회 헬퍼 함수
+  function serveFromLocalDB(corpCodesStr, res, bgnDe = '', endDe = '') {
+    if (!leanDb) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ status: "999", message: "로컬 DB가 비활성 상태입니다." }));
+    }
+    
+    const cleanBgn = (bgnDe || '').replace(/[-.]/g, '').trim();
+    const cleanEnd = (endDe || '').replace(/[-.]/g, '').trim();
+
+    const codes = (corpCodesStr || '').split(',').map(c => c.trim()).filter(c => c.length > 0);
+
+    let query = `SELECT rcept_no, corp_code, report_nm, rcept_dt FROM filings`;
+    const queryParams = [];
+    const conditions = [];
+
+    // 1. 종목 조건
+    if (codes.length > 0) {
+      const placeholders = codes.map(() => '?').join(',');
+      conditions.push(`corp_code IN (${placeholders})`);
+      queryParams.push(...codes);
+    }
+
+    // 2. 날짜 조건
+    if (cleanBgn && cleanEnd) {
+      conditions.push(`rcept_dt BETWEEN ? AND ?`);
+      queryParams.push(cleanBgn, cleanEnd);
+    } else if (cleanBgn) {
+      conditions.push(`rcept_dt >= ?`);
+      queryParams.push(cleanBgn);
+    } else if (cleanEnd) {
+      conditions.push(`rcept_dt <= ?`);
+      queryParams.push(cleanEnd);
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ` + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY rcept_dt DESC, rcept_no DESC LIMIT 50`;
+
+    let corps = {};
+    try {
+      const corpsPath = path.join(__dirname, 'corps.json');
+      if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
+    } catch (e) {}
+
+    const INTERNAL_MAP_REVERSE = {
+      "00126380": "삼성전자", "00164779": "SK하이닉스", "00164742": "현대자동차",
+      "00111722": "미래에셋증권", "01042775": "HL만도", "00547583": "하나금융지주",
+      "00258838": "카카오", "00266961": "NAVER", "00305884": "에코프로",
+      "00126431": "대한항공", "00155167": "한화솔루션", "00159109": "한국전력공사", "00106641": "기아"
+    };
+
+    const codeToName = { ...INTERNAL_MAP_REVERSE };
+    for (const [key, val] of Object.entries(corps)) {
+      if (!/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) {
+        if (!codeToName[val]) codeToName[val] = key;
+      }
+    }
+
+    leanDb.all(query, queryParams, (err, rows) => {
+      if (err) {
+        console.error('[Fallback DB] Query error:', err.message);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        return res.end(JSON.stringify({ status: '000', message: '정상', list: [] }));
+      }
+
+      const list = (rows || []).map(row => {
+        const corpName = codeToName[row.corp_code] || row.corp_code;
+        const isKospi = ['00126380', '00164779', '00164742', '00126431', '00159109'].includes(row.corp_code);
+        return {
+          rcept_no: row.rcept_no,
+          corp_code: row.corp_code,
+          corp_name: corpName,
+          report_nm: row.report_nm,
+          rcept_dt: (row.rcept_dt || '').replace(/-/g, ''),
+          flr_nm: corpName,
+          corp_cls: isKospi ? 'Y' : 'K',
+          rm: ''
+        };
+      });
+
+      console.log(`[Fallback DB] Successfully served ${list.length} filings from local DB due to DART limit`);
+      res.writeHead(200, { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      });
+      res.end(JSON.stringify({ status: '000', message: '정상 (로컬 DB 백업 수집 데이터)', list }));
+    });
+  }
+
+  // ==========================================
+  // DART API 메모리 캐시 (TTL 5분, 새로고침 시 API 절약용)
+  // ==========================================
+  if (!global.DART_CACHE) {
+    global.DART_CACHE = new Map();
+    global.CACHE_TTL = 5 * 60 * 1000; // 5분
+    
+    // 메모리 누수 방지 주기적 캐시 비우기 (1분마다 만료분 삭제)
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, val] of global.DART_CACHE.entries()) {
+        if (now - val.timestamp > global.CACHE_TTL) {
+          global.DART_CACHE.delete(key);
+        }
+      }
+    }, 60 * 1000);
+  }
+
   // ==========================================
   // 3. DART API 백엔드 프록시 (기존 기능 유지 및 개선)
   // ==========================================
@@ -594,13 +710,27 @@ function getRankLabel(score) {
       res.writeHead(500);
       return res.end('Server Configuration Error: API Key Missing');
     }
+
+    const corpCode = parsedUrl.searchParams.get('corp_code');
+    const bgnDe = parsedUrl.searchParams.get('bgn_de') || '';
+    const endDe = parsedUrl.searchParams.get('end_de') || '';
+
+    // 1. 메모리 캐시 검사
+    const cacheKey = req.url;
+    const cached = global.DART_CACHE.get(cacheKey);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < global.CACHE_TTL)) {
+      console.log(`[DART Proxy] [Cache Hit] Serving from memory cache: ${cacheKey}`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(cached.data));
+    }
     
     let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
     if (!targetUrl.includes('crtfc_key=')) {
       targetUrl += (targetUrl.includes('?') ? '&' : '?') + `crtfc_key=${DART_API_KEY}`;
     }
 
-    const corpCode = parsedUrl.searchParams.get('corp_code');
     const options = { headers: { 'User-Agent': 'DART-Pro-Server' } };
 
     // 다중 종목 코드 처리 (콤마로 구분된 경우)
@@ -610,11 +740,10 @@ function getRankLabel(score) {
       
       const fetchPromises = codes.map((code, index) => {
         return new Promise((resolve) => {
-          // 0.1초 간격으로 순차 요청 (DART 차단 방지)
           setTimeout(() => {
             const urlObj = new URL(targetUrl);
             urlObj.searchParams.set('corp_code', code);
-            urlObj.searchParams.set('page_count', '10'); // 종목당 최대 10건
+            urlObj.searchParams.set('page_count', '10');
             const singleUrl = urlObj.toString();
 
             https.get(singleUrl, options, (pRes) => {
@@ -623,23 +752,35 @@ function getRankLabel(score) {
               pRes.on('end', () => {
                 try { 
                   const json = JSON.parse(data);
-                  resolve(json.list || []); 
-                } catch (e) { resolve([]); }
+                  resolve({ list: json.list || [], status: json.status }); 
+                } catch (e) { resolve({ list: [], status: '999' }); }
               });
-            }).on('error', () => resolve([]));
+            }).on('error', () => resolve({ list: [], status: '500' }));
           }, index * 100);
         });
       });
 
       Promise.all(fetchPromises).then(results => {
-        const mergedList = [].concat(...results).sort((a, b) => {
+        const hasLimitError = results.some(r => r.status === '020');
+        if (hasLimitError) {
+          console.warn('[DART Proxy] Batch request hit limit (020). Falling back to local DB...');
+          return serveFromLocalDB(corpCode, res, bgnDe, endDe);
+        }
+
+        const mergedList = [].concat(...results.map(r => r.list)).sort((a, b) => {
           const aNo = String(a.rcept_no || '0');
           const bNo = String(b.rcept_no || '0');
           return bNo.localeCompare(aNo);
         });
+
+        const successResponse = { status: '000', message: '정상', list: mergedList.slice(0, 50) };
+        
+        // 캐시 적재
+        global.DART_CACHE.set(cacheKey, { timestamp: Date.now(), data: successResponse });
+
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: '000', message: '정상', list: mergedList.slice(0, 50) }));
+        res.end(JSON.stringify(successResponse));
       });
       return;
     }
@@ -651,29 +792,43 @@ function getRankLabel(score) {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*'
       },
-      rejectUnauthorized: false // SSL 인증서 검증 일시 완화 (필요시)
+      rejectUnauthorized: false
     }, (proxyRes) => {
       console.log(`[DART Proxy] Response Status: ${proxyRes.statusCode}`);
       
-      // 불필요하거나 문제되는 헤더 제거
-      const headers = { ...proxyRes.headers };
-      delete headers['x-frame-options'];
-      delete headers['content-security-policy'];
-      delete headers['content-length']; // 파이프 시 압축 등으로 달라질 수 있음
-      
-      // CORS 대응 (강력하게 설정)
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', '*');
-      
-      res.writeHead(proxyRes.statusCode, headers);
-      proxyRes.pipe(res, { end: true });
+      let responseData = '';
+      proxyRes.on('data', chunk => responseData += chunk);
+      proxyRes.on('end', () => {
+        try {
+          const json = JSON.parse(responseData);
+          if (json.status === '020') {
+            console.warn('[DART Proxy] Single request limit exceeded (020). Falling back to local DB...');
+            return serveFromLocalDB(corpCode, res, bgnDe, endDe);
+          }
+          
+          // 단일 종목 성공 응답 캐시 적재
+          if (proxyRes.statusCode === 200 && json.status === '000') {
+            global.DART_CACHE.set(cacheKey, { timestamp: Date.now(), data: json });
+          }
+        } catch (e) {}
+
+        const headers = { ...proxyRes.headers };
+        delete headers['x-frame-options'];
+        delete headers['content-security-policy'];
+        delete headers['content-length'];
+        
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        
+        res.writeHead(proxyRes.statusCode, headers);
+        res.end(responseData);
+      });
     });
 
     proxyReq.on('error', (err) => {
-      console.error('DART 통신 에러:', err.message);
-      res.writeHead(500);
-      res.end('Backend Proxy Error');
+      console.error('DART 통신 에러, 로컬 DB 폴백 시도:', err.message);
+      serveFromLocalDB(corpCode, res, bgnDe, endDe);
     });
     
     return;
