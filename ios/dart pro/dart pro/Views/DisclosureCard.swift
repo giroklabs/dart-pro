@@ -120,7 +120,7 @@ struct DisclosureCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // 기본 QUICK 분석 결과
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(quickAnalysis.insight)
+                        Text(QuickAnalysisManager.shared.analyze(reportName: item.report_nm ?? "", corpName: item.corp_name ?? "").insight)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.primary.opacity(0.9))
                             .lineLimit(isExpanded ? nil : 2)

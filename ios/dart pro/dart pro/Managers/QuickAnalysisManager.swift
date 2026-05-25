@@ -20,8 +20,22 @@ class QuickAnalysisManager {
         var typeCls = "default"
         var icon = "bell.fill"
 
+        // 0. 소송/법적 리스크 관련
+        if reportName.contains("소송") || reportName.contains("피소") {
+            insight = "법적 리스크 관련 공시: 재무적 손실 또는 영업 차질 가능성을 검토해야 합니다."
+            points = [
+                "이전 공시 대비 변경사항 확인",
+                "소송 금액이 자기자본 대비 몇 %인지 확인",
+                "승소/패소 가능성 및 법적 리스크 평가",
+                "영업 정지 등 실질적 타격 여부 체크"
+            ]
+            impact = reportName.contains("정정") ? "확인 요망" : "변동성 주의"
+            category = "법적리스크"
+            typeCls = "danger"
+            icon = "gavel.fill"
+        } 
         // 1. 배당 관련
-        if reportName.contains("배당") {
+        else if reportName.contains("배당") {
             insight = "현금/현물 배당 결정: 주주 환원의 핵심 지표가 발표되었습니다."
             points = ["과거 배당금 대비 증액 여부 확인", "시가배당률과 예상 수익률 검토", "배당 기준일까지 보유 여부 판단"]
             impact = "긍정적 (배당수익)"
