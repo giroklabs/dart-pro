@@ -684,7 +684,7 @@ function getQuickInsightData(item) {
     rankLabel,
     typeCls: 'insight-default',
     icon: 'campaign',
-    insight: '최근 접수된 공시입니다. 핵심 항목을 직접 확인하세요.',
+    insight: item.report_nm || '최근 접수된 공시입니다. 핵심 항목을 직접 확인하세요.',
     points: [
       `접수번호: ${item.rcept_no}`,
       `제출일자: ${window.DART_API.formatDate(item.rcept_dt)}`

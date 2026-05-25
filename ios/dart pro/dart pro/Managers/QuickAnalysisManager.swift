@@ -13,7 +13,7 @@ class QuickAnalysisManager {
     static let shared = QuickAnalysisManager()
     
     func analyze(reportName: String, corpName: String) -> AnalysisResult {
-        var insight = "최근 접수된 공시입니다. 상세 내용을 검토하세요."
+        var insight = reportName.isEmpty ? "최근 접수된 공시입니다. 상세 내용을 검토하세요." : reportName
         var points = ["공시 제목: \(reportName.components(separatedBy: "[").first?.trimmingCharacters(in: .whitespaces) ?? reportName)", "신규 접수된 공시를 확인하세요."]
         var impact = "정보 확인"
         var category = "기타"
