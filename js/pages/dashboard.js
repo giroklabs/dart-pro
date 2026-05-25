@@ -212,17 +212,22 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
       }
     }
 
-    let finalHeader = headerText || `<strong>${item.corp_name}</strong> - ${item.report_nm}`;
-    finalHeader = finalHeader.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // 종목명 볼드 처리 (이미 <strong>으로 감싸져 있지 않고, 종목명으로 시작하는 경우)
-    if (!finalHeader.includes(`<strong>${item.corp_name}</strong>`) && finalHeader.startsWith(item.corp_name)) {
-      finalHeader = finalHeader.replace(item.corp_name, `<strong>${item.corp_name}</strong>`);
+    let finalHeader = '';
+    if (aiMode === 'gemini') {
+      finalHeader = `<strong>${item.corp_name}</strong> - ${quickData.insight}`;
+    } else {
+      finalHeader = headerText || `<strong>${item.corp_name}</strong> - ${item.report_nm}`;
+      finalHeader = finalHeader.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      
+      // 종목명 볼드 처리 (이미 <strong>으로 감싸져 있지 않고, 종목명으로 시작하는 경우)
+      if (!finalHeader.includes(`<strong>${item.corp_name}</strong>`) && finalHeader.startsWith(item.corp_name)) {
+        finalHeader = finalHeader.replace(item.corp_name, `<strong>${item.corp_name}</strong>`);
+      }
+      
+      // 구버전 캐시 데이터 포맷 온더플라이 동적 변환 보정 필터
+      const legacyRegex = /^(.+?)의\s+(분기|반기|사업|정기|사업\(연간\))\s*보고서가\s+공시되었습니다\.?$/;
+      finalHeader = finalHeader.replace(legacyRegex, '<strong>$1</strong> - $2 보고서가 공시되었습니다.');
     }
-    
-    // 구버전 캐시 데이터 포맷 온더플라이 동적 변환 보정 필터
-    const legacyRegex = /^(.+?)의\s+(분기|반기|사업|정기|사업\(연간\))\s*보고서가\s+공시되었습니다\.?$/;
-    finalHeader = finalHeader.replace(legacyRegex, '<strong>$1</strong> - $2 보고서가 공시되었습니다.');
     
     const pointsHtml = bulletLines.join('');
 
