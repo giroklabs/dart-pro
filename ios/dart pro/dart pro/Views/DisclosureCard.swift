@@ -9,6 +9,7 @@ struct DisclosureCard: View {
     @State private var showPremiumAlert = false
     @State private var geminiResult: AnalysisResult?
     @State private var isAnalyzing = false
+    @State private var isExpanded = false
     
     // 기본 로컬 분석 (백업용)
     private var quickAnalysis: AnalysisResult {
@@ -20,13 +21,22 @@ struct DisclosureCard: View {
         
         VStack(alignment: .leading, spacing: 12) {
             // 헤더: 법인구분 및 날짜
-            HStack {
+            HStack(spacing: 8) {
                 Text(item.corp_cls == "Y" ? "코스피" : "코스닥")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(item.corp_cls == "Y" ? Color.blue.opacity(0.1) : Color.orange.opacity(0.1))
                     .foregroundColor(item.corp_cls == "Y" ? .blue : .orange)
+                    .cornerRadius(4)
+                
+                // 영향도 뱃지 추가 (코스피/코스닥 단추 옆에 표기)
+                Text(quickAnalysis.impact)
+                    .font(.system(size: 10, weight: .bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(impactColor(quickAnalysis.typeCls).opacity(0.1))
+                    .foregroundColor(impactColor(quickAnalysis.typeCls))
                     .cornerRadius(4)
                 
                 Spacer()
@@ -87,10 +97,10 @@ struct DisclosureCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 // 상단 헤더
                 HStack(spacing: 6) {
-                    Image(systemName: "bolt.fill")
-                        .foregroundColor(.yellow)
+                    Image(systemName: "sparkles")
+                        .foregroundColor(.secondary)
                         .font(.system(size: 12))
-                    Text("QUICK 분석")
+                    Text(geminiResult != nil ? "AI 학습모델" : "QUICK 분석")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.secondary)
                     
@@ -100,13 +110,9 @@ struct DisclosureCard: View {
                     
                     Spacer()
                     
-                    // 투자 영향도 표시
+                    // 투자 영향도 표시 (첫번째 이미지 영역 미노출 처리)
                     if isAnalyzing {
                         ProgressView().scaleEffect(0.7)
-                    } else {
-                        Text(analysis.impact)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(impactColor(analysis.typeCls))
                     }
                 }
                 
@@ -114,23 +120,45 @@ struct DisclosureCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // 기본 QUICK 분석 결과
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(analysis.insight)
-                            .font(.system(size: 13, weight: .bold))
+                        Text(quickAnalysis.insight)
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.primary.opacity(0.9))
+                            .lineLimit(isExpanded ? nil : 2)
+                            .padding(.bottom, 6)
                         
-                        if !isGeminiEnabled {
-                            ForEach(analysis.points.prefix(2), id: \.self) { point in
-                                HStack(alignment: .top, spacing: 4) {
-                                    Text("•")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                    Text(point)
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
+                        let displayPoints = isExpanded ? analysis.points : Array(analysis.points.prefix(3))
+                        
+                        ForEach(displayPoints, id: \.self) { point in
+                            HStack(alignment: .top, spacing: 4) {
+                                Text("•")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                                Text(point)
+                                    .font(.system(size: 12.5))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(isExpanded ? nil : 2)
                             }
                         }
+                    }
+                    
+                    // 펼쳐보기 / 접기 버튼
+                    if analysis.points.count > 0 {
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    isExpanded.toggle()
+                                }
+                            }) {
+                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                        .padding(.trailing, 2)
+                        .padding(.bottom, 2)
                     }
                 }
             }
@@ -149,6 +177,9 @@ struct DisclosureCard: View {
             Button("확인", role: .cancel) { }
         } message: {
             Text("Gemini AI 심층 분석은 프리미엄 구독자에게만 제공됩니다. 웹 대시보드에서 전문적인 리포트를 확인해 보세요!")
+        }
+        .onAppear {
+            startGeminiAnalysis()
         }
         .onChange(of: isGeminiEnabled) { newValue in
             if newValue && authManager.isPremium && geminiResult == nil {
