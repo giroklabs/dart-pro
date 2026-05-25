@@ -261,25 +261,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
     const typeCls = quickData.typeCls || 'insight-info';
     const icon = quickData.icon || 'info';
 
-    // QUICK 분석의 제목(finalHeader) 로직 동일 적용
-    let headerText = '';
-    const rawSummary = leanSummary || item.lean_summary;
-    if (rawSummary) {
-      const lines = rawSummary.split('\n').map(l => l.trim()).filter(Boolean);
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const cleanedLine = line.replace(/^[-▪💡📢📌▯\s]+/, '');
-        if (!headerText && !line.startsWith('-') && !line.startsWith('▪') && !line.startsWith('💡') && !line.startsWith('📢') && !line.startsWith('📌') && !line.startsWith('▯')) {
-          headerText = cleanedLine;
-          break;
-        }
-      }
-    }
-    let finalHeader = headerText || `<strong>${item.corp_name}</strong> - ${item.report_nm}`;
-    finalHeader = finalHeader.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    if (!finalHeader.includes(`<strong>${item.corp_name}</strong>`) && finalHeader.startsWith(item.corp_name)) {
-      finalHeader = finalHeader.replace(item.corp_name, `<strong>${item.corp_name}</strong>`);
-    }
+    const finalHeader = `<strong>${item.corp_name}</strong> - ${quickData.insight}`;
 
     return `
       <div class="insight-banner ${typeCls}">
