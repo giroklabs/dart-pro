@@ -10,7 +10,7 @@ import CryptoKit
 class AuthManager: ObservableObject {
     @Published var user: User?
     @Published var isLoading = false
-    @Published var isPremium = false
+    @Published var isPremium = true
     
     private var listener: ListenerRegistration?
     private var currentNonce: String?
@@ -38,8 +38,8 @@ class AuthManager: ObservableObject {
             let data = snapshot?.data()
             
             DispatchQueue.main.async {
-                // 문서가 없거나 isPremium 필드가 없으면 확실히 false
-                self?.isPremium = data?["isPremium"] as? Bool ?? false
+                // 항상 프리미엄 활성화
+                self?.isPremium = true
             }
             
             // FCM 토큰도 함께 업데이트 (있을 경우)
@@ -128,7 +128,7 @@ class AuthManager: ObservableObject {
             try Auth.auth().signOut()
             GIDSignIn.sharedInstance.signOut()
             self.user = nil
-            self.isPremium = false
+            self.isPremium = true
             // 로컬 관심종목 데이터 초기화 (계정 간 데이터 혼선 방지)
             UserDefaults.standard.removeObject(forKey: "dart_watchlist")
             UserDefaults.standard.removeObject(forKey: "notification_history")
@@ -166,7 +166,7 @@ class AuthManager: ObservableObject {
                     // 3. 로컬 데이터 초기화
                     self?.listener?.remove()
                     self?.user = nil
-                    self?.isPremium = false
+                    self?.isPremium = true
                     UserDefaults.standard.removeObject(forKey: "dart_watchlist")
                     UserDefaults.standard.removeObject(forKey: "notification_history")
                     UserDefaults.standard.removeObject(forKey: "notification_history_raw")

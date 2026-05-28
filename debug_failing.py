@@ -1,11 +1,16 @@
 import sys
 import os
-sys.path.append("/Users/greego/Desktop/dart pro/lean_engine")
-from core_engine import DartLeanEngine
 import sqlite3
 
-# DB 연결
-conn = sqlite3.connect("/Users/greego/Desktop/dart pro/lean_engine.db")
+# 현재 파일의 디렉토리를 기준으로 경로 추가
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_dir, "lean_engine"))
+
+from core_engine import DartLeanEngine
+
+# DB 연결 (상대 경로로 자동 매핑)
+db_path = os.path.join(current_dir, "lean_engine.db")
+conn = sqlite3.connect(db_path)
 cur = conn.cursor()
 
 # 푸른기술 및 한화리츠 오늘자(또는 최근) rcept_no 조회

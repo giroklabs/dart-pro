@@ -44468,9 +44468,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/gRPC-Core";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = grpc;
 				INFOPLIST_FILE = "Target Support Files/gRPC-Core/ResourceBundle-grpc-gRPC-Core-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = grpc;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -44488,6 +44490,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -44504,6 +44507,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/GoogleUtilities/GoogleUtilities.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = GoogleUtilities;
 				PRODUCT_NAME = GoogleUtilities;
 				SDKROOT = iphoneos;
@@ -44526,6 +44530,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -44543,6 +44548,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseCoreExtension/FirebaseCoreExtension.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseCoreExtension;
 				PRODUCT_NAME = FirebaseCoreExtension;
 				SDKROOT = iphoneos;
@@ -44622,6 +44628,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -44637,6 +44644,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/GoogleSignIn/GoogleSignIn.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = GoogleSignIn;
 				PRODUCT_NAME = GoogleSignIn;
 				SDKROOT = iphoneos;
@@ -44757,6 +44765,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -44773,6 +44782,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseCore/FirebaseCore.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseCore;
 				PRODUCT_NAME = FirebaseCore;
 				SDKROOT = iphoneos;
@@ -44831,6 +44841,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -44847,6 +44858,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseMessaging/FirebaseMessaging.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseMessaging;
 				PRODUCT_NAME = FirebaseMessaging;
 				SDKROOT = iphoneos;
@@ -44884,12 +44896,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -44901,9 +44915,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/GoogleUtilities";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = GoogleUtilities;
 				INFOPLIST_FILE = "Target Support Files/GoogleUtilities/ResourceBundle-GoogleUtilities_Privacy-GoogleUtilities-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = GoogleUtilities_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -44921,6 +44937,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -44938,6 +44955,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/leveldb-library/leveldb-library.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = leveldb;
 				PRODUCT_NAME = leveldb;
 				SDKROOT = iphoneos;
@@ -44960,6 +44978,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -44977,6 +44996,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseAppCheckInterop/FirebaseAppCheckInterop.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseAppCheckInterop;
 				PRODUCT_NAME = FirebaseAppCheckInterop;
 				SDKROOT = iphoneos;
@@ -45017,6 +45037,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45033,6 +45054,7 @@
 				);
 				MACH_O_TYPE = staticlib;
 				MODULEMAP_FILE = "Target Support Files/Pods-dart pro/Pods-dart pro.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = "";
 				OTHER_LIBTOOLFLAGS = "";
 				PODS_ROOT = "$(SRCROOT)";
@@ -45071,9 +45093,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/GTMAppAuth";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = GTMAppAuth;
 				INFOPLIST_FILE = "Target Support Files/GTMAppAuth/ResourceBundle-GTMAppAuth_Privacy-GTMAppAuth-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = GTMAppAuth_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -45186,6 +45210,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45203,6 +45228,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/BoringSSL-GRPC/BoringSSL-GRPC.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = openssl_grpc;
 				PRODUCT_NAME = openssl_grpc;
 				SDKROOT = iphoneos;
@@ -45242,6 +45268,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -45257,6 +45284,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/GTMSessionFetcher/GTMSessionFetcher.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = GTMSessionFetcher;
 				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = iphoneos;
@@ -45296,6 +45324,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45313,6 +45342,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/RecaptchaInterop/RecaptchaInterop.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = RecaptchaInterop;
 				PRODUCT_NAME = RecaptchaInterop;
 				SDKROOT = iphoneos;
@@ -45418,6 +45448,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45435,6 +45466,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/gRPC-C++/gRPC-C++.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = grpcpp;
 				PRODUCT_NAME = grpcpp;
 				SDKROOT = iphoneos;
@@ -45457,6 +45489,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45473,6 +45506,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/GoogleDataTransport/GoogleDataTransport.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = GoogleDataTransport;
 				PRODUCT_NAME = GoogleDataTransport;
 				SDKROOT = iphoneos;
@@ -45492,9 +45526,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseCoreExtension";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseCoreExtension;
 				INFOPLIST_FILE = "Target Support Files/FirebaseCoreExtension/ResourceBundle-FirebaseCoreExtension_Privacy-FirebaseCoreExtension-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseCoreExtension_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -45607,9 +45643,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseAuth";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseAuth;
 				INFOPLIST_FILE = "Target Support Files/FirebaseAuth/ResourceBundle-FirebaseAuth_Privacy-FirebaseAuth-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseAuth_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -45627,6 +45665,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45643,6 +45682,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/GTMAppAuth/GTMAppAuth.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = GTMAppAuth;
 				PRODUCT_NAME = GTMAppAuth;
 				SDKROOT = iphoneos;
@@ -45783,6 +45823,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -45801,6 +45842,7 @@
 				);
 				MACH_O_TYPE = staticlib;
 				MODULEMAP_FILE = "Target Support Files/Google-Mobile-Ads-SDK/Google-Mobile-Ads-SDK.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = Google_Mobile_Ads_SDK;
 				PRODUCT_NAME = Google_Mobile_Ads_SDK;
 				SDKROOT = iphoneos;
@@ -46012,12 +46054,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -46031,6 +46075,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46048,6 +46093,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/abseil/abseil.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = absl;
 				PRODUCT_NAME = absl;
 				SDKROOT = iphoneos;
@@ -46070,6 +46116,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46087,6 +46134,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseAuthInterop/FirebaseAuthInterop.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseAuthInterop;
 				PRODUCT_NAME = FirebaseAuthInterop;
 				SDKROOT = iphoneos;
@@ -46142,6 +46190,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -46157,6 +46206,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/PromisesObjC/PromisesObjC.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FBLPromises;
 				PRODUCT_NAME = FBLPromises;
 				SDKROOT = iphoneos;
@@ -46176,9 +46226,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/PromisesObjC";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FBLPromises;
 				INFOPLIST_FILE = "Target Support Files/PromisesObjC/ResourceBundle-FBLPromises_Privacy-PromisesObjC-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FBLPromises_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46193,9 +46245,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseFirestoreInternal";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseFirestoreInternal;
 				INFOPLIST_FILE = "Target Support Files/FirebaseFirestoreInternal/ResourceBundle-FirebaseFirestoreInternal_Privacy-FirebaseFirestoreInternal-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseFirestoreInternal_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46292,6 +46346,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46309,6 +46364,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseCoreInternal/FirebaseCoreInternal.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseCoreInternal;
 				PRODUCT_NAME = FirebaseCoreInternal;
 				SDKROOT = iphoneos;
@@ -46328,9 +46384,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/GoogleSignIn";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = GoogleSignIn;
 				INFOPLIST_FILE = "Target Support Files/GoogleSignIn/ResourceBundle-GoogleSignIn-GoogleSignIn-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = GoogleSignIn;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46365,6 +46423,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46381,6 +46440,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/AppCheckCore/AppCheckCore.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = AppCheckCore;
 				PRODUCT_NAME = AppCheckCore;
 				SDKROOT = iphoneos;
@@ -46417,9 +46477,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/leveldb-library";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = leveldb;
 				INFOPLIST_FILE = "Target Support Files/leveldb-library/ResourceBundle-leveldb_Privacy-leveldb-library-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = leveldb_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46573,6 +46635,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46590,6 +46653,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/nanopb/nanopb.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = nanopb;
 				PRODUCT_NAME = nanopb;
 				SDKROOT = iphoneos;
@@ -46665,9 +46729,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/abseil";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = absl;
 				INFOPLIST_FILE = "Target Support Files/abseil/ResourceBundle-xcprivacy-abseil-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = xcprivacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46722,9 +46788,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/gRPC-C++";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = grpcpp;
 				INFOPLIST_FILE = "Target Support Files/gRPC-C++/ResourceBundle-gRPCCertificates-Cpp-gRPC-C++-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "gRPCCertificates-Cpp";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46742,6 +46810,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46758,6 +46827,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseSharedSwift/FirebaseSharedSwift.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseSharedSwift;
 				PRODUCT_NAME = FirebaseSharedSwift;
 				SDKROOT = iphoneos;
@@ -46797,6 +46867,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46813,6 +46884,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseInstallations/FirebaseInstallations.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseInstallations;
 				PRODUCT_NAME = FirebaseInstallations;
 				SDKROOT = iphoneos;
@@ -46835,6 +46907,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -46852,6 +46925,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/gRPC-Core/gRPC-Core.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = grpc;
 				PRODUCT_NAME = grpc;
 				SDKROOT = iphoneos;
@@ -46888,9 +46962,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/GTMSessionFetcher";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = GTMSessionFetcher;
 				INFOPLIST_FILE = "Target Support Files/GTMSessionFetcher/ResourceBundle-GTMSessionFetcher_Core_Privacy-GTMSessionFetcher-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = GTMSessionFetcher_Core_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46905,9 +46981,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseFirestore";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseFirestore;
 				INFOPLIST_FILE = "Target Support Files/FirebaseFirestore/ResourceBundle-FirebaseFirestore_Privacy-FirebaseFirestore-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseFirestore_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46962,9 +47040,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/BoringSSL-GRPC";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = openssl_grpc;
 				INFOPLIST_FILE = "Target Support Files/BoringSSL-GRPC/ResourceBundle-openssl_grpc-BoringSSL-GRPC-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = openssl_grpc;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -46980,12 +47060,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -46997,9 +47079,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/gRPC-C++";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = grpcpp;
 				INFOPLIST_FILE = "Target Support Files/gRPC-C++/ResourceBundle-grpcpp-gRPC-C++-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = grpcpp;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47017,6 +47101,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -47033,6 +47118,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseFirestore/FirebaseFirestore.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseFirestore;
 				PRODUCT_NAME = FirebaseFirestore;
 				SDKROOT = iphoneos;
@@ -47132,9 +47218,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/Google-Mobile-Ads-SDK";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = Google_Mobile_Ads_SDK;
 				INFOPLIST_FILE = "Target Support Files/Google-Mobile-Ads-SDK/ResourceBundle-GoogleMobileAdsResources-Google-Mobile-Ads-SDK-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = GoogleMobileAdsResources;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47149,9 +47237,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/GoogleDataTransport";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = GoogleDataTransport;
 				INFOPLIST_FILE = "Target Support Files/GoogleDataTransport/ResourceBundle-GoogleDataTransport_Privacy-GoogleDataTransport-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = GoogleDataTransport_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47203,6 +47293,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -47219,6 +47310,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseAuth/FirebaseAuth.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseAuth;
 				PRODUCT_NAME = FirebaseAuth;
 				SDKROOT = iphoneos;
@@ -47238,9 +47330,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseMessaging";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseMessaging;
 				INFOPLIST_FILE = "Target Support Files/FirebaseMessaging/ResourceBundle-FirebaseMessaging_Privacy-FirebaseMessaging-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseMessaging_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47255,9 +47349,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseInstallations";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseInstallations;
 				INFOPLIST_FILE = "Target Support Files/FirebaseInstallations/ResourceBundle-FirebaseInstallations_Privacy-FirebaseInstallations-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseInstallations_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47312,12 +47408,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -47332,6 +47430,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -47348,6 +47447,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/AppAuth/AppAuth.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = AppAuth;
 				PRODUCT_NAME = AppAuth;
 				SDKROOT = iphoneos;
@@ -47368,12 +47468,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -47385,9 +47487,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseCore";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseCore;
 				INFOPLIST_FILE = "Target Support Files/FirebaseCore/ResourceBundle-FirebaseCore_Privacy-FirebaseCore-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseCore_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47402,9 +47506,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/GoogleUserMessagingPlatform";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = GoogleUserMessagingPlatform;
 				INFOPLIST_FILE = "Target Support Files/GoogleUserMessagingPlatform/ResourceBundle-UserMessagingPlatformResources-GoogleUserMessagingPlatform-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = UserMessagingPlatformResources;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47553,9 +47659,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/FirebaseCoreInternal";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = FirebaseCoreInternal;
 				INFOPLIST_FILE = "Target Support Files/FirebaseCoreInternal/ResourceBundle-FirebaseCoreInternal_Privacy-FirebaseCoreInternal-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = FirebaseCoreInternal_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47570,9 +47678,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/AppAuth";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = AppAuth;
 				INFOPLIST_FILE = "Target Support Files/AppAuth/ResourceBundle-AppAuthCore_Privacy-AppAuth-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = AppAuthCore_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -47607,6 +47717,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -47623,6 +47734,7 @@
 					"@loader_path/Frameworks",
 				);
 				MODULEMAP_FILE = "Target Support Files/FirebaseFirestoreInternal/FirebaseFirestoreInternal.modulemap";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_MODULE_NAME = FirebaseFirestoreInternal;
 				PRODUCT_NAME = FirebaseFirestoreInternal;
 				SDKROOT = iphoneos;
@@ -47642,9 +47754,11 @@
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/nanopb";
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				IBSC_MODULE = nanopb;
 				INFOPLIST_FILE = "Target Support Files/nanopb/ResourceBundle-nanopb_Privacy-nanopb-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = nanopb_Privacy;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

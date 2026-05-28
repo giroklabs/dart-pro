@@ -373,7 +373,18 @@ table { border-collapse: collapse; width: 100%; }
   border-radius: var(--r-lg); margin-bottom: var(--sp-lg);
 }
 .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
-.filter-bar .btn-primary { align-self: flex-end; white-space: nowrap; }
+.filter-bar .btn-primary {
+  align-self: flex-end; white-space: nowrap;
+  height: 42px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+}
+.filter-bar .form-input {
+  height: 42px;
+}
 
 /* Company Detail */
 .company-card { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-md) var(--sp-xl); }
@@ -441,6 +452,11 @@ table { border-collapse: collapse; width: 100%; }
 .insight-major { background: #fef2f2; border-color: #fee2e2; }
 .insight-major .insight-icon { color: #ef4444; }
 .insight-major .insight-impact { background: #fee2e2; color: #991b1b; }
+
+.insight-default { background: #f8fafc; border-color: #e2e8f0; }
+.insight-default .insight-icon { color: #64748b; }
+.insight-default .insight-impact { background: #e2e8f0; color: #475569; }
+
 
 .ai-glow {
   position: relative;

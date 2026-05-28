@@ -52,13 +52,14 @@ struct SearchView: View {
                         }
                     } else {
                         ScrollView {
-                            LazyVStack(spacing: 1) {
+                            LazyVStack(spacing: 10) {
                                 ForEach(searchResults) { corp in
                                     SearchResultRow(corp: corp, isWatched: manager.watchlist.contains(where: { $0.code == corp.code })) {
                                         manager.toggleWatch(code: corp.code, name: corp.name)
                                     }
                                 }
                             }
+                            .padding(.horizontal, 16)
                         }
                     }
                 }
@@ -112,8 +113,10 @@ struct SearchResultRow: View {
                     .foregroundColor(isWatched ? .yellow : .secondary)
                     .font(.title3)
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
     }

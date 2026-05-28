@@ -1,5 +1,10 @@
 import sys
-sys.path.append("/Users/greego/Desktop/dart pro/lean_engine")
+import os
+
+# 현재 파일의 디렉토리를 기준으로 경로 추가
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_dir, "lean_engine"))
+
 from rules import SummaryRuleEngine
 
 engine = SummaryRuleEngine()

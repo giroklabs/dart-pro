@@ -27,7 +27,7 @@ const auth = () => firebase.auth();
 const db = () => firebase.firestore();
 
 const FB_AUTH = {
-  isPremium: false,
+  isPremium: true,
   currentUser: null,
   _unsubscribe: null,
 
@@ -38,7 +38,7 @@ const FB_AUTH = {
         console.log('Firebase: User logged in:', user.displayName);
         this.syncInterestsFromCloud();
       } else {
-        this.isPremium = false;
+        this.isPremium = true;
         if (this._unsubscribe) {
           this._unsubscribe();
           this._unsubscribe = null;
@@ -99,7 +99,7 @@ const FB_AUTH = {
       .onSnapshot((doc) => {
         if (doc.exists) {
           const data = doc.data();
-          this.isPremium = data.isPremium === true;
+          this.isPremium = true;
           
           let cloudCodes = [];
           if (data.interests) {

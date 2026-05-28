@@ -145,7 +145,7 @@ struct ContentView: View {
                             LazyVStack(spacing: 16) {
                                 ForEach(filteredDisclosures) { item in
                                     DisclosureCard(item: item, isGeminiEnabled: isGeminiEnabled)
-                                        .padding(.horizontal, 4)
+                                        .padding(.horizontal, 16)
                                 }
                             }
                             .padding(.top, 8)

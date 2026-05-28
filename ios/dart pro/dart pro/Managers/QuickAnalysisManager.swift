@@ -53,7 +53,7 @@ class QuickAnalysisManager {
             icon = "doc.text.magnifyingglass"
         }
         // 3. 실적 속보
-        else if reportName.contains("매출액") || reportName.contains("영업이익") || reportName.contains("실적") {
+        else if (reportName.contains("매출액") || reportName.contains("영업이익") || reportName.contains("실적")) && !reportName.contains("증권발행실적") {
             insight = "실적 관련 공시: 매출 또는 이익 변동 내용이 포함되어 있습니다."
             points = ["예상 대비 실적 달성 여부 확인", "가이던스 상향/하향 여부 검토", "업종 내 경쟁사 대비 포지셔닝 확인"]
             impact = "실적 변동"

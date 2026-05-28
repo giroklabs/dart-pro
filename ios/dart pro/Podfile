@@ -9,3 +9,16 @@ target 'dart pro' do
   pod 'GoogleSignIn'
   pod 'Google-Mobile-Ads-SDK'
 end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      if config.name == 'Debug'
+        # 1. 가상 디버그 기호(dwarf)만 생성하고 dSYM 생성 제외하여 빌드 속도 대폭 개선
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+        # 2. 현재 시뮬레이터/기기 아키텍처만 빌드하도록 강제
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      end
+    end
+  end
+end

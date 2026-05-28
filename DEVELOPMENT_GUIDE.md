@@ -133,6 +133,12 @@ pm2 logs dart-pro
   3. **인증서 유출 및 무효화**: 비공개 키가 외부에 노출되면 구글이 자동으로 무효화합니다. 이 경우 파이어베이스 콘솔에서 새 키를 발급받아 교체해야 합니다.
   4. **직접 전송 로그**: `server.js`의 `sendFcmDirect` 함수를 통해 전송되는 로그에서 구글이 반환하는 구체적인 에러 사유(예: `BadEnvironmentKeyInToken`)를 확인하세요.
 
+### Q5. 502 Bad Gateway 에러가 나타납니다.
+- **원인**: 백엔드 포트(기본 `3002`)와 Nginx 설정 파일(`/etc/nginx/sites-available/dartpro`) 내 `proxy_pass` 포트가 일치하지 않는 경우 발생합니다.
+- **해결**:
+  1. 원격 서버 `.env`의 `PORT`가 `3002`인지 확인하고, Nginx 설정의 `proxy_pass`도 `http://localhost:3002;`로 동일한 포트를 가리키는지 점검하세요.
+  2. Nginx 설정을 수정했다면 `sudo systemctl reload nginx`를 잊지 말고 실행하세요.
+
 ---
 
 ## 5. 보안 수칙
