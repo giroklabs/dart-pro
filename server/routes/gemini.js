@@ -46,8 +46,9 @@ router.post('/analyze', async (req, res, next) => {
     // verify token -> check isPremium -> if false, return 403 Forbidden
     */
 
-    const { reportNm, corpName } = req.body;
-    if (!reportNm || !corpName) {
+    const { reportNm, reportName, corpName } = req.body;
+    const finalReportNm = reportNm || reportName;
+    if (!finalReportNm || !corpName) {
       return res.status(400).json({ error: { message: '기업명과 공시제목이 필요합니다.' } });
     }
 
@@ -61,7 +62,7 @@ router.post('/analyze', async (req, res, next) => {
 
 공시 정보:
 기업명: ${corpName}
-공시제목: ${reportNm}`;
+공시제목: ${finalReportNm}`;
 
     const body = {
       contents: [{ parts: [{ text: prompt }] }]
@@ -71,7 +72,32 @@ router.post('/analyze', async (req, res, next) => {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    res.json(response.data);
+    let aiResult = null;
+    try {
+      const candidates = response.data.candidates || [];
+      let text = candidates[0]?.content?.parts[0]?.text || '';
+      
+      // JSON 마크다운 블록 걷어내기
+      text = text.trim();
+      if (text.startsWith('```')) {
+        text = text.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+      }
+      
+      aiResult = JSON.parse(text);
+    } catch (e) {
+      console.warn('[Gemini] JSON 파싱 실패. 폴백 생성:', e.message);
+      aiResult = {
+        insight: `${corpName}의 ${finalReportNm} 공시가 등록되었습니다. 세부 사항 확인이 필요합니다.`,
+        impact: '정보 확인',
+        points: [
+          '공시 본문 전체 수치 및 내용 대조 검증 필요',
+          '해당 기업의 이전 공시 변동 이력 파악 필요',
+          '시장의 단기 수급 변화 모니터링 필요'
+        ]
+      };
+    }
+
+    res.json(aiResult);
 
   } catch (error) {
     if (error.response) {
