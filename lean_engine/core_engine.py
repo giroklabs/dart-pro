@@ -1365,10 +1365,10 @@ class DartLeanEngine:
         report_nm_clean = (report_nm or "").strip()
         self.rule_engine.current_report_nm = report_nm_clean
 
-        # 00-17. 기업지배구조보고서공시 스페셜 케이스 처리
-        if "기업지배구조보고서" in report_nm_clean.replace(" ", ""):
+        # 00-17. 기업지배구조보고서 및 대규모기업집단현황공시 스페셜 케이스 처리
+        if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조보고서", "대규모기업집단현황공시"]):
             header = f"{display_name} - {report_nm_clean}"
-            return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문 '기업지배구조보고서'를 직접 열람하여 기업의 지배구조 핵심지표 준수 현황을 확인하시기 바랍니다.", "[]"
+            return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
 
         # 00-16. 주요사항보고서(유상증자결정) 스페셜 케이스 처리
         if "유상증자" in report_nm_clean.replace(" ", ""):
