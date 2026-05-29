@@ -160,8 +160,8 @@ class SummaryRuleEngine:
                 if len(date_matches) >= 3:
                     continue
 
-                # 비율/콜론 연속 나열(퍼센트 4개 이상 또는 콜론 4개 이상이면서 숫자 포함) 배제
-                if (p.count('%') >= 4) or (p.count(':') >= 4 and any(ch.isdigit() for ch in p)):
+                # 비율/콜론 연속 나열(퍼센트 3개 이상 또는 콜론 3개 이상이면서 숫자 포함) 배제
+                if (p.count('%') >= 3) or (p.count(':') >= 3 and any(ch.isdigit() for ch in p)):
                     continue
 
                 # 사례 예시 나열 스킵 (지수증권 등 가상 시나리오)
@@ -242,6 +242,10 @@ class SummaryRuleEngine:
 
         # 단순 메타데이터(보고서명, 제출인, 대표이사, 귀하 등) 문장 대폭 감점
         if any(k in sentence for k in ['금융감독원장 귀하', '금융위 귀하', '보고서제출인', '보고서 제출인', '귀중', '대표이사 귀하', '본문내용']):
+            score -= 20.0
+
+        # 빈 값(-) 테이블 행 및 조세 관련 면책 조항 대폭 감점
+        if re.search(r'[\:\|]\s*-\s*$', sentence.strip()) or any(k in sentence for k in ['자체적인 판단에 의함', '조세특례제한법']):
             score -= 20.0
 
         # 공시 제목 자체를 요약 불릿에 넣지 않도록 감점
