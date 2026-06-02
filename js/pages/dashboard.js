@@ -92,11 +92,7 @@ async function renderInsight(containerId, item) {
     // 2. Gemini AI 분석 (기존 로직 유지)
     const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm, item.rcept_no);
     if (aiData) {
-      if (aiData.isPending) {
-        container.innerHTML = getQuickInsightHtml(item);
-      } else {
-        container.innerHTML = summarizeDisclosure(item, aiData);
-      }
+      container.innerHTML = summarizeDisclosure(item, aiData);
     }
   } catch (e) {
     console.warn('AI Analysis Warning:', e.message);
@@ -158,6 +154,34 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
   }
   const cleanMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
   
+  // 만약 AI 데이터가 Pending(요약 대기중)이거나, 구형 더미 텍스트를 포함하고 있다면 Quick 분석 내용으로 대체
+  const isDummyText = aiData && aiData.points && aiData.points.some(p => p.includes('모니터링 중입니다') || p.includes('상세보기'));
+  if (!aiData || aiData.isPending || isDummyText) {
+    const matchedRule = QUICK_RULES.find(rule => 
+      rule.match.some(regex => regex.test(title))
+    );
+    if (matchedRule) {
+      aiData = {
+        insight: matchedRule.insight,
+        impact: matchedRule.impact,
+        typeCls: matchedRule.typeCls,
+        points: matchedRule.points,
+        rankLabel: matchedRule.category
+      };
+    } else {
+      aiData = {
+        insight: `${item.corp_name} - ${title.trim()} 공시: 핵심 내용 및 상세 일정을 확인하세요.`,
+        impact: '확인 요망',
+        typeCls: 'insight-info',
+        points: [
+          '해당 공시의 상세 내역은 원본 뷰어를 통해 확인 가능합니다.',
+          '자체 로컬 룰 엔진 분석 대기 중입니다.'
+        ],
+        rankLabel: '기타공시'
+      };
+    }
+  }
+
   // 삼성전자 배당 공시인 경우 고퀄리티 제미나이 분석 예시 제공
   if (!aiData && item.corp_name === '삼성전자' && title.includes('배당')) {
     aiData = {
