@@ -423,38 +423,9 @@ function getRankLabel(score) {
               res.writeHead(200, { 'Content-Type': 'application/json' });
               return res.end(JSON.stringify(result));
             } else {
-              // 2. DB에 요약 데이터가 없는 경우 온더플라이 Rule 기반 Mock 요약 생성
-              console.log(`[AI Hybrid Local] DB Summary Miss. Generating instant Mock for rcept_no: ${rceptNo}`);
-              
-              let insight = `${corpName} - ${reportName.trim()} 공시: 핵심 내용 및 상세 일정을 확인하세요.`;
-              const points = [
-                "해당 종목은 현재 실시간 감시 관심 종목 대상에 포함되어 모니터링 중입니다.",
-                "더 빠른 상세 확인을 위해 우측 상단의 '상세보기' 버튼을 누르시면 원본 뷰어가 바로 열립니다."
-              ];
-
-              if (/배당/.test(reportName)) {
-                insight = `${corpName} - 배당 일정 공시: 주주 환원 및 시가 배당률을 확인하세요.`;
-                points[0] = "주주 환원 정책의 일관성 및 시가 배당률 수준 확인이 필요한 구간입니다.";
-              } else if (/정정/.test(reportName)) {
-                insight = `${corpName} - 기재사항 정정 공시: 정정 전/후 주요 변동 수치를 확인하세요.`;
-                points[0] = "정정 전/후의 정량 수치(금액, 비율, 일정 등) 변동폭을 반드시 확인하세요.";
-              } else if (/소유상황/.test(reportName)) {
-                insight = `${corpName} - 지분 소유상황 보고: 주요 경영진의 지분 변동 추이를 확인하세요.`;
-                points[0] = "내부 경영진의 지분 매입/매각 추이는 주가 향방의 1차 선행 시그널이 될 수 있습니다.";
-              } else if (/감사보고서/.test(reportName) || /감사의견/.test(reportName)) {
-                insight = `${corpName} - 감사보고서 제출 공시: 외부감사인의 감사의견을 우선 확인하세요.`;
-                points[0] = "외부감사인의 감사의견(적정, 한정, 부적정, 의견거절)은 기업 생존 및 거래소퇴출 여부를 가르는 핵심 지표입니다.";
-              }
-
-              const result = {
-                category,
-                insight,
-                points,
-                impact: `실시간 대기 중 (${rankScore}점)`,
-                typeCls,
-                rankScore,
-                rankLabel
-              };
+              // 2. DB에 요약 데이터가 없는 경우 isPending 플래그 반환
+              console.log(`[AI Hybrid Local] DB Summary Miss. Returning isPending for rcept_no: ${rceptNo}`);
+              const result = { isPending: true };
 
               res.writeHead(200, { 'Content-Type': 'application/json' });
               return res.end(JSON.stringify(result));

@@ -88,7 +88,11 @@ async function renderInsight(containerId, item) {
     // 2. Gemini AI 분석 (기존 로직 유지)
     const aiData = await api.getGeminiAnalysis(item.corp_name, item.report_nm, item.rcept_no);
     if (aiData) {
-      container.innerHTML = summarizeDisclosure(item, aiData);
+      if (aiData.isPending) {
+        container.innerHTML = getQuickInsightHtml(item);
+      } else {
+        container.innerHTML = summarizeDisclosure(item, aiData);
+      }
     }
   } catch (e) {
     console.warn('AI Analysis Warning:', e.message);

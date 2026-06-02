@@ -286,6 +286,10 @@ const api = {
       const data = await res.json();
       const stripMd = (s) => typeof s === 'string' ? s.replace(/\*\*|\*/g, '').trim() : s;
       
+      if (data && data.isPending) {
+        return data; // 캐시하지 않고 그대로 반환 (다음에 다시 조회하도록)
+      }
+      
       if (data && data.insight) {
         data.insight = stripMd(data.insight);
         data.impact = stripMd(data.impact);
