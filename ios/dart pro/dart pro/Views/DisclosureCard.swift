@@ -17,13 +17,13 @@ struct DisclosureCard: View {
     }
     
     var body: some View {
-        var analysis = geminiResult ?? quickAnalysis
-        
-        // 더미 텍스트(모니터링 중입니다, 상세보기) 감지 시 로컬 QUICK 분석 데이터로 치환
-        if let gemini = geminiResult, 
-           gemini.points.contains(where: { $0.contains("모니터링 중입니다") || $0.contains("상세보기") }) {
-            analysis = quickAnalysis
-        }
+        let analysis: AnalysisResult = {
+            if let gemini = geminiResult, 
+               gemini.points.contains(where: { $0.contains("모니터링 중입니다") || $0.contains("상세보기") }) {
+                return quickAnalysis
+            }
+            return geminiResult ?? quickAnalysis
+        }()
         
         VStack(alignment: .leading, spacing: 12) {
             // 헤더: 법인구분 및 날짜
