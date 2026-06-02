@@ -72,9 +72,13 @@ async function renderInsight(containerId, item) {
   if (cached) {
     try {
       const aiData = JSON.parse(cached);
-      aiData._cached = true;
-      container.innerHTML = summarizeDisclosure(item, aiData);
-      return;
+      if (aiData.points && aiData.points.some(p => p.includes('모니터링 중입니다'))) {
+        localStorage.removeItem(cacheKey);
+      } else {
+        aiData._cached = true;
+        container.innerHTML = summarizeDisclosure(item, aiData);
+        return;
+      }
     } catch (e) {
       localStorage.removeItem(cacheKey);
     }
