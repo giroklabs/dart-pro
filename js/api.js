@@ -261,8 +261,8 @@ const api = {
     if (cached) {
       try { 
         const parsed = JSON.parse(cached);
-        // 기존에 캐시된 더미 데이터 무시
-        if (parsed.points && parsed.points.some(p => p.includes('모니터링 중입니다'))) {
+        // 기존에 캐시된 더미 데이터 무시 (모니터링 또는 상세보기 문구가 있는 경우)
+        if (parsed.points && parsed.points.some(p => p.includes('모니터링 중입니다') || p.includes('상세보기'))) {
           localStorage.removeItem(cacheKey);
         } else {
           return parsed; 

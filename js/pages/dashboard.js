@@ -72,7 +72,7 @@ async function renderInsight(containerId, item) {
   if (cached) {
     try {
       const aiData = JSON.parse(cached);
-      if (aiData.points && aiData.points.some(p => p.includes('모니터링 중입니다'))) {
+      if (aiData.points && aiData.points.some(p => p.includes('모니터링 중입니다') || p.includes('상세보기'))) {
         localStorage.removeItem(cacheKey);
       } else {
         aiData._cached = true;
