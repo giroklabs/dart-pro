@@ -259,7 +259,15 @@ const api = {
     const cacheKey = rceptNo ? `gemini_cache_${rceptNo}` : `gemini_cache_${corpName}_${reportNm}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      try { return JSON.parse(cached); } catch (e) { localStorage.removeItem(cacheKey); }
+      try { 
+        const parsed = JSON.parse(cached);
+        // 기존에 캐시된 더미 데이터 무시
+        if (parsed.points && parsed.points.some(p => p.includes('모니터링 중입니다'))) {
+          localStorage.removeItem(cacheKey);
+        } else {
+          return parsed; 
+        }
+      } catch (e) { localStorage.removeItem(cacheKey); }
     }
 
     try {
