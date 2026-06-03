@@ -215,6 +215,8 @@ class SummaryRuleEngine:
                 score += 4.0
             elif any(k in sentence for k in ['정정사유', '정정요구', '정정 전', '정정 후']):
                 score += 8.0
+            elif any(k in sentence for k in ['선임의 건', '승인의 건', '변경의 건', '의안']):
+                score += 6.0
             else:
                 score += 1.0
 
@@ -376,6 +378,23 @@ class SummaryRuleEngine:
             if desc:
                 desc_clean = desc.replace("\n", " ").strip()
                 return f"{first}에서 '{desc_clean}' 안건이{ratio_str} {result}되었습니다."
+
+        # 2-2. 주주총회 안건 세부내역 (번호 | 회의목적사항 | 비고)
+        if len(parts) >= 2 and any(k in parts[1] for k in ['선임의 건', '승인의 건', '변경의 건', '감자의 건', '합병의 건', '의안']):
+            item_no = parts[0].strip()
+            agenda = parts[1].strip()
+            note = " - ".join(parts[2:]).strip() if len(parts) > 2 else ""
+            
+            prefix = ""
+            if re.match(r"^\d+$", item_no):
+                prefix = f"제{item_no}호 안건: "
+            elif item_no and item_no != "-":
+                prefix = f"[{item_no}] "
+                
+            if note and note != "-":
+                return f"{prefix}{agenda} ({note})"
+            else:
+                return f"{prefix}{agenda}"
 
         # 3. 전환사채 등 차수 및 비율 매칭
         if '차' in first and any('%' in p for p in parts):
