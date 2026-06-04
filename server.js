@@ -12,11 +12,36 @@ const auth = new GoogleAuth({
 });
 
 async function sendFcmDirect(message) {
-  try {
-    return await fcmAdmin.messaging().send(message);
-  } catch (error) {
-    throw new Error(`FCM Error: ${error.message}`);
-  }
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse.token;
+  const projectId = JSON.parse(fs.readFileSync(saPath, 'utf8')).project_id;
+  const postData = JSON.stringify({ message });
+
+  const options = {
+    hostname: 'fcm.googleapis.com',
+    path: `/v1/projects/${projectId}/messages:send`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let resData = '';
+      res.on('data', (chunk) => resData += chunk);
+      res.on('end', () => {
+        if (res.statusCode < 300) resolve(JSON.parse(resData));
+        else reject(new Error(`FCM Error (${res.statusCode}): ${resData}`));
+      });
+    });
+    req.on('error', (e) => reject(e));
+    req.write(postData);
+    req.end();
+  });
 }
 
 try {
