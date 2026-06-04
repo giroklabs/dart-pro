@@ -12,36 +12,39 @@ const auth = new GoogleAuth({
 });
 
 async function sendFcmDirect(message) {
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
-  const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse.token;
-  const projectId = JSON.parse(fs.readFileSync(saPath, 'utf8')).project_id;
-  const postData = JSON.stringify({ message });
+  try {
+    const accessToken = await auth.getAccessToken();
+    if (!accessToken) throw new Error("FCM accessToken is empty or undefined!");
+    const projectId = JSON.parse(fs.readFileSync(saPath, 'utf8')).project_id;
+    const postData = JSON.stringify({ message });
 
-  const options = {
-    hostname: 'fcm.googleapis.com',
-    path: `/v1/projects/${projectId}/messages:send`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Length': Buffer.byteLength(postData)
-    }
-  };
+    const options = {
+      hostname: 'fcm.googleapis.com',
+      path: `/v1/projects/${projectId}/messages:send`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
 
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let resData = '';
-      res.on('data', (chunk) => resData += chunk);
-      res.on('end', () => {
-        if (res.statusCode < 300) resolve(JSON.parse(resData));
-        else reject(new Error(`FCM Error (${res.statusCode}): ${resData}`));
+    return await new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let resData = '';
+        res.on('data', (chunk) => resData += chunk);
+        res.on('end', () => {
+          if (res.statusCode < 300) resolve(JSON.parse(resData));
+          else reject(new Error(`FCM Error (${res.statusCode}): ${resData}`));
+        });
       });
+      req.on('error', (e) => reject(e));
+      req.write(postData);
+      req.end();
     });
-    req.on('error', (e) => reject(e));
-    req.write(postData);
-    req.end();
-  });
+  } catch (err) {
+    throw err;
+  }
 }
 
 try {
@@ -869,7 +872,7 @@ function getRankLabel(score) {
 
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
-  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-05-06 13:52)`);
+  console.log(`🚀 DART Pro 서버 시작 (최종 수정: 2026-06-04 15:18)`);
   console.log(`👉 접속 주소: http://localhost:${PORT}`);
   console.log(`==============================================\n`);
   
