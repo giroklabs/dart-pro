@@ -15,7 +15,7 @@ const auth = new GoogleAuth({
 async function sendFcmDirect(message) {
   const client = await auth.getClient();
   const tokenResponse = await client.getAccessToken();
-  const accessToken = tokenResponse.token;
+  const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse.token;
   const projectId = JSON.parse(fs.readFileSync(saPath, 'utf8')).project_id;
   const postData = JSON.stringify({ message });
 
