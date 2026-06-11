@@ -158,7 +158,8 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
   const isDummyText = aiData && aiData.points && aiData.points.some(p => p.includes('모니터링 중입니다') || p.includes('상세보기'));
   if (!aiData || aiData.isPending || isDummyText) {
     const matchedRule = QUICK_RULES.find(rule => 
-      rule.match.some(regex => regex.test(title))
+      rule.match.some(regex => regex.test(title)) &&
+      (!rule.exclude || !rule.exclude.some(regex => regex.test(title)))
     );
     if (matchedRule) {
       aiData = {
@@ -169,16 +170,30 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         rankLabel: matchedRule.category
       };
     } else {
-      aiData = {
-        insight: `${item.corp_name} - ${title.trim()} 공시: 핵심 내용 및 상세 일정을 확인하세요.`,
-        impact: '확인 요망',
-        typeCls: 'insight-info',
-        points: [
-          '해당 공시의 상세 내역은 원본 뷰어를 통해 확인 가능합니다.',
-          '자체 로컬 룰 엔진 분석 대기 중입니다.'
-        ],
-        rankLabel: '기타공시'
-      };
+      const isSkipped = /투자설명서|효력발생안내|참고서류|기재정정/.test(title);
+      if (isSkipped) {
+        aiData = {
+          insight: `${item.corp_name} - 단순 안내 성격의 공시로 요약이 생략되었습니다.`,
+          impact: '요약 생략',
+          typeCls: 'insight-neutral',
+          points: [
+            '본 공시는 세부 내용 요약이 불필요한 문서입니다.',
+            '상세 내용은 우측 상세보기를 통해 원문으로 확인 가능합니다.'
+          ],
+          rankLabel: '단순안내'
+        };
+      } else {
+        aiData = {
+          insight: `${item.corp_name} - ${title.trim()} 공시: 핵심 내용 및 상세 일정을 확인하세요.`,
+          impact: '확인 요망',
+          typeCls: 'insight-info',
+          points: [
+            '해당 공시의 상세 내역은 원본 뷰어를 통해 확인 가능합니다.',
+            '자체 로컬 룰 엔진 분석 대기 중입니다.'
+          ],
+          rankLabel: '기타공시'
+        };
+      }
     }
   }
 
@@ -373,7 +388,8 @@ const QUICK_RULES = [
   },
   {
     id: 'earnings_flash',
-    match: [/매출액/, /영업이익/, /실적/],
+    match: [/매출액/, /영업이익/, /잠정실적/, /영업실적/],
+    exclude: [/발행실적/, /모집/, /청약/],
     category: '잠정실적',
     impact: '실적 변동',
     urgency: 75,
