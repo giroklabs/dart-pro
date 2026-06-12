@@ -177,7 +177,6 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
           impact: '요약 생략',
           typeCls: 'insight-neutral',
           points: [
-            '본 공시는 세부 내용 요약이 불필요한 문서입니다.',
             '상세 내용은 우측 상세보기를 통해 원문으로 확인 가능합니다.'
           ],
           rankLabel: '단순안내'
