@@ -917,42 +917,42 @@ class DartLeanEngine:
         for line in lines:
             if '|' in line:
                 parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
-                if len(parts) >= 2:
-                    k = parts[0].replace(" ", "")
-                    v = parts[1].strip()
-                    
-                    if '장소' in k and not location:
-                        location = v
-                    elif '대상자' in k and not target_investors:
-                        target_investors = v
-                    elif ('목적' in k or '실시목적' in k) and not purpose:
-                        purpose = v
-                    elif '방법' in k and not method:
-                        method = v
-                    elif '후원' in k and not sponsor:
-                        sponsor = v
+                for i, p in enumerate(parts):
+                    p_clean = p.replace(" ", "")
+                    if i + 1 < len(parts):
+                        v = parts[i+1].strip()
+                        if ('장소' in p_clean and v and v != "일시" and v != "장소"):
+                            location = v
+                        elif '대상자' in p_clean and not target_investors:
+                            target_investors = v
+                        elif ('목적' in p_clean or '실시목적' in p_clean) and not purpose:
+                            purpose = v
+                        elif '방법' in p_clean and not method:
+                            method = v
+                        elif '후원' in p_clean and not sponsor:
+                            sponsor = v
 
-                line_clean = line.replace(" ", "")
-                if '시작일' in line_clean:
-                    matches = re.findall(r'\d{4}[-/.]\d{2}[-/.]\d{2}', line)
-                    if len(matches) >= 1:
-                        date_start = matches[0]
-                    if len(matches) >= 2:
-                        date_end = matches[1]
-                if '종료일' in line_clean and not date_end:
-                    matches = re.findall(r'\d{4}[-/.]\d{2}[-/.]\d{2}', line)
-                    if matches:
-                        date_end = matches[-1]
-                if '시작시간' in line_clean or '시작시각' in line_clean:
-                    times = re.findall(r'\d{1,2}:\d{2}', line)
-                    if len(times) >= 1:
-                        time_start = times[0]
-                    if len(times) >= 2:
-                        time_end = times[1]
-                if '종료시간' in line_clean or '종료시각' in line_clean and not time_end:
-                    times = re.findall(r'\d{1,2}:\d{2}', line)
-                    if times:
-                        time_end = times[-1]
+            line_clean = line.replace(" ", "")
+            if '시작일' in line_clean or '일시' in line_clean or '개최일' in line_clean:
+                matches = re.findall(r'\d{4}[-/.]\d{2}[-/.]\d{2}', line)
+                if len(matches) >= 1 and not date_start:
+                    date_start = matches[0]
+                if len(matches) >= 2 and not date_end:
+                    date_end = matches[1]
+            if '종료일' in line_clean:
+                matches = re.findall(r'\d{4}[-/.]\d{2}[-/.]\d{2}', line)
+                if matches and not date_end:
+                    date_end = matches[-1]
+            if '시작시간' in line_clean or '시작시각' in line_clean or '일시' in line_clean or '개최일' in line_clean:
+                times = re.findall(r'\d{1,2}:\d{2}', line)
+                if len(times) >= 1 and not time_start:
+                    time_start = times[0]
+                if len(times) >= 2 and not time_end:
+                    time_end = times[1]
+            if '종료시간' in line_clean or '종료시각' in line_clean:
+                times = re.findall(r'\d{1,2}:\d{2}', line)
+                if times and not time_end:
+                    time_end = times[-1]
 
         date_str = ""
         if date_start:
