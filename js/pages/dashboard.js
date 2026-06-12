@@ -568,7 +568,7 @@ const QUICK_RULES = [
   },
   {
     id: 'delisting',
-    match: [/상장폐지/, /관리종목/, /불성실공시/],
+    match: [/상장폐지/, /관리종목/],
     category: '긴급위험',
     impact: '강한 위험',
     urgency: 100,
@@ -579,6 +579,21 @@ const QUICK_RULES = [
       '상장 유지 요건 충족 여부 확인',
       '이의신청 기간 및 절차 파악',
       '포지션 긴급 재검토 권장'
+    ]
+  },
+  {
+    id: 'unfaithful_disclosure',
+    match: [/불성실공시/],
+    category: '규정위반',
+    impact: '경고',
+    urgency: 85,
+    typeCls: 'insight-warning',
+    icon: 'gavel',
+    insight: '공시 규정 위반: 불성실공시법인 지정 관련 내용입니다.',
+    points: [
+      '벌점 부과 내역 및 누계 벌점 확인 (15점 이상 시 관리종목 지정 우려)',
+      '위반 사유 및 회사의 재발 방지 대책 검토',
+      '주가 단기 변동성 확대 주의'
     ]
   },
   {
