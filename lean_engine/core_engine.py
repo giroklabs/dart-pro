@@ -12,6 +12,7 @@ from functools import wraps
 from difflib import SequenceMatcher
 from dotenv import load_dotenv
 
+import google.generativeai as genai
 from rules import SummaryRuleEngine
 from financial_extractor import FinancialExtractor, infer_period_label
 from self_healing import trigger_self_healing
@@ -61,6 +62,14 @@ class DartLeanEngine:
         self.base_url = "https://opendart.fss.or.kr/api"
         self.rule_engine = SummaryRuleEngine()
         self.financial_extractor = FinancialExtractor()
+        
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if self.gemini_api_key:
+            genai.configure(api_key=self.gemini_api_key)
+            self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+        else:
+            self.gemini_model = None
+
         self._init_db()
 
     def _init_db(self):
@@ -74,6 +83,20 @@ class DartLeanEngine:
                 self.conn.executescript(f.read())
 
         self.conn.commit()
+
+    def _generate_ai_insight(self, report_nm: str, summary_text: str) -> str:
+        if not self.gemini_model:
+            return None
+            
+        prompt = f"다음은 한국 기업의 공시 요약문입니다. 이 공시가 기업가치나 주가에 미치는 영향을 1~2줄의 핵심 인사이트로 직관적이고 간결하게 평가해주세요.\n공시명: {report_nm}\n요약문: {summary_text}"
+        
+        try:
+            time.sleep(12)  # 무료 API 분당 5회 제한 방어 (12초 대기)
+            res = self.gemini_model.generate_content(prompt)
+            return res.text.strip()
+        except Exception as e:
+            logger.error("[%s] AI 분석 실패 (Fail-safe 작동): %s", report_nm, e)
+            return None
 
     def close(self):
         try:
@@ -149,6 +172,8 @@ class DartLeanEngine:
                     corp_name=filing.get("corp_name", ""),
                     raw_text=raw_text
                 )
+                
+                insight_text = self._generate_ai_insight(filing.get("report_nm", ""), summary_text)
 
                 self._save_to_db(
                     filing=filing,
@@ -156,7 +181,8 @@ class DartLeanEngine:
                     scored_sentences=scored_sentences,
                     summary_text=summary_text,
                     top_ids_json=top_ids_json,
-                    metrics=metrics
+                    metrics=metrics,
+                    insight_text=insight_text
                 )
 
                 try:
@@ -1846,7 +1872,7 @@ class DartLeanEngine:
         finally:
             cur.close()
 
-    def _save_to_db(self, filing, raw_text, scored_sentences, summary_text, top_ids_json, metrics):
+    def _save_to_db(self, filing, raw_text, scored_sentences, summary_text, top_ids_json, metrics, insight_text=None):
         cur = self.conn.cursor()
         try:
             with self.conn:
@@ -1880,21 +1906,23 @@ class DartLeanEngine:
 
                 cur.execute("""
                     INSERT OR IGNORE INTO summaries
-                    (rcept_no, summary_text, top_sentence_ids)
-                    VALUES (?, ?, ?)
+                    (rcept_no, summary_text, top_sentence_ids, insight_text)
+                    VALUES (?, ?, ?, ?)
                 """, (
                     filing["rcept_no"],
                     summary_text,
-                    top_ids_json
+                    top_ids_json,
+                    insight_text
                 ))
 
                 cur.execute("""
                     UPDATE summaries
-                       SET summary_text = ?, top_sentence_ids = ?
+                       SET summary_text = ?, top_sentence_ids = ?, insight_text = ?
                      WHERE rcept_no = ?
                 """, (
                     summary_text,
                     top_ids_json,
+                    insight_text,
                     filing["rcept_no"]
                 ))
 

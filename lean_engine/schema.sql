@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS summaries (
     rcept_no TEXT PRIMARY KEY,
     summary_text TEXT NOT NULL,
     top_sentence_ids TEXT,
+    insight_text TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (rcept_no) REFERENCES filings(rcept_no) ON DELETE CASCADE
 );
