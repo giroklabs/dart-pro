@@ -855,6 +855,49 @@ class DartLeanEngine:
             return " ".join(details)
         return "증권신고서 발행조건이 최종 확정되었습니다. 상세 조건은 본문(상세보기)에서 확인해 주세요."
 
+    def _parse_securities_issuance(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        security_type = ""
+        total_amount = ""
+        
+        for idx, line in enumerate(lines):
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    k = parts[0].replace(" ", "")
+                    v = parts[1].strip()
+                    if '증권의종류' in k:
+                        security_type = v
+                    elif '매출총액' in k or '모집총액' in k:
+                        total_amount = v
+            else:
+                line_clean = line.replace(" ", "")
+                if ('증권의종류' in line_clean) and ':' in line:
+                    security_type = line.split(':', 1)[-1].strip()
+                elif ('매출총액' in line_clean or '모집총액' in line_clean) and ':' in line:
+                    total_amount = line.split(':', 1)[-1].strip()
+
+        if not security_type or not total_amount:
+            for idx, line in enumerate(lines):
+                line_clean = line.replace(" ", "")
+                if '증권의종류' in line_clean and not ':' in line and not security_type:
+                    if idx + 1 < len(lines):
+                        security_type = lines[idx+1].strip()
+                if ('매출총액' in line_clean or '모집총액' in line_clean) and not ':' in line and not total_amount:
+                    if idx + 1 < len(lines):
+                        total_amount = lines[idx+1].strip()
+
+        if security_type and total_amount:
+            total_amount = total_amount.replace(" ", "")
+            if not total_amount.endswith('원'):
+                total_amount += '원'
+            return f"▪ 모집 또는 매출증권의 종류 : {security_type}\n▪ 모집총액 : {total_amount}"
+            
+        return None
+
     def _parse_ir_holding(self, raw_text: str) -> str:
         if not raw_text:
             return None
@@ -1409,6 +1452,13 @@ class DartLeanEngine:
             if conv_desc:
                 header = f"{display_name} - 전환청구권행사 요약 정보"
                 return f"{header}\n\n▪ {conv_desc}", "[]"
+
+        # 00-16. 일괄신고추가서류 스페셜 케이스 처리
+        if "일괄신고" in report_nm_clean.replace(" ", ""):
+            issuance_desc = self._parse_securities_issuance(raw_text)
+            if issuance_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{issuance_desc}", "[]"
 
         # 00-15. 소송등의판결·결정 스페셜 케이스 처리
         if "소송등의판결" in report_nm_clean.replace(" ", ""):
