@@ -871,13 +871,13 @@ class DartLeanEngine:
                     v = parts[1].strip()
                     if '증권의종류' in k:
                         security_type = v
-                    elif '매출총액' in k or '모집총액' in k:
+                    elif any(w in k for w in ['매출총액', '모집총액', '발행총액', '발행금액']):
                         total_amount = v
             else:
                 line_clean = line.replace(" ", "")
                 if ('증권의종류' in line_clean) and ':' in line:
                     security_type = line.split(':', 1)[-1].strip()
-                elif ('매출총액' in line_clean or '모집총액' in line_clean) and ':' in line:
+                elif any(w in line_clean for w in ['매출총액', '모집총액', '발행총액', '발행금액']) and ':' in line:
                     total_amount = line.split(':', 1)[-1].strip()
 
         if not security_type or not total_amount:
@@ -886,7 +886,7 @@ class DartLeanEngine:
                 if '증권의종류' in line_clean and not ':' in line and not security_type:
                     if idx + 1 < len(lines):
                         security_type = lines[idx+1].strip()
-                if ('매출총액' in line_clean or '모집총액' in line_clean) and not ':' in line and not total_amount:
+                if any(w in line_clean for w in ['매출총액', '모집총액', '발행총액', '발행금액']) and not ':' in line and not total_amount:
                     if idx + 1 < len(lines):
                         total_amount = lines[idx+1].strip()
 
@@ -894,7 +894,7 @@ class DartLeanEngine:
             total_amount = total_amount.replace(" ", "")
             if not total_amount.endswith('원'):
                 total_amount += '원'
-            return f"▪ 모집 또는 매출증권의 종류 : {security_type}\n▪ 모집총액 : {total_amount}"
+            return f"▪ 증권의 종류 : {security_type}\n▪ 모집/발행총액 : {total_amount}"
             
         return None
 
@@ -1453,8 +1453,8 @@ class DartLeanEngine:
                 header = f"{display_name} - 전환청구권행사 요약 정보"
                 return f"{header}\n\n▪ {conv_desc}", "[]"
 
-        # 00-16. 일괄신고추가서류 스페셜 케이스 처리
-        if "일괄신고" in report_nm_clean.replace(" ", ""):
+        # 00-16. 일괄신고, 증권발행실적, 소액공모 스페셜 케이스 처리
+        if any(k in report_nm_clean.replace(" ", "") for k in ["일괄신고", "증권발행실적보고서", "소액공모공시서류"]):
             issuance_desc = self._parse_securities_issuance(raw_text)
             if issuance_desc:
                 header = f"{display_name} - {report_nm_clean}"
