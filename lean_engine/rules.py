@@ -42,11 +42,17 @@ class SummaryRuleEngine:
         self.noise_keywords = [
             '홈페이지', '전화번호', '팩스번호', '본점소재지',
             '참고하시기 바랍니다', '참조하시기 바랍니다',
-            '상세한 사항은', '사업자등록번호', '보고서작성기준일',
-            '(전 화)', '전화 :'
+            '상세한 사항은', '사업자등록번호', '보고서작성기준일'
         ]
 
-        self.dynamic_noise_regexes = []
+        self.dynamic_noise_regexes = [
+            re.compile(r'\(\s*전\s*화\s*\)'),
+            re.compile(r'전\s*화\s*번\s*호'),
+            re.compile(r'T\s*E\s*L\s*[:\.]?', re.IGNORECASE),
+            re.compile(r'팩\s*스\s*번\s*호'),
+            re.compile(r'\(\s*팩\s*스\s*\)'),
+            re.compile(r'전\s*화\s*[:\.]')
+        ]
         self._load_noise_rules_from_db()
 
         self.min_sentence_length = 5
