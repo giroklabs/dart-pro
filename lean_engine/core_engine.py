@@ -863,16 +863,49 @@ class DartLeanEngine:
         security_type = ""
         total_amount = ""
         
+        sec_idx = -1
+        amt_idx = -1
+        
         for idx, line in enumerate(lines):
             if '|' in line:
                 parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
-                if len(parts) >= 2:
-                    k = parts[0].replace(" ", "")
-                    v = parts[1].strip()
-                    if '증권의종류' in k:
+                
+                if sec_idx != -1 and sec_idx < len(parts) and not security_type:
+                    v = parts[sec_idx].strip()
+                    v_clean = v.replace(" ", "")
+                    if v_clean and not any(h in v_clean for h in ["증권", "종류", "개시", "종료", "일자", "납입", "비고"]):
                         security_type = v
-                    elif any(w in k for w in ['매출총액', '모집총액', '발행총액', '발행금액']):
+                        sec_idx = -1
+                        
+                if amt_idx != -1 and amt_idx < len(parts) and not total_amount:
+                    v = parts[amt_idx].strip()
+                    v_clean = v.replace(" ", "")
+                    if v_clean and any(char.isdigit() for char in v_clean):
                         total_amount = v
+                        amt_idx = -1
+
+                for i, p in enumerate(parts):
+                    p_clean = p.replace(" ", "")
+                    if '증권의종류' in p_clean:
+                        if i + 1 < len(parts):
+                            v = parts[i+1].strip()
+                            v_clean = v.replace(" ", "")
+                            if v_clean and not any(h in v_clean for h in ["개시", "종료", "일자", "납입", "비고", "청약일", "발행일"]):
+                                security_type = v
+                            else:
+                                sec_idx = i
+                        else:
+                            sec_idx = i
+                    elif any(w in p_clean for w in ['매출총액', '모집총액', '발행총액', '발행금액']):
+                        if i + 1 < len(parts):
+                            v = parts[i+1].strip()
+                            v_clean = v.replace(" ", "")
+                            if v_clean and any(char.isdigit() for char in v_clean):
+                                total_amount = v
+                            else:
+                                amt_idx = i
+                        else:
+                            amt_idx = i
             else:
                 line_clean = line.replace(" ", "")
                 if ('증권의종류' in line_clean) and ':' in line:
