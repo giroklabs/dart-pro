@@ -628,8 +628,83 @@ class DartLeanEngine:
             if internal_control_opinion and internal_control_opinion != "-":
                 if '미해당' not in internal_control_opinion:
                     details.append(f"내부회계관리제도 감사의견 비적정 여부: [{internal_control_opinion}]")
+        
+        if details:
+            return "\n".join(details)
+            
+        return None
 
-            return " ".join(details)
+    def _parse_capital_reduction(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+            
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        reduction_date = ""
+        shares_before = ""
+        shares_after = ""
+        capital_before = ""
+        capital_after = ""
+        
+        capital_row_seen = False
+        shares_row_seen = False
+        
+        for idx, line in enumerate(lines):
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if not parts:
+                    continue
+                p_clean0 = parts[0].replace(" ", "")
+                
+                if any(w in p_clean0 for w in ['감자완료일', '감자기준일']) and len(parts) >= 2:
+                    if not reduction_date and any(char.isdigit() for char in parts[1]):
+                        reduction_date = parts[1]
+                
+                if '발행주식' in p_clean0 or '보통주식' in p_clean0:
+                    nums = [p for p in parts[1:] if any(char.isdigit() for char in p) and '주' not in p and '변동' not in p]
+                    if len(nums) >= 2 and not shares_before:
+                        shares_before = nums[0]
+                        shares_after = nums[-1]
+                    elif '감자전' in line or '감자후' in line:
+                        shares_row_seen = True
+                elif shares_row_seen:
+                    nums = [p for p in parts if any(char.isdigit() for char in p)]
+                    if len(nums) >= 2 and not shares_before:
+                        shares_before = nums[0]
+                        shares_after = nums[-1]
+                    shares_row_seen = False
+                        
+                if '자본금' in p_clean0:
+                    nums = [p for p in parts[1:] if any(char.isdigit() for char in p)]
+                    if len(nums) >= 2 and not capital_before:
+                        capital_before = nums[0]
+                        capital_after = nums[-1]
+                    elif '감자전' in line or '감자후' in line:
+                        capital_row_seen = True
+                elif capital_row_seen:
+                    nums = [p for p in parts if any(char.isdigit() for char in p)]
+                    if len(nums) >= 2 and not capital_before:
+                        capital_before = nums[0]
+                        capital_after = nums[-1]
+                    capital_row_seen = False
+                        
+            else:
+                line_clean = line.replace(" ", "")
+                if any(w in line_clean for w in ['감자완료일', '감자기준일']) and ':' in line:
+                    reduction_date = line.split(':', 1)[-1].strip()
+
+        details = []
+        if reduction_date:
+            details.append(f"▪ 감자 완료/기준일 : {reduction_date}")
+        if shares_before and shares_after:
+            details.append(f"▪ 주식수 변동 : {shares_before}주 → {shares_after}주")
+        if capital_before and capital_after:
+            cb = capital_before if '원' in capital_before else f"{capital_before}원"
+            ca = capital_after if '원' in capital_after else f"{capital_after}원"
+            details.append(f"▪ 자본금 변동 : {cb} → {ca}")
+            
+        if details:
+            return "\n".join(details)
             
         return None
 
@@ -1485,6 +1560,13 @@ class DartLeanEngine:
             if conv_desc:
                 header = f"{display_name} - 전환청구권행사 요약 정보"
                 return f"{header}\n\n▪ {conv_desc}", "[]"
+
+        # 00-18. 감자 스페셜 케이스 처리
+        if "감자결정" in report_nm_clean.replace(" ", "") or "감자완료" in report_nm_clean.replace(" ", ""):
+            capital_desc = self._parse_capital_reduction(raw_text)
+            if capital_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{capital_desc}", "[]"
 
         # 00-16. 일괄신고, 증권발행실적, 소액공모 스페셜 케이스 처리
         if any(k in report_nm_clean.replace(" ", "") for k in ["일괄신고", "증권발행실적보고서", "소액공모공시서류"]):
