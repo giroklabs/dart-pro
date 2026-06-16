@@ -763,6 +763,8 @@ class DartLeanEngine:
         directors = []
         is_director_section = False
         
+        summary_agendas = {}
+        
         for line in lines:
             line_clean = re.sub(r'\[\s*테이블\s*\]', '', line).strip()
             
@@ -789,9 +791,27 @@ class DartLeanEngine:
                         
                         approval_rate = ""
                         if len(parts) >= 6:
-                            approval_rate = f" (행사주식 기준 찬성률 {parts[5]}%)" if parts[5] and parts[5] != "-" else ""
+                            approval_rate = f" (찬성률 {parts[5]}%)" if parts[5] and parts[5] != "-" else ""
                         
-                        agenda_items.append(f"제{num}호 의안 '{title}'은 [{result}]{approval_rate} 되었습니다.")
+                        title_clean = re.sub(r'\(.*?\)', '', title).strip()
+                        if title_clean.startswith('-'):
+                            title_clean = title_clean.strip('-').split('-')[0].strip()
+                        if len(title_clean) > 25:
+                            title_clean = title_clean[:25] + "..."
+                            
+                        main_num = str(num).split('-')[0]
+                        key = f"{main_num}_{result}"
+                        if key not in summary_agendas:
+                            summary_agendas[key] = {
+                                'num': num,
+                                'title': title_clean,
+                                'result': result,
+                                'approval_rate': approval_rate,
+                                'count': 1
+                            }
+                        else:
+                            summary_agendas[key]['count'] += 1
+                            summary_agendas[key]['approval_rate'] = ""
             
             if is_director_section:
                 if '|' in line_clean:
@@ -812,18 +832,28 @@ class DartLeanEngine:
                                 'career': career
                             })
                             
-        if not agenda_items:
+        if not summary_agendas:
             return None
             
         details = []
-        for item in agenda_items:
-            details.append(item)
+        for k, v in summary_agendas.items():
+            count_str = f" 외 {v['count']-1}건" if v['count'] > 1 else ""
+            num_str = v['num'] if v['count'] == 1 else k.split('_')[0]
+            rate_str = v['approval_rate']
+            details.append(f"▪ 제{num_str}호 의안 '{v['title']}'{count_str} [{v['result']}]{rate_str}")
             
         if directors:
-            details.append("\n[신규 임원 선임 정보]")
+            details.append("\n[신규 임원 선임 요약]")
             for d in directors:
                 career_clean = d['career'].replace(" (전) ", " / (전) ").strip(" / ")
-                details.append(f"- {d['name']} ({d['is_new']}, 임기 {d['term']}년): {career_clean}")
+                if len(career_clean) > 25:
+                    first_split = re.split(r'\s前|\s현', career_clean)
+                    if len(first_split) > 1 and len(first_split[0]) > 5:
+                        career_clean = first_split[0] + " 등"
+                    else:
+                        career_clean = career_clean[:25] + "..."
+                term_clean = f"임기 {d['term']}" if "년" in d['term'] else f"임기 {d['term']}년"
+                details.append(f"▪ {d['name']} ({d['is_new']}, {term_clean}): {career_clean}")
                 
         return "\n".join(details)
 
