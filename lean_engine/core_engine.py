@@ -1631,7 +1631,7 @@ class DartLeanEngine:
         self.rule_engine.current_report_nm = report_nm_clean
 
         # 00-17. 기업지배구조보고서 및 대규모기업집단현황공시 스페셜 케이스 처리
-        if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조보고서", "대규모기업집단현황공시"]):
+        if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조", "대규모기업집단"]):
             header = f"{display_name} - {report_nm_clean}"
             return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
 
@@ -1664,11 +1664,12 @@ class DartLeanEngine:
                 return f"{header}\n\n{treasury_desc}", "[]"
 
         # 00-16. 일괄신고, 증권발행실적, 소액공모 스페셜 케이스 처리
-        if any(k in report_nm_clean.replace(" ", "") for k in ["일괄신고", "증권발행실적보고서", "소액공모공시서류"]):
+        if any(k in report_nm_clean.replace(" ", "") for k in ["일괄신고", "증권발행실적보고서", "소액공모공시서류", "증권신고서"]):
             issuance_desc = self._parse_securities_issuance(raw_text)
-            if issuance_desc:
-                header = f"{display_name} - {report_nm_clean}"
-                return f"{header}\n\n{issuance_desc}", "[]"
+            if not issuance_desc:
+                issuance_desc = "▪ 본 공시는 채무증권, 지분증권, 또는 유동화증권 등의 발행/모집에 관한 신고서 및 추가서류입니다. 상세한 발행조건과 청약일정 등은 원문을 참고하시기 바랍니다."
+            header = f"{display_name} - {report_nm_clean}"
+            return f"{header}\n\n{issuance_desc}", "[]"
 
         # 00-15. 소송등의판결·결정 스페셜 케이스 처리
         if "소송등의판결" in report_nm_clean.replace(" ", ""):
