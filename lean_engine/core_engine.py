@@ -1630,6 +1630,37 @@ class DartLeanEngine:
         report_nm_clean = (report_nm or "").strip()
         self.rule_engine.current_report_nm = report_nm_clean
 
+        # 00. 정정공시 스페셜 케이스 처리 (정정항목 / 정정사유 정밀 추출)
+        if "정정" in report_nm_clean:
+            corr_item, corr_reason = self._extract_correction_info(raw_text)
+            if corr_item or corr_reason:
+                header = f"{display_name} - 정정 공시 안내"
+                body_parts = []
+                
+                if corr_reason:
+                    body_parts.append(f"▪ 정정사유: {corr_reason}")
+                
+                is_complex = False
+                if corr_item:
+                    if len(corr_item) >= 40 or "|" in corr_item or "[" in corr_item:
+                        is_complex = True
+                
+                if corr_item and not is_complex:
+                    body_parts.append(f"▪ 정정항목: {corr_item}")
+                    
+                # 상세 변경사항 추가 (최대 3개)
+                # 단, 타법인주식, 전환청구권, 금전대여, 채무보증 관련 정정은 세부 내역 생략
+                if not any(k in report_nm_clean for k in ["타법인주식", "전환청구권", "금전대여", "채무보증"]):
+                    details = self._parse_correction_details(raw_text)
+                    if details:
+                        body_parts.extend(details[:3])
+                    
+                if not body_parts:
+                    body_parts.append("▪ 정정사유: 세부 사항은 본문(상세보기)에서 확인하실 수 있습니다.")
+                
+                body = "\n".join(body_parts)
+                return f"{header}\n\n{body}", "[]"
+
         # 00-17. 기업지배구조보고서 및 대규모기업집단현황공시 스페셜 케이스 처리
         if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조", "대규모기업집단", "주주총회소집공고", "합병등종료보고서", "증권신고서", "일괄신고", "임원ㆍ주요주주특정증권", "임상시험결과"]):
             header = f"{display_name} - {report_nm_clean}"
@@ -1775,36 +1806,7 @@ class DartLeanEngine:
                 header = f"{display_name} - 단일판매ㆍ공급계약 체결"
                 return f"{header}\n\n▪ {contract_desc}", "[]"
         
-        # 00. 정정공시 스페셜 케이스 처리 (정정항목 / 정정사유 정밀 추출)
-        if "정정" in report_nm_clean:
-            corr_item, corr_reason = self._extract_correction_info(raw_text)
-            if corr_item or corr_reason:
-                header = f"{display_name} - 정정 공시 안내"
-                body_parts = []
-                
-                if corr_reason:
-                    body_parts.append(f"▪ 정정사유: {corr_reason}")
-                
-                is_complex = False
-                if corr_item:
-                    if len(corr_item) >= 40 or "|" in corr_item or "[" in corr_item:
-                        is_complex = True
-                
-                if corr_item and not is_complex:
-                    body_parts.append(f"▪ 정정항목: {corr_item}")
-                    
-                # 상세 변경사항 추가 (최대 3개)
-                # 단, 타법인주식, 전환청구권, 금전대여, 채무보증 관련 정정은 세부 내역 생략
-                if not any(k in report_nm_clean for k in ["타법인주식", "전환청구권", "금전대여", "채무보증"]):
-                    details = self._parse_correction_details(raw_text)
-                    if details:
-                        body_parts.extend(details[:3])
-                    
-                if not body_parts:
-                    body_parts.append("▪ 정정사유: 세부 사항은 본문(상세보기)에서 확인하실 수 있습니다.")
-                
-                body = "\n".join(body_parts)
-                return f"{header}\n\n{body}", "[]"
+
 
 
         # 0. 임원/주요주주 특정증권등소유상황보고서 스페셜 케이스
