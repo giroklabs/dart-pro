@@ -1794,9 +1794,11 @@ class DartLeanEngine:
                     body_parts.append(f"▪ 정정항목: {corr_item}")
                     
                 # 상세 변경사항 추가 (최대 3개)
-                details = self._parse_correction_details(raw_text)
-                if details:
-                    body_parts.extend(details[:3])
+                # 단, 타법인주식, 전환청구권, 금전대여, 채무보증 관련 정정은 세부 내역 생략
+                if not any(k in report_nm_clean for k in ["타법인주식", "전환청구권", "금전대여", "채무보증"]):
+                    details = self._parse_correction_details(raw_text)
+                    if details:
+                        body_parts.extend(details[:3])
                     
                 if not body_parts:
                     body_parts.append("▪ 정정사유: 세부 사항은 본문(상세보기)에서 확인하실 수 있습니다.")
