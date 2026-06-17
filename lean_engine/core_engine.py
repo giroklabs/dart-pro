@@ -634,6 +634,64 @@ class DartLeanEngine:
             
         return None
 
+    def _parse_treasury_stock_acquisition(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+            
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        shares = []
+        amount = []
+        purpose = ""
+        
+        current_section = ""
+        
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if not parts:
+                    continue
+                p_clean0 = parts[0].replace(" ", "")
+                
+                if '취득예정주식' in p_clean0:
+                    current_section = "shares"
+                    if len(parts) >= 3 and any(char.isdigit() for char in parts[-1]):
+                        shares.append(f"{parts[1]}: {parts[2]}주")
+                elif '취득예정금액' in p_clean0:
+                    current_section = "amount"
+                    if len(parts) >= 3 and any(char.isdigit() for char in parts[-1]):
+                        amount.append(f"{parts[1]}: {parts[2]}원")
+                elif '취득예상기간' in p_clean0 or '취득방법' in p_clean0 or '보유예상기간' in p_clean0:
+                    current_section = ""
+                elif '취득목적' in p_clean0:
+                    current_section = ""
+                    if len(parts) >= 2:
+                        purpose = " ".join([p for p in parts[1:] if p]).strip()
+                else:
+                    if current_section == "shares":
+                        if len(parts) >= 3 and any(char.isdigit() for char in parts[-1]):
+                            shares.append(f"{parts[1]}: {parts[-1]}주")
+                        elif len(parts) == 2 and any(char.isdigit() for char in parts[-1]):
+                            shares.append(f"{parts[0]}: {parts[-1]}주")
+                    elif current_section == "amount":
+                        if len(parts) >= 3 and any(char.isdigit() for char in parts[-1]):
+                            amount.append(f"{parts[1]}: {parts[-1]}원")
+                        elif len(parts) == 2 and any(char.isdigit() for char in parts[-1]):
+                            amount.append(f"{parts[0]}: {parts[-1]}원")
+
+        details = []
+        if shares:
+            details.append(f"▪ 취득 예정 주식 : {', '.join(shares)}")
+        if amount:
+            details.append(f"▪ 취득 예정 금액 : {', '.join(amount)}")
+        if purpose:
+            details.append(f"▪ 취득 목적 : {purpose}")
+            
+        if details:
+            return "\n".join(details)
+            
+        return None
+
     def _parse_capital_reduction(self, raw_text: str) -> str:
         if not raw_text:
             return None
@@ -1597,6 +1655,13 @@ class DartLeanEngine:
             if capital_desc:
                 header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n{capital_desc}", "[]"
+
+        # 00-19. 자기주식취득결정 스페셜 케이스 처리
+        if "자기주식취득결정" in report_nm_clean.replace(" ", ""):
+            treasury_desc = self._parse_treasury_stock_acquisition(raw_text)
+            if treasury_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{treasury_desc}", "[]"
 
         # 00-16. 일괄신고, 증권발행실적, 소액공모 스페셜 케이스 처리
         if any(k in report_nm_clean.replace(" ", "") for k in ["일괄신고", "증권발행실적보고서", "소액공모공시서류"]):
