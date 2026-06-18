@@ -564,6 +564,7 @@ class DartLeanEngine:
         opinion = ""
         going_concern_uncertainty = ""
         internal_control_opinion = ""
+        details = []
         
         for idx, line in enumerate(lines):
             if '|' in line:
@@ -622,7 +623,6 @@ class DartLeanEngine:
                 going_concern_uncertainty = "중요한 불확실성 존재 (주의 필요)"
 
         if opinion:
-            details = []
             opinion_clean = opinion.replace(" ", "")
             if '적정' in opinion_clean:
                 details.append(f"외부감사인의 감사의견은 [적정]입니다.")
