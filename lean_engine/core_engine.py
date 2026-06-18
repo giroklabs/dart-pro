@@ -963,6 +963,37 @@ class DartLeanEngine:
         
         return f"주식등의대량보유상황보고서가 제출되었습니다.{ratio_str}입니다.{trans_str}"
 
+    def _parse_major_shareholder_change(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        changes = []
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if not parts or any(h in parts[0] for h in ["구분", "주주명", "계", "소계", "전체합계"]):
+                    continue
+                if len(parts) >= 11:
+                    share_type = parts[4]
+                    if share_type in ["보통주", "우선주"]:
+                        name = parts[1]
+                        change_qty = parts[7].replace(",", "")
+                        after_rate = parts[10]
+                        
+                        if change_qty and change_qty != "-" and change_qty != "0":
+                            try:
+                                qty_val = int(change_qty)
+                                sign = "+" if qty_val > 0 else ""
+                                change_qty_formatted = f"{qty_val:,}"
+                                changes.append(f"▪ {name}: {share_type} {sign}{change_qty_formatted}주 변동 (지분율 {after_rate}%)")
+                            except ValueError:
+                                continue
+                            
+        if changes:
+            return "\n".join(changes[:5])
+        return "최대주주 등의 주식 보유 지분율에 변동이 있었습니다. 세부 변동 내역은 원문을 참고하시기 바랍니다."
+
     def _parse_debt_security_확정(self, raw_text: str) -> str:
         if not raw_text:
             return None
@@ -1664,6 +1695,13 @@ class DartLeanEngine:
                 body = "\n".join(body_parts)
                 return f"{header}\n\n{body}", "[]"
 
+        # 00-20. 최대주주 등의 주식보유 변동 및 최대주주등소유주식변동신고서 스페셜 케이스 처리
+        if any(k in report_nm_clean.replace(" ", "") for k in ["최대주주등의주식보유변동", "최대주주등소유주식변동신고서"]):
+            share_desc = self._parse_major_shareholder_change(raw_text)
+            if share_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{share_desc}", "[]"
+
         # 00-17. 기업지배구조보고서 및 대규모기업집단현황공시 스페셜 케이스 처리
         if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조", "대규모기업집단", "주주총회소집공고", "합병등종료보고서", "증권신고서", "일괄신고", "임원ㆍ주요주주특정증권", "임상시험결과"]):
             header = f"{display_name} - {report_nm_clean}"
@@ -1818,11 +1856,7 @@ class DartLeanEngine:
             body = "임원 및 주요주주의 특정증권 소유현황이 변동되었습니다."
             return f"{header}\n\n{body}", "[]"
 
-        # 0-2. 최대주주등소유주식변동신고서 스페셜 케이스
-        if "최대주주등소유주식변동신고서" in report_nm_clean.replace(" ", ""):
-            header = f"{display_name} - 최대주주 등 소유주식 변동 신고서"
-            body = "최대주주 등 소유주식 변동 신고가 있었습니다. 자세한 내용은 상단의 '상세보기'를 통해 보고서 본문을 확인해 주세요."
-            return f"{header}\n\n{body}", "[]"
+
 
 
         # 1. 정기보고서 (Lean Mode)
