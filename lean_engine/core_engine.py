@@ -608,7 +608,9 @@ class DartLeanEngine:
 
         if not opinion:
             raw_no_space = raw_text.replace(" ", "")
-            if any(k in raw_no_space for k in ["의견거절을표명합니다", "의견거절의근거", "의견거절의의견", "의견을표명하지아니합니다"]):
+            if any(l.replace(" ", "") in ["의견거절", "의견거절의견", "의견거절근거"] for l in lines):
+                opinion = "의견거절"
+            elif any(k in raw_no_space for k in ["의견거절을표명합니다", "의견거절의근거", "의견거절의의견", "의견을표명하지아니합니다", "의견을표명하지않습니다", "의견을표명하지아니함"]):
                 opinion = "의견거절"
             elif any(k in raw_no_space for k in ["부적정의견을표명합니다", "부적정의견의근거", "부적정의견"]):
                 opinion = "부적정"
