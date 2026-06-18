@@ -605,6 +605,22 @@ class DartLeanEngine:
             if match:
                 opinion = match.group(1)
 
+        if not opinion:
+            raw_no_space = raw_text.replace(" ", "")
+            if any(k in raw_no_space for k in ["의견거절을표명합니다", "의견거절의근거", "의견거절의의견", "의견을표명하지아니합니다"]):
+                opinion = "의견거절"
+            elif any(k in raw_no_space for k in ["부적정의견을표명합니다", "부적정의견의근거", "부적정의견"]):
+                opinion = "부적정"
+            elif any(k in raw_no_space for k in ["한정의견을표명합니다", "한정의견의근거", "한정의견"]):
+                opinion = "한정"
+            elif any(k in raw_no_space for k in ["공정하게표시하고있습니다", "적정의견을표명합니다", "적정의견"]):
+                opinion = "적정"
+
+        if not going_concern_uncertainty:
+            raw_no_space = raw_text.replace(" ", "")
+            if "계속기업" in raw_no_space and "중요한불확실성" in raw_no_space:
+                going_concern_uncertainty = "중요한 불확실성 존재 (주의 필요)"
+
         if opinion:
             details = []
             opinion_clean = opinion.replace(" ", "")
