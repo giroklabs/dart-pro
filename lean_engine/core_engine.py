@@ -910,8 +910,11 @@ class DartLeanEngine:
                         career_clean = first_split[0] + " 등"
                     else:
                         career_clean = career_clean[:25] + "..."
-                term_clean = f"임기 {d['term']}" if "년" in d['term'] else f"임기 {d['term']}년"
-                details.append(f"▪ {d['name']} ({d['is_new']}, {term_clean}): {career_clean}")
+                term_val = d['term'].strip()
+                if "년" not in term_val:
+                    term_val = f"{term_val}년"
+                term_clean = f"임기 {term_val}"
+                details.append(f"▪ {d['name']} ({d['is_new']}, {term_clean})")
                 
         return "\n".join(details)
 
@@ -1649,8 +1652,8 @@ class DartLeanEngine:
                     body_parts.append(f"▪ 정정항목: {corr_item}")
                     
                 # 상세 변경사항 추가 (최대 3개)
-                # 단, 타법인주식, 전환청구권, 금전대여, 채무보증 관련 정정은 세부 내역 생략
-                if not any(k in report_nm_clean for k in ["타법인주식", "전환청구권", "금전대여", "채무보증"]):
+                # 단, 타법인주식, 전환청구권, 금전대여, 채무보증, 주요사항보고서, 공급계약, 영업정지 관련 정정은 세부 내역 생략
+                if not any(k in report_nm_clean for k in ["타법인주식", "전환청구권", "금전대여", "채무보증", "주요사항보고서", "공급계약", "영업정지"]):
                     details = self._parse_correction_details(raw_text)
                     if details:
                         body_parts.extend(details[:3])
