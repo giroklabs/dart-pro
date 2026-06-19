@@ -640,3 +640,11 @@ table { border-collapse: collapse; width: 100%; }
 .risk-safe { background: #dcfce7; color: #15803d; }
 .risk-warn { background: #fef3c7; color: #b45309; }
 .risk-danger { background: #ffe4e6; color: #b91c1c; }
+
+/* Sidebar Banner Hover Animation */
+.sidebar-banner-link:hover .sidebar-banner {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(226, 229, 233, 1) !important;
+}
+
