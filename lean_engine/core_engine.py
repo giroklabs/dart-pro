@@ -629,17 +629,18 @@ class DartLeanEngine:
             if '적정' in opinion_clean:
                 details.append(f"외부감사인의 감사의견은 [적정]입니다.")
             elif '한정' in opinion_clean:
-                details.append(f"⚠️ 외부감사인의 감사의견은 [한정]입니다. (주의 필요)")
+                details.append(f"[주의] 외부감사인의 감사의견은 [한정]입니다. (주의 필요)")
             elif '부적정' in opinion_clean:
-                details.append(f"🚨 외부감사인의 감사의견은 [부적정]입니다. (상장폐지 등 심각한 위험)")
+                details.append(f"[경고] 외부감사인의 감사의견은 [부적정]입니다. (상장폐지 등 심각한 위험)")
             elif '의견거절' in opinion_clean:
-                details.append(f"🚨 외부감사인의 감사의견은 [의견거절]입니다. (상장폐지 등 심각한 위험)")
+                details.append(f"[경고] 외부감사인의 감사의견은 [의견거절]입니다. (상장폐지 등 심각한 위험)")
             else:
                 details.append(f"외부감사인의 감사의견은 [{opinion}]입니다.")
 
             if going_concern_uncertainty and going_concern_uncertainty != "-":
                 if '미해당' not in going_concern_uncertainty:
-                    details.append(f"계속기업 존속불확실성 여부: [{going_concern_uncertainty}] (주의 필요)")
+                    suffix = "" if "주의" in going_concern_uncertainty else " (주의 필요)"
+                    details.append(f"계속기업 존속불확실성 여부: [{going_concern_uncertainty}]{suffix}")
                 else:
                     details.append(f"계속기업 존속불확실성 여부: 미해당")
 
@@ -1506,7 +1507,7 @@ class DartLeanEngine:
         if not (case_no or dismiss_date or court or reason):
             return None
 
-        details = ["🚨 법원으로부터 파산신청 기각 결정을 받았습니다. (리스크 완화)"]
+        details = ["[안내] 법원으로부터 파산신청 기각 결정을 받았습니다. (리스크 완화)"]
         if court:
             details.append(f"  - 관할 법원: {court}")
         if dismiss_date:
@@ -1966,9 +1967,9 @@ class DartLeanEngine:
         has_all_metrics = all(metric_map.get(k) is not None for k in ("revenue", "operating_profit", "net_income"))
 
         if is_revised or not has_all_metrics:
-            return "💡 자동 분석 결과가 일부 어색할 수 있어요. 중요한 내용은 상단의 '상세보기'에서 보고서 본문을 함께 확인해 주세요."
+            return "자동 분석 결과가 일부 어색할 수 있어요. 중요한 내용은 상단의 '상세보기'에서 보고서 본문을 함께 확인해 주세요."
 
-        return "💡 자세한 재무제표와 주석은 상단의 '상세보기'에서 보고서 원문으로 확인해 주세요."
+        return "자세한 재무제표와 주석은 상단의 '상세보기'에서 보고서 원문으로 확인해 주세요."
 
     def _build_kpi_header(
         self,
