@@ -12,36 +12,6 @@ function getDisclosureCategory(item) {
   return '기타';
 }
 
-// 2. 텍스트 하이라이트 헬퍼
-function highlightText(text) {
-  if (typeof text !== 'string') return text;
-  
-  const dangerKeywords = ['의견거절', '부적정', '상장폐지', '파산', '기각', '위험', '경고', '손실'];
-  const warningKeywords = ['한정', '주의 필요', '주의필요', '주의', '소송', '제재', '과징금', '변동'];
-  const successKeywords = ['적정', '가결', '완료', '회수', '이행', '합의'];
-  
-  let html = text;
-  
-  const numRegex = /([0-9%,.조억만백주원]{2,})/g;
-  html = html.replace(numRegex, '<span class="highlight-number">$1</span>');
-  
-  dangerKeywords.forEach(k => {
-    const reg = new RegExp(`(${k})`, 'g');
-    html = html.replace(reg, '<span class="highlight-danger">$1</span>');
-  });
-  
-  warningKeywords.forEach(k => {
-    const reg = new RegExp(`(${k})`, 'g');
-    html = html.replace(reg, '<span class="highlight-warning">$1</span>');
-  });
-  
-  successKeywords.forEach(k => {
-    const reg = new RegExp(`(${k})`, 'g');
-    html = html.replace(reg, '<span class="highlight-success">$1</span>');
-  });
-  
-  return html;
-}
 
 // 3. 리스크 뱃지 헬퍼
 function getRiskBadgeHtml(reportName) {
@@ -326,7 +296,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         headerText = cleanedLine;
       } else {
         const cleanedBullet = cleanedLine.replace(/\*\*/g, '');
-        bulletLines.push(`<li>${highlightText(cleanedBullet)}</li>`);
+        bulletLines.push(`<li>${cleanedBullet}</li>`);
       }
     }
 
@@ -396,7 +366,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
           </div>
           <div class="insight-text">${finalHeader}</div>
           <ul class="insight-points">
-            ${points.map(p => `<li>${highlightText(p)}</li>`).join('')}
+            ${points.map(p => `<li>${p}</li>`).join('')}
           </ul>
         </div>
         <div class="insight-actions">
