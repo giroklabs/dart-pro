@@ -1,3 +1,60 @@
+// 1. 공시 카테고리 분류 헬퍼 (확장 필터 반영)
+function getDisclosureCategory(item) {
+  const title = item.report_nm || '';
+  if (/배당|소각|자기주식/.test(title)) return '주주환원';
+  if (/유상증자|사채권발행|단기차입금|채무보증|금전대여|증권발행|자산유동화/.test(title)) return '자금조달';
+  if (/감사보고서|부적정|의견거절|한정/.test(title)) return '감사·리스크';
+  if (/소유주식변동|임원ㆍ주요주주|대량보유/.test(title)) return '내부자시그널';
+  if (/잠정실적|영업실적|매출액|영업이익/.test(title)) return '실적발표';
+  if (/공급계약|단일판매|시설투자|특허/.test(title)) return '공급·투자';
+  if (/대표이사|주주총회|최대주주변동|지배구조|불성실공시/.test(title)) return '경영·지배구조';
+  if (/소송|판결|법원|회생|파산/.test(title)) return '법적분쟁';
+  return '기타';
+}
+
+// 2. 텍스트 하이라이트 헬퍼
+function highlightText(text) {
+  if (typeof text !== 'string') return text;
+  
+  const dangerKeywords = ['의견거절', '부적정', '상장폐지', '파산', '기각', '위험', '경고', '손실'];
+  const warningKeywords = ['한정', '주의 필요', '주의필요', '주의', '소송', '제재', '과징금', '변동'];
+  const successKeywords = ['적정', '가결', '완료', '회수', '이행', '합의'];
+  
+  let html = text;
+  
+  const numRegex = /([0-9%,.조억만백주원]{2,})/g;
+  html = html.replace(numRegex, '<span class="highlight-number">$1</span>');
+  
+  dangerKeywords.forEach(k => {
+    const reg = new RegExp(`(${k})`, 'g');
+    html = html.replace(reg, '<span class="highlight-danger">$1</span>');
+  });
+  
+  warningKeywords.forEach(k => {
+    const reg = new RegExp(`(${k})`, 'g');
+    html = html.replace(reg, '<span class="highlight-warning">$1</span>');
+  });
+  
+  successKeywords.forEach(k => {
+    const reg = new RegExp(`(${k})`, 'g');
+    html = html.replace(reg, '<span class="highlight-success">$1</span>');
+  });
+  
+  return html;
+}
+
+// 3. 리스크 뱃지 헬퍼
+function getRiskBadgeHtml(reportName) {
+  const score = calculateDisclosureScore(reportName);
+  if (score >= 4.0) {
+    return `<span class="risk-badge risk-danger">위험</span>`;
+  } else if (score >= 2.0) {
+    return `<span class="risk-badge risk-warn">주의</span>`;
+  } else {
+    return `<span class="risk-badge risk-safe">참고</span>`;
+  }
+}
+
 window.switchAiMode = function(mode) {
   localStorage.setItem('dart_ai_mode', mode);
   window.router();
@@ -11,8 +68,17 @@ async function renderDashboard() {
   const quickStyle = aiMode === 'quick' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
   const geminiStyle = aiMode === 'gemini' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
 
+  // 디폴트 필터는 전체
+  window.currentDashboardFilter = window.currentDashboardFilter || '전체';
+  
+  const categories = ['전체', '자금조달', '감사·리스크', '내부자시그널', '주주환원', '실적발표', '공급·투자', '경영·지배구조', '법적분쟁'];
+  const filterTabsHtml = categories.map(cat => {
+    const activeCls = window.currentDashboardFilter === cat ? 'active' : '';
+    return `<div class="filter-tab ${activeCls}" data-filter="${cat}" onclick="filterDashboardCategory('${cat}')">${cat}</div>`;
+  }).join('');
+
   return `
-    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <div>
         <h2>대시보드</h2>
         <p>DART 전자공시 실시간 모니터링</p>
@@ -22,6 +88,12 @@ async function renderDashboard() {
         <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${quickStyle}" onclick="switchAiMode('quick')">⚡️ QUICK 분석</button>
       </div>
     </div>
+    
+    <!-- 카테고리 퀵 필터 탭 -->
+    <div class="filter-tabs" id="category-filter-tabs">
+      ${filterTabsHtml}
+    </div>
+
     <div id="quick-insight-container"></div>
     <div id="dashboard-main-content">
       <div class="section-header">
@@ -254,7 +326,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         headerText = cleanedLine;
       } else {
         const cleanedBullet = cleanedLine.replace(/\*\*/g, '');
-        bulletLines.push(`<li>${cleanedBullet}</li>`);
+        bulletLines.push(`<li>${highlightText(cleanedBullet)}</li>`);
       }
     }
 
@@ -283,7 +355,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         <div class="insight-content">
           <div class="insight-header">
             <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
-            <div class="insight-impact">${impactLabel}</div>
+            <div class="insight-impact">${impactLabel}${getRiskBadgeHtml(item.report_nm)}</div>
           </div>
           <div class="insight-text">${finalHeader}</div>
           <ul class="insight-points">
@@ -320,11 +392,11 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         <div class="insight-content">
           <div class="insight-header">
             <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
-            <div class="insight-impact">${impact}</div>
+            <div class="insight-impact">${impact}${getRiskBadgeHtml(item.report_nm)}</div>
           </div>
           <div class="insight-text">${finalHeader}</div>
           <ul class="insight-points">
-            ${points.map(p => `<li>${p}</li>`).join('')}
+            ${points.map(p => `<li>${highlightText(p)}</li>`).join('')}
           </ul>
         </div>
         <div class="insight-actions">
@@ -931,7 +1003,11 @@ async function initDashboard() {
   }
 }
 
-function renderDashboardUI(groups, stats) {
+function renderDashboardUI(groups, stats, isFiltering = false) {
+  if (!isFiltering) {
+    window.DART_GROUPS = groups;
+  }
+
   const api = window.DART_API;
   const feedEl = document.getElementById('dashboard-feed');
   const insightContainer = document.getElementById('quick-insight-container');
@@ -982,10 +1058,40 @@ function renderDashboardUI(groups, stats) {
         </div>
       `}).join('');
     } else {
-      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>관심 종목을 추가해 주세요.</p></div>`;
+      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>선택한 카테고리의 공시가 없거나 관심 종목을 추가해 주세요.</p></div>`;
     }
   }
+}
 
+// 퀵 필터 탭 클릭 이벤트 및 필터링 기능 통합 정의
+window.filterDashboardCategory = function(category) {
+  window.currentDashboardFilter = category;
+  
+  const tabs = document.querySelectorAll('#category-filter-tabs .filter-tab');
+  tabs.forEach(tab => {
+    if (tab.getAttribute('data-filter') === category) {
+      tab.classList.add('active');
+    } else {
+      tab.classList.remove('active');
+    }
+  });
+  
+  if (window.DART_GROUPS) {
+    const filtered = filterGroupsByCategory(window.DART_GROUPS, category);
+    renderDashboardUI(filtered, null, true);
+  }
+};
+
+function filterGroupsByCategory(groups, category) {
+  if (category === '전체') return groups;
+  
+  return groups.map(g => {
+    const filteredList = g.list.filter(item => getDisclosureCategory(item) === category);
+    return {
+      ...g,
+      list: filteredList
+    };
+  }).filter(g => g.list.length > 0);
 }
 
 function renderFeedCard(item) {

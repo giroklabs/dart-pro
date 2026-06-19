@@ -569,3 +569,75 @@ table { border-collapse: collapse; width: 100%; }
   background: #fef3c7;
   color: #92400e;
 }
+
+/* Highlight styles for numbers and key warnings */
+.highlight-number {
+  font-weight: 700;
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.highlight-danger {
+  font-weight: 700;
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.highlight-warning {
+  font-weight: 700;
+  color: #ea580c;
+  background: rgba(234, 88, 12, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.highlight-success {
+  font-weight: 700;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* Category Quick Filter Tabs */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--sp-lg);
+  border-bottom: 1px solid var(--outline-variant);
+  padding-bottom: 12px;
+  overflow-x: auto;
+}
+.filter-tab {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--on-surface-variant);
+  border-radius: 20px;
+  transition: all 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-tab:hover {
+  background: var(--surface-container);
+}
+.filter-tab.active {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* Risk badge styles */
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  margin-left: 8px;
+  text-transform: uppercase;
+}
+.risk-safe { background: #dcfce7; color: #15803d; }
+.risk-warn { background: #fef3c7; color: #b45309; }
+.risk-danger { background: #ffe4e6; color: #b91c1c; }
