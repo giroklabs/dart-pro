@@ -604,8 +604,8 @@ table { border-collapse: collapse; width: 100%; }
 .filter-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: var(--sp-lg);
-  padding-bottom: 12px;
+  margin-bottom: calc(var(--sp-lg) * 0.5);
+  padding-bottom: 6px;
   overflow-x: auto;
 }
 .filter-tab {
