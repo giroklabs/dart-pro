@@ -605,7 +605,6 @@ table { border-collapse: collapse; width: 100%; }
   display: flex;
   gap: 8px;
   margin-bottom: var(--sp-lg);
-  border-bottom: 1px solid var(--outline-variant);
   padding-bottom: 12px;
   overflow-x: auto;
 }
