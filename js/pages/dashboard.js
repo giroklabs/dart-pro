@@ -13,17 +13,7 @@ function getDisclosureCategory(item) {
 }
 
 
-// 3. 리스크 뱃지 헬퍼
-function getRiskBadgeHtml(reportName) {
-  const score = calculateDisclosureScore(reportName);
-  if (score >= 4.0) {
-    return `<span class="risk-badge risk-danger">위험</span>`;
-  } else if (score >= 2.0) {
-    return `<span class="risk-badge risk-warn">주의</span>`;
-  } else {
-    return `<span class="risk-badge risk-safe">참고</span>`;
-  }
-}
+
 
 window.switchAiMode = function(mode) {
   localStorage.setItem('dart_ai_mode', mode);
@@ -325,7 +315,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         <div class="insight-content">
           <div class="insight-header">
             <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
-            <div class="insight-impact">${impactLabel}${getRiskBadgeHtml(item.report_nm)}</div>
+            <div class="insight-impact">${impactLabel}</div>
           </div>
           <div class="insight-text">${finalHeader}</div>
           <ul class="insight-points">
@@ -362,7 +352,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
         <div class="insight-content">
           <div class="insight-header">
             <div class="insight-label">${api.formatDate(item.rcept_dt)}</div>
-            <div class="insight-impact">${impact}${getRiskBadgeHtml(item.report_nm)}</div>
+            <div class="insight-impact">${impact}</div>
           </div>
           <div class="insight-text">${finalHeader}</div>
           <ul class="insight-points">
