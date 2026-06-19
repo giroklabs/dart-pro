@@ -89,7 +89,9 @@ const MIME_TYPES = {
   '.json': 'application/json',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'text/xml; charset=utf-8'
 };
 
 // 데이터 파일 경로 설정 (전역 스코프)
