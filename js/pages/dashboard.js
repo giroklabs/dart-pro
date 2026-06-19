@@ -39,9 +39,9 @@ async function renderDashboard() {
 
   return `
     <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <div>
-        <h2>대시보드</h2>
-        <p>DART 전자공시 실시간 모니터링</p>
+      <div style="display:flex; align-items:baseline; gap:8px;">
+        <h2 style="margin:0; line-height:1.1;">대시보드</h2>
+        <p style="margin:0; color:var(--on-surface-variant); font-size:14px;">DART 전자공시 실시간 모니터링</p>
       </div>
       <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
         <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${geminiStyle}" onclick="switchAiMode('gemini')">🤖 학습모델</button>
