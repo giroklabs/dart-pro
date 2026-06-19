@@ -38,7 +38,7 @@ async function renderDashboard() {
   }).join('');
 
   return `
-    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <div>
         <h2>대시보드</h2>
         <p>DART 전자공시 실시간 모니터링</p>
