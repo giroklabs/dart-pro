@@ -127,7 +127,7 @@ table { border-collapse: collapse; width: 100%; }
 }
 .nav-item .material-symbols-outlined { font-size: 20px; }
 
-.sidebar-footer { margin-top: auto; padding-top: var(--sp-md); border-top: 1px solid #e2e5e9; }
+.sidebar-footer { margin-top: auto; padding-top: var(--sp-md); }
 .sidebar-footer .btn-primary { width: 100%; }
 
 /* Topbar */
