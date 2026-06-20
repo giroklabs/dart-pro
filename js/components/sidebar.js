@@ -29,7 +29,7 @@ function renderSidebar() {
       <!-- 공시알리미 앱 배너 광고 -->
       <a href="https://apps.apple.com/kr/app/%EA%B3%B5%EC%8B%9C%EC%95%8C%EB%A6%AC%EB%AF%B8/id6766577471" target="_blank" rel="noopener noreferrer" class="sidebar-banner-link" style="margin-top: 16px; display: block; text-decoration: none; padding: 4px 0;">
         <div class="sidebar-banner" style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(226, 229, 233, 0.8); background: var(--surface-container-low); transition: all 0.25s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-          <img src="images/banner_v2.png" style="width: 100%; display: block; object-fit: cover;" alt="공시알리미 앱 다운로드" />
+          <img src="images/banner_v3.png" style="width: 100%; display: block; object-fit: cover;" alt="공시알리미 앱 다운로드" />
         </div>
       </a>
     </nav>
