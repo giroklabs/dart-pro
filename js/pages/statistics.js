@@ -86,9 +86,16 @@ async function initStatistics() {
     }
 
     if (list.length === 0) {
-      // 6월 13일부터 6월 19일까지 7일간의 데이터
-      const res = await window.DART_API.searchDisclosures({ bgn_de: '20260613', end_de: '20260619', page_count: 100 });
-      list = res.list || [];
+      // 6월 13일부터 6월 19일까지 일자별 병렬 조회 (데이터 정밀도 향상)
+      const promises = [];
+      for (let day = 13; day <= 19; day++) {
+        const dateStr = '202606' + String(day).padStart(2, '0');
+        promises.push(window.DART_API.searchDisclosures({ bgn_de: dateStr, end_de: dateStr, page_count: 100 }));
+      }
+      const results = await Promise.all(promises);
+      results.forEach(res => {
+        if (res.list) list = list.concat(res.list);
+      });
       fetchTime = Date.now();
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: fetchTime,
@@ -168,19 +175,29 @@ async function initStatistics() {
     // Render Table
     const tbody = document.querySelector('#ranking-table tbody');
     tbody.innerHTML = top10.map(item => `
-      <tr>
+      <tr style="cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='var(--surface-container-low)'" onmouseout="this.style.background='transparent'" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">
         <td>${window.DART_API.formatDate(item.rcept_dt)}</td>
         <td style="font-weight:600;">${item.corp_name}</td>
-        <td style="cursor:pointer; color:var(--primary);" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">${item.report_nm}</td>
-        <td><span class="${item.typeCls}" style="padding:4px 8px; border-radius:4px; font-size:11px; background-color:var(--surface-container-high); border-left:3px solid currentColor;">${item.cat}</span></td>
+        <td style="color:var(--on-surface);">${item.report_nm}</td>
+        <td><span style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600; background-color:var(--surface-container-high); border:1px solid var(--outline-variant); color:var(--on-surface);">${item.cat}</span></td>
       </tr>
     `).join('');
 
-    // Process Category Data for top 5 + '기타'
+    // Process Category Data for top 5 + '기타' (기존 기타 항목 통합 처리)
     const catEntries = Object.entries(categoryCount).sort((a,b) => b[1] - a[1]);
-    const topCats = catEntries.slice(0, 5);
+    const topCats = [];
     let otherCount = 0;
-    catEntries.slice(5).forEach(e => { otherCount += e[1]; });
+    
+    catEntries.forEach(e => {
+      if (e[0] === '기타') {
+        otherCount += e[1];
+      } else if (topCats.length < 5) {
+        topCats.push(e);
+      } else {
+        otherCount += e[1];
+      }
+    });
+
     if (otherCount > 0) {
       topCats.push(['기타', otherCount]);
     }
