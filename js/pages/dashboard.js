@@ -359,7 +359,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
           </ul>
         </div>
         <div class="insight-actions">
-          <button class="btn-ghost" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">
+          <button class="btn-detail" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">
             <span>상세보기</span><span class="material-symbols-outlined" style="font-size:16px;">arrow_outward</span>
           </button>
         </div>
@@ -380,7 +380,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
           <div class="insight-text"><strong>${item.corp_name}</strong> - 로딩중</div>
         </div>
         <div class="insight-actions">
-          <button class="btn-ghost" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">
+          <button class="btn-detail" onclick="window.open('${window.DART_API.viewerUrl(item.rcept_no)}','_blank')">
             <span>상세보기</span><span class="material-symbols-outlined" style="font-size:16px;">arrow_outward</span>
           </button>
         </div>
