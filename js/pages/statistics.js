@@ -68,8 +68,28 @@ async function renderStatistics() {
 
 async function initStatistics() {
   try {
-    const res = await window.DART_API.searchDisclosures({ page_count: 100 });
-    const list = res.list || [];
+    const CACHE_KEY = 'dart_stats_cache';
+    const CACHE_TTL = 10 * 60 * 1000; // 10분 캐싱
+    let list = [];
+    
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.timestamp < CACHE_TTL) {
+          list = parsed.data;
+        }
+      } catch(e) {}
+    }
+
+    if (list.length === 0) {
+      const res = await window.DART_API.searchDisclosures({ page_count: 100 });
+      list = res.list || [];
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        data: list
+      }));
+    }
     
     // Calculate KPIs
     document.getElementById('kpi-total').innerText = list.length + ' 건';
