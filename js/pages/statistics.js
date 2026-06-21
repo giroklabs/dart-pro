@@ -117,8 +117,16 @@ async function initStatistics() {
     const tsStr = `기준 시점: ${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
     document.getElementById('stats-timestamp').innerText = tsStr;
     
-    // Calculate KPIs
-    document.getElementById('kpi-total').innerText = list.length + ' 건';
+    // 가장 최신 일자 찾기
+    const latestDate = list.reduce((max, item) => {
+      const dt = item.rcept_dt ? item.rcept_dt.substring(0, 8) : '';
+      return dt > max ? dt : max;
+    }, '');
+    const recentList = list.filter(item => item.rcept_dt && item.rcept_dt.startsWith(latestDate));
+    
+    // Calculate KPIs (최신 1일 기준)
+    const latestFmtDate = latestDate ? latestDate.substring(4,6) + '/' + latestDate.substring(6,8) : '';
+    document.getElementById('kpi-total').innerText = (dailyCountsCache[latestFmtDate] || recentList.length) + ' 건';
     
     let insiderCount = 0;
     let fundingCount = 0;
@@ -129,8 +137,8 @@ async function initStatistics() {
     const top10 = [];
 
     // 일자별 트렌드는 API의 실제 총 건수(trendData)를 사용하므로
-    // 아래 list 루프에서는 분류, KPI, Top10만 집계합니다.
-    list.forEach(item => {
+    // 아래 recentList 루프에서는 최신일자 1일 기준 분류, KPI, Top10만 집계합니다.
+    recentList.forEach(item => {
       let cat = '기타';
       let typeCls = 'insight-default';
       
@@ -152,16 +160,16 @@ async function initStatistics() {
     });
     
     if(top10.length < 10) {
-      for(let i=0; i<list.length && top10.length < 10; i++) {
-        if(!top10.find(t => t.rcept_no === list[i].rcept_no)) {
+      for(let i=0; i<recentList.length && top10.length < 10; i++) {
+        if(!top10.find(t => t.rcept_no === recentList[i].rcept_no)) {
           let c = '기타';
           let cls = 'insight-default';
           if (typeof getQuickInsightData === 'function') {
-            const q = getQuickInsightData(list[i]);
+            const q = getQuickInsightData(recentList[i]);
             c = q.category || '기타';
             cls = q.typeCls || 'insight-default';
           }
-          top10.push({...list[i], cat: c, typeCls: cls});
+          top10.push({...recentList[i], cat: c, typeCls: cls});
         }
       }
     }
