@@ -1,28 +1,29 @@
 // Statistics Page
 async function renderStatistics() {
   return `
-    <div class="page-header">
+    <div class="page-header" style="display: flex; align-items: baseline; gap: 12px;">
       <h2>공시통계</h2>
+      <span id="stats-timestamp" style="font-size: 13px; color: var(--on-surface-variant); font-weight: 500;"></span>
     </div>
     
     <div class="stats-grid">
       <!-- KPI Cards -->
-      <div class="stat-card" style="grid-column: span 12;">
-        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div class="stat-card" style="grid-column: span 12; padding: 0; background: transparent; border: none; box-shadow: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
           <div class="kpi-box">
-            <div class="kpi-title">분석 대상 공시</div>
+            <div class="kpi-title"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:text-bottom; color:var(--primary);">monitoring</span> 분석 대상 공시</div>
             <div class="kpi-value" id="kpi-total">로딩중...</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-title">내부자 시그널</div>
+            <div class="kpi-title"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:text-bottom; color:#a855f7;">group_work</span> 내부자 시그널</div>
             <div class="kpi-value" id="kpi-insider">로딩중...</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-title">주요 자금조달</div>
+            <div class="kpi-title"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:text-bottom; color:#22c55e;">payments</span> 주요 자금조달</div>
             <div class="kpi-value" id="kpi-funding">로딩중...</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-title">긴급/위험 공시</div>
+            <div class="kpi-title"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:text-bottom; color:#ef4444;">warning</span> 긴급/위험 공시</div>
             <div class="kpi-value" id="kpi-danger">로딩중...</div>
           </div>
         </div>
@@ -30,7 +31,7 @@ async function renderStatistics() {
 
       <!-- Charts -->
       <div class="stat-card" style="grid-column: span 8;">
-        <h3 style="font-size:15px; font-weight:700; margin-bottom:16px;">최근 공시 발생 트렌드 (일자별)</h3>
+        <h3 style="font-size:15px; font-weight:700; margin-bottom:16px;">최근 7일 공시 발생 트렌드 (일자별)</h3>
         <div style="height: 250px;">
           <canvas id="trendChart"></canvas>
         </div>
@@ -68,9 +69,10 @@ async function renderStatistics() {
 
 async function initStatistics() {
   try {
-    const CACHE_KEY = 'dart_stats_cache_0619';
+    const CACHE_KEY = 'dart_stats_cache_7days_v2';
     const CACHE_TTL = 10 * 60 * 1000; // 10분 캐싱
     let list = [];
+    let fetchTime = Date.now();
     
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -78,18 +80,26 @@ async function initStatistics() {
         const parsed = JSON.parse(cached);
         if (Date.now() - parsed.timestamp < CACHE_TTL) {
           list = parsed.data;
+          fetchTime = parsed.timestamp;
         }
       } catch(e) {}
     }
 
     if (list.length === 0) {
-      const res = await window.DART_API.searchDisclosures({ bgn_de: '20260619', end_de: '20260619', page_count: 100 });
+      // 6월 13일부터 6월 19일까지 7일간의 데이터
+      const res = await window.DART_API.searchDisclosures({ bgn_de: '20260613', end_de: '20260619', page_count: 100 });
       list = res.list || [];
+      fetchTime = Date.now();
       localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
+        timestamp: fetchTime,
         data: list
       }));
     }
+    
+    // Set Timestamp
+    const d = new Date(fetchTime);
+    const tsStr = `기준 시점: ${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('stats-timestamp').innerText = tsStr;
     
     // Calculate KPIs
     document.getElementById('kpi-total').innerText = list.length + ' 건';
@@ -102,11 +112,14 @@ async function initStatistics() {
     const trendData = {};
     const top10 = [];
 
+    for (let day = 13; day <= 19; day++) {
+      trendData[`06/${day}`] = 0;
+    }
+
     list.forEach(item => {
       let cat = '기타';
       let typeCls = 'insight-default';
       
-      // Attempt to use getQuickInsightData if available
       if (typeof getQuickInsightData === 'function') {
         const quick = getQuickInsightData(item);
         cat = quick.category || '기타';
@@ -119,17 +132,20 @@ async function initStatistics() {
       
       categoryCount[cat] = (categoryCount[cat] || 0) + 1;
       
-      // trend by date (MM/DD)
       const dateStr = item.rcept_dt ? item.rcept_dt.substring(4, 8) : 'Unk'; 
       const fmtDate = dateStr !== 'Unk' ? dateStr.substring(0,2) + '/' + dateStr.substring(2,4) : 'Unk';
-      trendData[fmtDate] = (trendData[fmtDate] || 0) + 1;
+      
+      if (trendData[fmtDate] !== undefined) {
+        trendData[fmtDate] = trendData[fmtDate] + 1;
+      } else {
+        trendData[fmtDate] = 1;
+      }
       
       if ((typeCls === 'insight-major' || typeCls === 'insight-warning' || typeCls === 'insight-purple') && top10.length < 10) {
         top10.push({...item, cat, typeCls});
       }
     });
     
-    // Fill up to 10 if needed
     if(top10.length < 10) {
       for(let i=0; i<list.length && top10.length < 10; i++) {
         if(!top10.find(t => t.rcept_no === list[i].rcept_no)) {
@@ -159,6 +175,18 @@ async function initStatistics() {
         <td><span class="${item.typeCls}" style="padding:4px 8px; border-radius:4px; font-size:11px; background-color:var(--surface-container-high); border-left:3px solid currentColor;">${item.cat}</span></td>
       </tr>
     `).join('');
+
+    // Process Category Data for top 5 + '기타'
+    const catEntries = Object.entries(categoryCount).sort((a,b) => b[1] - a[1]);
+    const topCats = catEntries.slice(0, 5);
+    let otherCount = 0;
+    catEntries.slice(5).forEach(e => { otherCount += e[1]; });
+    if (otherCount > 0) {
+      topCats.push(['기타', otherCount]);
+    }
+    
+    const donutLabels = topCats.map(e => e[0]);
+    const donutData = topCats.map(e => e[1]);
 
     // Render Charts
     if (typeof Chart !== 'undefined') {
@@ -190,10 +218,10 @@ async function initStatistics() {
       new Chart(ctxType, {
         type: 'doughnut',
         data: {
-          labels: Object.keys(categoryCount),
+          labels: donutLabels,
           datasets: [{
-            data: Object.values(categoryCount),
-            backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#64748b', '#0ea5e9', '#ec4899'],
+            data: donutData,
+            backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#64748b'],
             borderWidth: 0
           }]
         },
@@ -201,7 +229,7 @@ async function initStatistics() {
           responsive: true,
           maintainAspectRatio: false,
           plugins: { 
-            legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } 
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, padding: 16 } } 
           },
           cutout: '70%'
         }
