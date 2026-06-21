@@ -43,7 +43,7 @@ async function renderWatchlistTable() {
     displayName = (corrected && corrected !== code) ? corrected : code;
 
     return `
-      <tr>
+      <tr style="transition:background 0.2s;" onmouseover="this.style.background='var(--surface-container-low)'" onmouseout="this.style.background='transparent'">
         <td class="bold">${displayName}</td>
         <td class="mono">${code}</td>
         <td class="text-right">
@@ -58,7 +58,7 @@ async function renderWatchlistTable() {
       <h3 class="t-title-md">관심 종목 (보유 기업)</h3>
       <button class="btn-text" style="color:var(--error); font-size:12px;" onclick="clearAllWatchlist()">전체 삭제</button>
     </div>
-    <table class="data-table">
+    <table class="stat-table">
       <tbody>
         ${rows.join('')}
       </tbody>
