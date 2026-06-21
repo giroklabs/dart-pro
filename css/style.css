@@ -378,12 +378,51 @@ table { border-collapse: collapse; width: 100%; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Empty State */
+/* Empty State Upgrade */
 .empty-state {
-  text-align: center; padding: 60px 20px; color: var(--outline);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 80px 20px; color: var(--outline);
 }
-.empty-state .material-symbols-outlined { font-size: 48px; margin-bottom: 12px; display: block; }
-.empty-state p { font-size: 14px; }
+.empty-state .material-symbols-outlined { 
+  font-size: 40px; 
+  color: var(--outline-variant); 
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--surface-container);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px auto;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+}
+.empty-state p { 
+  font-size: 15px; font-weight: 500; color: var(--on-surface-variant); max-width: 300px; line-height: 1.5;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 12px; pointer-events: none;
+}
+.toast {
+  background: var(--inverse-surface); color: var(--inverse-on-surface);
+  padding: 14px 20px; border-radius: var(--r-md);
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  display: flex; align-items: center; gap: 12px; pointer-events: auto;
+  animation: toast-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  opacity: 0; min-width: 240px;
+}
+.toast.toast-hiding { animation: toast-slide-out 0.3s forwards; }
+@keyframes toast-slide-in {
+  0% { transform: translateX(120%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes toast-slide-out {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+.toast .material-symbols-outlined { font-size: 20px; }
+.toast.error { background: var(--error); color: var(--on-error); }
+.toast.success { background: var(--success); color: white; }
+
 
 /* Pagination */
 .pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: var(--sp-lg); }

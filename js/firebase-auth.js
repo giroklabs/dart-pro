@@ -54,7 +54,7 @@ const FB_AUTH = {
       await auth().signInWithPopup(provider);
     } catch (error) {
       console.error('Login failed:', error);
-      alert('로그인에 실패했습니다.');
+      window.showToast('로그인에 실패했습니다.', 'error');
     }
   },
   
@@ -66,7 +66,7 @@ const FB_AUTH = {
       await auth().signInWithPopup(provider);
     } catch (error) {
       console.error('Apple Login failed:', error);
-      alert(`애플 로그인 실패: [${error.code}] ${error.message}`);
+      window.showToast(`애플 로그인 실패: [${error.code}] ${error.message}`, 'error');
     }
   },
 

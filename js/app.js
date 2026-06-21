@@ -15,6 +15,30 @@ document.addEventListener('DOMContentLoaded', () => {
   router();
 });
 
+window.showToast = function(message, type = 'info') {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  let icon = 'info';
+  if (type === 'success') icon = 'check_circle';
+  if (type === 'error') icon = 'error';
+  
+  toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span><span>${message}</span>`;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('toast-hiding');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+};
+
 async function router() {
   try {
     const hash = location.hash || '#/';
