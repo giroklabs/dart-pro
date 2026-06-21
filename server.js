@@ -503,17 +503,17 @@ function getRankLabel(score) {
       const corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
       let results = [];
       if (Array.isArray(corps)) {
-        results = corps.filter(c => (c.name && c.name.includes(query)) || (c.code && c.code.includes(query)));
+        results = corps.filter(c => (c.name && (c.name.includes(query) || query.includes(c.name))) || (c.code && c.code.includes(query)));
       } else {
         results = Object.entries(corps)
           .filter(([key, val]) => !/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val))
-          .filter(([name, code]) => name.includes(query) || code.includes(query))
+          .filter(([name, code]) => name.includes(query) || query.includes(name) || code.includes(query))
           .map(([name, code]) => ({ code, name }));
       }
 
       // INTERNAL_MAP 데이터 병합 (중복 제거)
       const internalResults = Object.entries(INTERNAL_MAP)
-        .filter(([name, code]) => name.includes(query) || code.includes(query))
+        .filter(([name, code]) => name.includes(query) || query.includes(name) || code.includes(query))
         .map(([name, code]) => ({ code, name }));
       
       const allResults = [...internalResults];
