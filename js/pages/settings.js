@@ -46,7 +46,7 @@ async function renderWatchlistTable() {
       <tr style="transition:background 0.2s;" onmouseover="this.style.background='var(--surface-container-low)'" onmouseout="this.style.background='transparent'">
         <td class="bold">${displayName}</td>
         <td class="mono">${code}</td>
-        <td class="text-right">
+        <td style="text-align: right;">
           <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${code}')">삭제</button>
         </td>
       </tr>
