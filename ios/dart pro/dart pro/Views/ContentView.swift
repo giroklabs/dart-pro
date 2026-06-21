@@ -10,6 +10,9 @@ struct ContentView: View {
     @State private var isGeminiEnabled = false
     @State private var selectedCorpCode: String? = nil // nil = 전체
     
+    @AppStorage("hasSeenGuide") var hasSeenGuide: Bool = false
+    @State private var sessionDismissed: Bool = false
+    
     var filteredDisclosures: [DisclosureItem] {
         guard let code = selectedCorpCode else { return manager.disclosures }
         return manager.disclosures.filter { $0.corp_code == code }
@@ -183,6 +186,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingNotificationCenter) {
             NotificationCenterView()
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { !hasSeenGuide && !sessionDismissed },
+            set: { _ in sessionDismissed = true }
+        )) {
+            GuideView(hasSeenGuide: $hasSeenGuide, sessionDismissed: $sessionDismissed)
         }
     }
 }
