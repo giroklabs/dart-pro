@@ -637,13 +637,7 @@ class DartLeanEngine:
             else:
                 details.append(f"외부감사인의 감사의견은 [{opinion}]입니다.")
 
-            if going_concern_uncertainty and going_concern_uncertainty != "-":
-                if '미해당' not in going_concern_uncertainty:
-                    # ' (주의 필요)' 등 불필요한 중복 텍스트 제거
-                    clean_uncertainty = going_concern_uncertainty.replace(" (주의 필요)", "").strip()
-                    details.append(f"계속기업 존속불확실성 여부: [{clean_uncertainty}]")
-                else:
-                    details.append(f"계속기업 존속불확실성 여부: 미해당")
+
 
             if internal_control_opinion and internal_control_opinion != "-":
                 if '미해당' not in internal_control_opinion:
