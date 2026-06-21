@@ -1,9 +1,10 @@
 // Topbar Component
 function renderTopbar() {
   return `
-    <div class="topbar-search">
-      <span class="material-symbols-outlined">search</span>
-      <input type="text" id="global-search" placeholder="기업명, 종목코드로 검색..." />
+    <div class="topbar-search" style="position: relative; display: flex; align-items: center; flex: 1;">
+      <span class="material-symbols-outlined" style="position: absolute; left: 12px;">search</span>
+      <input type="text" id="global-search" placeholder="기업명, 종목코드로 검색..." style="width: 100%; padding-right: 48px;" />
+      <kbd class="shortcut-badge" style="position: absolute; right: 8px;">⌘K</kbd>
     </div>
   `;
 }
@@ -15,6 +16,14 @@ function initTopbar() {
     if (e.key === 'Enter' && input.value.trim()) {
       location.hash = `#/company?q=${encodeURIComponent(input.value.trim())}`;
       input.value = '';
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      const searchInput = document.getElementById('global-search');
+      if (searchInput) searchInput.focus();
     }
   });
 }
