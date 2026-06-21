@@ -72,6 +72,7 @@ async function initStatistics() {
     const CACHE_KEY = 'dart_stats_cache_7days_v2';
     const CACHE_TTL = 10 * 60 * 1000; // 10분 캐싱
     let list = [];
+    let dailyCountsCache = null;
     let fetchTime = Date.now();
     
     const cached = localStorage.getItem(CACHE_KEY);
@@ -80,26 +81,34 @@ async function initStatistics() {
         const parsed = JSON.parse(cached);
         if (Date.now() - parsed.timestamp < CACHE_TTL) {
           list = parsed.data;
+          dailyCountsCache = parsed.dailyCounts || null;
           fetchTime = parsed.timestamp;
         }
       } catch(e) {}
     }
 
-    if (list.length === 0) {
+    if (list.length === 0 || !dailyCountsCache) {
       // 6월 13일부터 6월 19일까지 일자별 병렬 조회 (데이터 정밀도 향상)
       const promises = [];
       for (let day = 13; day <= 19; day++) {
         const dateStr = '202606' + String(day).padStart(2, '0');
-        promises.push(window.DART_API.searchDisclosures({ bgn_de: dateStr, end_de: dateStr, page_count: 100 }));
+        promises.push(
+          window.DART_API.searchDisclosures({ bgn_de: dateStr, end_de: dateStr, page_count: 100 })
+            .then(res => ({ day, res }))
+        );
       }
       const results = await Promise.all(promises);
-      results.forEach(res => {
+      dailyCountsCache = {};
+      results.forEach(({ day, res }) => {
+        const fmtDate = \`06/\${String(day).padStart(2, '0')}\`;
+        dailyCountsCache[fmtDate] = res.total_count || (res.list ? res.list.length : 0);
         if (res.list) list = list.concat(res.list);
       });
       fetchTime = Date.now();
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: fetchTime,
-        data: list
+        data: list,
+        dailyCounts: dailyCountsCache
       }));
     }
     
@@ -116,13 +125,11 @@ async function initStatistics() {
     let dangerCount = 0;
     
     const categoryCount = {};
-    const trendData = {};
+    const trendData = { ...dailyCountsCache };
     const top10 = [];
 
-    for (let day = 13; day <= 19; day++) {
-      trendData[`06/${day}`] = 0;
-    }
-
+    // 일자별 트렌드는 API의 실제 총 건수(trendData)를 사용하므로
+    // 아래 list 루프에서는 분류, KPI, Top10만 집계합니다.
     list.forEach(item => {
       let cat = '기타';
       let typeCls = 'insight-default';
@@ -138,15 +145,6 @@ async function initStatistics() {
       if (typeCls === 'insight-major' || typeCls === 'insight-warning') dangerCount++;
       
       categoryCount[cat] = (categoryCount[cat] || 0) + 1;
-      
-      const dateStr = item.rcept_dt ? item.rcept_dt.substring(4, 8) : 'Unk'; 
-      const fmtDate = dateStr !== 'Unk' ? dateStr.substring(0,2) + '/' + dateStr.substring(2,4) : 'Unk';
-      
-      if (trendData[fmtDate] !== undefined) {
-        trendData[fmtDate] = trendData[fmtDate] + 1;
-      } else {
-        trendData[fmtDate] = 1;
-      }
       
       if ((typeCls === 'insight-major' || typeCls === 'insight-warning' || typeCls === 'insight-purple') && top10.length < 10) {
         top10.push({...item, cat, typeCls});
