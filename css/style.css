@@ -205,13 +205,39 @@ table { border-collapse: collapse; width: 100%; }
 /* Cards */
 .card {
   background: var(--surface-container-lowest);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--r-lg);
+  border: 1px solid rgba(226, 229, 233, 0.6);
+  border-radius: 16px;
   padding: var(--sp-lg);
-  transition: border-color 0.2s;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
-.card:hover { border-color: var(--secondary); }
-.card-static:hover { border-color: var(--outline-variant); }
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--secondary) 0%, rgba(0, 88, 190, 0.2) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.card:hover { 
+  border-color: rgba(0, 88, 190, 0.2); 
+  box-shadow: 0 12px 32px rgba(0, 88, 190, 0.08);
+  transform: translateY(-2px);
+}
+.card:hover::before {
+  opacity: 1;
+}
+.card-static:hover { 
+  border-color: rgba(226, 229, 233, 0.6); 
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
+  transform: none;
+}
+.card-static:hover::before {
+  opacity: 0;
+}
 
 /* Stat Cards */
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-lg); margin-bottom: var(--sp-xl); }
