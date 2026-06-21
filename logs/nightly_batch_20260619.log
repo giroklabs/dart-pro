@@ -1,0 +1,3 @@
+2026-06-19 19:00:00,352 [INFO] nightly_batch: Starting Nightly LLM Analyzer Batch...
+2026-06-19 19:00:00,919 [WARNING] lean_engine.llm_analyzer: LLM Model not configured. Skipping LLM analysis.
+2026-06-19 19:00:00,920 [INFO] nightly_batch: Nightly Batch completed successfully.

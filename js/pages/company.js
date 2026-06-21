@@ -21,7 +21,6 @@ async function renderCompany() {
   return `
     <div class="page-header">
       <h2>기업조회</h2>
-      <p>기업명 또는 고유번호로 기업개황 조회</p>
     </div>
     <div class="filter-bar">
       <div class="form-group" style="flex:2;">

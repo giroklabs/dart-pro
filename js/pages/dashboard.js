@@ -41,7 +41,6 @@ async function renderDashboard() {
     <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <div>
         <h2>대시보드</h2>
-        <p>DART 전자공시 실시간 모니터링</p>
       </div>
       <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
         <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${geminiStyle}" onclick="switchAiMode('gemini')">🤖 학습모델</button>

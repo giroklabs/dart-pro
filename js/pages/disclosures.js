@@ -9,7 +9,6 @@ function renderDisclosures() {
   return `
     <div class="page-header">
       <h2>공시검색</h2>
-      <p>DART 전자공시 상세 검색</p>
     </div>
     <div class="filter-bar">
       <div class="form-group">

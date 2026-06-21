@@ -4,7 +4,6 @@ async function renderSettings() {
   return `
     <div class="page-header">
       <h2>관심종목</h2>
-      <p>관심 종목 관리</p>
     </div>
     
     <div class="settings-section">

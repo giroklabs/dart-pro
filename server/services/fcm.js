@@ -2,8 +2,8 @@ const admin = require('firebase-admin');
 const path = require('path');
 const fs = require('fs');
 
-// 서비스 계정 키 파일 경로 (사용자가 직접 설정해야 함)
-const serviceAccountPath = path.join(__dirname, '../config/firebase-service-account.json');
+// 서비스 계정 키 파일 경로 (루트 디렉토리의 service-account.json)
+const serviceAccountPath = path.join(__dirname, '../../service-account.json');
 
 if (fs.existsSync(serviceAccountPath)) {
   admin.initializeApp({
