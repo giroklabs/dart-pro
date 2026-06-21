@@ -81,7 +81,7 @@ async function doDisclosureSearch(page) {
         총 <strong>${Number(data.total_count).toLocaleString()}</strong>건 (${data.page_no}/${data.total_page} 페이지)
       </div>
       <div class="card card-static" style="padding:0;overflow:hidden;">
-        <table class="data-table">
+        <table class="stat-table">
           <thead><tr>
             <th style="width:120px;">접수일</th>
             <th>회사명</th>
@@ -90,11 +90,11 @@ async function doDisclosureSearch(page) {
             <th style="width:100px;">제출인</th>
           </tr></thead>
           <tbody>${data.list.map(item => `
-            <tr style="cursor:pointer;" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')">
+            <tr style="cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='var(--surface-container-low)'" onmouseout="this.style.background='transparent'" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')">
               <td class="mono">${api.formatDate(item.rcept_dt)}</td>
               <td class="bold" style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.corp_name || ''}</td>
               <td style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.report_nm || ''}</td>
-              <td style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span class="pill ${api.pillClass(item.corp_cls)}">${api.corpClsNames[item.corp_cls] || ''}</span></td>
+              <td style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span class="pill ${api.pillClass(item.corp_cls)}" style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600; background-color:var(--surface-container-high); border:1px solid var(--outline-variant); color:var(--on-surface);">${api.corpClsNames[item.corp_cls] || ''}</span></td>
               <td style="font-size:12px; color:var(--on-surface-variant); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px;">${item.flr_nm || ''}</td>
             </tr>
           `).join('')}</tbody>
