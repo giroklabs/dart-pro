@@ -514,7 +514,7 @@ const QUICK_RULES = [
     category: '지배구조',
     impact: '내부자 시그널',
     urgency: 80,
-    typeCls: 'insight-info',
+    typeCls: 'insight-purple',
     icon: 'person_search',
     insight: '경영진 및 대주주의 지분 변동 공시입니다. 매매 방향을 통한 시그널 판단이 필요합니다.',
     points: [
@@ -664,7 +664,7 @@ const QUICK_RULES = [
     category: '투자자소통',
     impact: '정보 공개',
     urgency: 40,
-    typeCls: 'insight-info',
+    typeCls: 'insight-default',
     icon: 'campaign',
     insight: '기업설명회(IR) 개최: 경영진이 사업 현황과 전망을 직접 공개합니다.',
     points: [
