@@ -68,7 +68,7 @@ async function renderStatistics() {
 
 async function initStatistics() {
   try {
-    const res = await window.DART_API.searchFilings('', 1);
+    const res = await window.DART_API.searchDisclosures({ page_count: 100 });
     const list = res.list || [];
     
     // Calculate KPIs
