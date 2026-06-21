@@ -9,7 +9,7 @@ async function renderStatistics() {
     <div class="stats-grid">
       <!-- KPI Cards -->
       <div class="stat-card" style="grid-column: span 12; padding: 0; background: transparent; border: none; box-shadow: none;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
           <div class="kpi-box">
             <div class="kpi-title"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:text-bottom; color:var(--primary);">monitoring</span> 분석 대상 공시</div>
             <div class="kpi-value" id="kpi-total">로딩중...</div>
