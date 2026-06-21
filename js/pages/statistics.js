@@ -100,7 +100,7 @@ async function initStatistics() {
       const results = await Promise.all(promises);
       dailyCountsCache = {};
       results.forEach(({ day, res }) => {
-        const fmtDate = \`06/\${String(day).padStart(2, '0')}\`;
+        const fmtDate = `06/${String(day).padStart(2, '0')}`;
         dailyCountsCache[fmtDate] = res.total_count || (res.list ? res.list.length : 0);
         if (res.list) list = list.concat(res.list);
       });
