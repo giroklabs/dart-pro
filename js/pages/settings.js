@@ -6,7 +6,7 @@ async function renderSettings() {
       <h2>관심종목</h2>
     </div>
     
-    <div class="settings-section">
+    <div class="settings-section" style="max-width: 720px;">
       <!-- Watchlist -->
       <div class="card card-static" style="margin-bottom:var(--sp-lg);">
         <h3 class="t-headline-sm" style="margin-bottom:var(--sp-md);">관심 종목 (보유 기업)</h3>
