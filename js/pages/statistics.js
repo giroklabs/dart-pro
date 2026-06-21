@@ -68,7 +68,7 @@ async function renderStatistics() {
 
 async function initStatistics() {
   try {
-    const CACHE_KEY = 'dart_stats_cache';
+    const CACHE_KEY = 'dart_stats_cache_0619';
     const CACHE_TTL = 10 * 60 * 1000; // 10분 캐싱
     let list = [];
     
@@ -83,7 +83,7 @@ async function initStatistics() {
     }
 
     if (list.length === 0) {
-      const res = await window.DART_API.searchDisclosures({ page_count: 100 });
+      const res = await window.DART_API.searchDisclosures({ bgn_de: '20260619', end_de: '20260619', page_count: 100 });
       list = res.list || [];
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: Date.now(),
