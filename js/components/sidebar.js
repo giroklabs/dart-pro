@@ -11,11 +11,11 @@ function renderSidebar() {
   const user = window.FB_AUTH?.currentUser;
 
   return `
-    <div class="sidebar-logo">
+    <div class="sidebar-logo" onclick="location.hash='#/'; window.scrollTo({top:0, behavior:'smooth'});" style="cursor: pointer;" title="대시보드 메인으로">
       <img src="icon-512-maskable.png" class="sidebar-logo-icon" style="object-fit: cover;" />
       <div class="sidebar-logo-text">
         <h1>DART Pro</h1>
-        <p>전자공시 대시보드</p>
+        <p>관심종목 전자공시 대시보드</p>
       </div>
     </div>
     <nav class="sidebar-nav">
