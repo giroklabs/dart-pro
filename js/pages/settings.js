@@ -41,28 +41,38 @@ async function renderWatchlistTable() {
     let displayName = '불러오는 중...';
     const corrected = await api.getCorpName(code);
     displayName = (corrected && corrected !== code) ? corrected : code;
+    
+    // 기업명 첫 글자를 아이콘처럼 활용
+    const initial = displayName.charAt(0);
 
     return `
-      <tr style="transition:background 0.2s;" onmouseover="this.style.background='var(--surface-container-low)'" onmouseout="this.style.background='transparent'">
-        <td class="bold">${displayName}</td>
-        <td class="mono">${code}</td>
-        <td style="text-align: right;">
-          <button class="btn-text" style="color:var(--error);" onclick="removeFromWatchlist('${code}')">삭제</button>
-        </td>
-      </tr>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--surface-container-lowest); border:1px solid var(--outline-variant); border-radius:12px; margin-bottom:8px; transition:all 0.2s ease; cursor:default;" onmouseover="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'" onmouseout="this.style.borderColor='var(--outline-variant)'; this.style.boxShadow='none'">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:var(--primary-container); color:var(--on-primary-container); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px;">
+            ${initial}
+          </div>
+          <div>
+            <div style="font-weight:700; color:var(--on-surface); font-size:15px; margin-bottom:4px; letter-spacing:-0.3px;">${displayName}</div>
+            <div style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono); background:var(--surface-container); padding:2px 8px; border-radius:6px; display:inline-block; font-weight:600;">${code}</div>
+          </div>
+        </div>
+        <button class="btn-icon" style="color:var(--error); width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:transparent; border:none; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'" onclick="removeFromWatchlist('${code}')" title="삭제">
+          <span class="material-symbols-outlined" style="font-size:20px;">delete</span>
+        </button>
+      </div>
     `;
   }));
 
   return `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <h3 class="t-title-md">관심 종목 (보유 기업)</h3>
-      <button class="btn-text" style="color:var(--error); font-size:12px;" onclick="clearAllWatchlist()">전체 삭제</button>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:16px;">
+      <h3 style="font-size:14px; font-weight:600; color:var(--on-surface-variant);">등록된 리스트 <span style="color:var(--primary);">${watchlist.length}</span>건</h3>
+      <button class="btn-text" style="color:var(--error); font-size:13px; font-weight:600; padding:4px 8px;" onclick="clearAllWatchlist()">
+        <span class="material-symbols-outlined" style="font-size:16px; vertical-align:text-bottom; margin-right:2px;">delete_sweep</span>전체 삭제
+      </button>
     </div>
-    <table class="stat-table">
-      <tbody>
-        ${rows.join('')}
-      </tbody>
-    </table>
+    <div style="display:flex; flex-direction:column;">
+      ${rows.join('')}
+    </div>
   `;
 }
 
