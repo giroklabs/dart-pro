@@ -150,7 +150,8 @@ const api = {
     };
 
     for (const [name, code] of Object.entries(INTERNAL_MAP)) {
-      const matchName = name.toLowerCase().includes(q);
+      const nameLower = name.toLowerCase();
+      const matchName = nameLower.includes(q) || q.includes(nameLower);
       const matchCode = code.includes(q);
       if (matchName || matchCode) {
         results.push({ name, code });
@@ -167,7 +168,8 @@ const api = {
         if (isCode) {
           const name = val;
           const code = key;
-          if (code.includes(q) || name.toLowerCase().includes(q)) {
+          const nameLower = name.toLowerCase();
+          if (code.includes(q) || nameLower.includes(q) || q.includes(nameLower)) {
             if (!results.find(r => r.code === code)) {
               results.push({ name, code });
             }
