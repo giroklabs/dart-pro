@@ -6,6 +6,7 @@ struct SearchView: View {
     @State private var searchText = ""
     @State private var searchResults: [WatchItem] = []
     @State private var isSearching = false
+    @State private var hasSearched = false
     
     var body: some View {
         NavigationView {
@@ -23,11 +24,15 @@ struct SearchView: View {
                             .onSubmit {
                                 performSearch()
                             }
+                            .onChange(of: searchText) { _ in
+                                hasSearched = false
+                            }
                         
                         if !searchText.isEmpty {
                             Button(action: { 
                                 searchText = "" 
                                 searchResults = []
+                                hasSearched = false
                             }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.secondary)
@@ -43,11 +48,19 @@ struct SearchView: View {
                     if searchResults.isEmpty && !isSearching && !searchText.isEmpty {
                         VStack(spacing: 12) {
                             Spacer()
-                            Image(systemName: "questionmark.circle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.secondary)
-                            Text("검색 결과가 없습니다.")
-                                .foregroundColor(.secondary)
+                            if hasSearched {
+                                Image(systemName: "questionmark.circle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.secondary)
+                                Text("검색 결과가 없습니다.")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Image(systemName: "keyboard")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.secondary)
+                                Text("엔터 키를 눌러 검색하세요.")
+                                    .foregroundColor(.secondary)
+                            }
                             Spacer()
                         }
                     } else {
@@ -85,6 +98,7 @@ struct SearchView: View {
         guard query.count >= 2 else { return }
         
         isSearching = true
+        hasSearched = true
         manager.searchCompanies(query: query) { results in
             self.searchResults = results
             self.isSearching = false
