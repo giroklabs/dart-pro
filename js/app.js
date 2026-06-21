@@ -84,6 +84,10 @@ async function router() {
           }
         }
         break;
+      case '#/statistics':
+        content.innerHTML = await renderStatistics();
+        if (window.initStatistics) initStatistics();
+        break;
       case '#/settings':
         content.innerHTML = await renderSettings();
         break;

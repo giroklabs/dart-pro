@@ -5,6 +5,7 @@ function renderSidebar() {
     { hash: '#/', icon: 'dashboard', label: '대시보드' },
     { hash: '#/disclosures', icon: 'list_alt', label: '공시검색' },
     { hash: '#/company', icon: 'apartment', label: '기업조회' },
+    { hash: '#/statistics', icon: 'bar_chart', label: '공시통계' },
     { hash: '#/settings', icon: 'star', label: '관심종목' },
   ];
 
