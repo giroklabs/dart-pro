@@ -51,9 +51,9 @@ async function renderWatchlistTable() {
           <div style="width:42px; height:42px; border-radius:12px; background:var(--primary-container); color:var(--on-primary-container); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px;">
             ${initial}
           </div>
-          <div>
-            <div style="font-weight:700; color:var(--on-surface); font-size:15px; margin-bottom:4px; letter-spacing:-0.3px;">${displayName}</div>
-            <div style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono); background:var(--surface-container); padding:2px 8px; border-radius:6px; display:inline-block; font-weight:600;">${code}</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="font-weight:700; color:var(--on-surface); font-size:15px; letter-spacing:-0.3px;">${displayName}</div>
+            <div style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono); background:var(--surface-container); padding:2px 8px; border-radius:6px; font-weight:600;">${code}</div>
           </div>
         </div>
         <button class="btn-icon" style="color:var(--error); width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:transparent; border:none; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'" onclick="removeFromWatchlist('${code}')" title="삭제">
