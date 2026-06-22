@@ -2541,8 +2541,8 @@ if __name__ == "__main__":
                 engine.run_pipeline("", today, today)
             except Exception as e:
                 logger.error("실행 중 오류 발생: %s", e)
-            logger.info("다음 실행을 위해 10분 대기합니다...")
-            time.sleep(600)
+            logger.info("다음 실행을 위해 3분 대기합니다...")
+            time.sleep(180)
     finally:
         if engine:
             engine.close()
