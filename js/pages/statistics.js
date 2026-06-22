@@ -128,7 +128,7 @@ async function initStatistics() {
     // Set Timestamp based on data
     const latestFmtDate = latestDate ? parseInt(latestDate.substring(4,6)) + '/' + parseInt(latestDate.substring(6,8)) : '';
     const d = new Date(fetchTime);
-    const tsStr = `기준: ${latestFmtDate}일자 공시 (조회: ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')})`;
+    const tsStr = `${latestFmtDate}일자 공시 (조회: ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')})`;
     document.getElementById('stats-timestamp').innerText = tsStr;
     
     // Calculate KPIs (최신 1일 기준)
