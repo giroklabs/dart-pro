@@ -31,7 +31,7 @@ async function renderDashboard() {
   // 디폴트 필터는 전체
   window.currentDashboardFilter = window.currentDashboardFilter || '전체';
   
-  const categories = ['전체', '자금조달', '감사·리스크', '내부자시그널', '주주환원', '실적발표', '공급·투자', '경영·지배구조', '법적분쟁'];
+  const categories = ['전체', '중요', '자금조달', '감사·리스크', '내부자시그널', '주주환원', '실적발표', '공급·투자', '경영·지배구조', '법적분쟁'];
   const filterTabsHtml = categories.map(cat => {
     const activeCls = window.currentDashboardFilter === cat ? 'active' : '';
     return `<div class="filter-tab ${activeCls}" data-filter="${cat}" onclick="filterDashboardCategory('${cat}')">${cat}</div>`;
@@ -1043,6 +1043,16 @@ window.filterDashboardCategory = function(category) {
 
 function filterGroupsByCategory(groups, category) {
   if (category === '전체') return groups;
+  
+  if (category === '중요') {
+    return groups.map(g => {
+      const filteredList = g.list.filter(item => calculateDisclosureScore(item.report_nm || '') >= 2.5);
+      return {
+        ...g,
+        list: filteredList
+      };
+    }).filter(g => g.list.length > 0);
+  }
   
   return groups.map(g => {
     const filteredList = g.list.filter(item => getDisclosureCategory(item) === category);
