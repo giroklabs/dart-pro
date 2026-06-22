@@ -25,8 +25,6 @@ async function renderDashboard() {
   const isPremium = window.FB_AUTH && window.FB_AUTH.isPremium;
   
   let aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
-  const quickStyle = aiMode === 'quick' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
-  const geminiStyle = aiMode === 'gemini' ? 'background:var(--primary); color:white;' : 'color:var(--on-surface-variant);';
 
   // 디폴트 필터는 전체
   window.currentDashboardFilter = window.currentDashboardFilter || '전체';
@@ -42,9 +40,9 @@ async function renderDashboard() {
       <div>
         <h2>대시보드</h2>
       </div>
-      <div style="display:flex; background:var(--surface-container-high); border-radius:8px; overflow:hidden; border:1px solid var(--outline-variant);">
-        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; ${geminiStyle}" onclick="switchAiMode('gemini')">🤖 학습모델</button>
-        <button class="btn-text" style="padding:6px 12px; font-size:12px; border-radius:0; border-left:1px solid var(--outline-variant); ${quickStyle}" onclick="switchAiMode('quick')">⚡️ QUICK 분석</button>
+      <div style="display:flex; background:var(--surface-container-high); border-radius:8px; padding:4px; gap:4px;">
+        <button class="btn-text" style="padding:6px 16px; font-size:12px; font-weight:600; border-radius:6px; transition:all 0.2s; ${aiMode === 'gemini' ? 'background:var(--surface); color:var(--on-surface); box-shadow:0 1px 2px rgba(0,0,0,0.1);' : 'color:var(--on-surface-variant);'}" onclick="switchAiMode('gemini')">AI 학습모델</button>
+        <button class="btn-text" style="padding:6px 16px; font-size:12px; font-weight:600; border-radius:6px; transition:all 0.2s; ${aiMode === 'quick' ? 'background:var(--surface); color:var(--on-surface); box-shadow:0 1px 2px rgba(0,0,0,0.1);' : 'color:var(--on-surface-variant);'}" onclick="switchAiMode('quick')">QUICK 분석</button>
       </div>
     </div>
     
