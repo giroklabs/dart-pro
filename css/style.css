@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 /* ===== DART Pro Design System ===== */
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
@@ -60,7 +61,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 20px;
   color: var(--on-surface);
@@ -74,9 +75,9 @@ input, select { font-family: inherit; font-size: inherit; }
 table { border-collapse: collapse; width: 100%; }
 
 /* ===== Typography ===== */
-.t-headline-xl { font-family: 'Manrope', sans-serif; font-size: 30px; font-weight: 700; line-height: 38px; letter-spacing: -0.02em; }
-.t-headline-md { font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 600; line-height: 28px; letter-spacing: -0.01em; }
-.t-headline-sm { font-family: 'Manrope', sans-serif; font-size: 16px; font-weight: 600; line-height: 24px; }
+.t-headline-xl { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 30px; font-weight: 700; line-height: 38px; letter-spacing: -0.02em; }
+.t-headline-md { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 20px; font-weight: 600; line-height: 28px; letter-spacing: -0.01em; }
+.t-headline-sm { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 16px; font-weight: 600; line-height: 24px; }
 .t-body-lg { font-size: 16px; font-weight: 400; line-height: 24px; }
 .t-body-md { font-size: 14px; font-weight: 400; line-height: 20px; }
 .t-data-mono { font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: -0.01em; }
@@ -104,7 +105,7 @@ table { border-collapse: collapse; width: 100%; }
   width: 42px; height: 42px;
   border-radius: var(--r-default); display: flex; align-items: center; justify-content: center;
 }
-.sidebar-logo-text h1 { font-family: 'Manrope'; font-size: 22px; font-weight: 900; line-height: 1; color: var(--on-surface); }
+.sidebar-logo-text h1 { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 22px; font-weight: 900; line-height: 1; color: var(--on-surface); }
 .sidebar-logo-text p { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--outline); font-weight: 700; margin-top: 4px; }
 
 .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 0 8px; }
@@ -114,7 +115,7 @@ table { border-collapse: collapse; width: 100%; }
   padding: 10px 16px;
   border-radius: 24px;
   color: var(--outline);
-  font-family: 'Manrope'; font-size: 14px; font-weight: 500;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 14px; font-weight: 500;
   transition: all 0.2s;
   border: 1px solid transparent;
 }
@@ -181,7 +182,7 @@ table { border-collapse: collapse; width: 100%; }
 .btn-primary {
   padding: 10px 20px;
   background: var(--primary); color: white;
-  font-family: 'Manrope'; font-size: 14px; font-weight: 700;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 14px; font-weight: 700;
   border-radius: var(--r-default);
   transition: opacity 0.2s;
 }
@@ -190,7 +191,7 @@ table { border-collapse: collapse; width: 100%; }
 .btn-secondary {
   padding: 8px 16px;
   border: 1px solid var(--secondary); color: var(--secondary);
-  font-family: 'Manrope'; font-size: 13px; font-weight: 600;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 13px; font-weight: 600;
   border-radius: var(--r-default);
   transition: all 0.2s;
 }
@@ -283,7 +284,7 @@ table { border-collapse: collapse; width: 100%; }
   font-size: 12px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--on-surface-variant); margin-bottom: 8px;
 }
-.stat-card .stat-value { font-family: 'Manrope'; font-size: 28px; font-weight: 700; color: var(--on-surface); }
+.stat-card .stat-value { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 28px; font-weight: 700; color: var(--on-surface); }
 .stat-card .stat-meta {
   display: flex; align-items: center; gap: 4px;
   margin-top: 8px; font-size: 13px; font-weight: 500;
@@ -313,13 +314,13 @@ table { border-collapse: collapse; width: 100%; }
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 11px; color: var(--on-surface-variant);
 }
-.feed-card-corp h4 { font-family: 'Manrope'; font-size: 14px; font-weight: 600; color: var(--on-surface); }
+.feed-card-corp h4 { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 14px; font-weight: 600; color: var(--on-surface); }
 .feed-card-corp p { font-size: 12px; font-weight: 600; color: var(--on-surface-variant); }
 .feed-card-date {
   font-size: 12px; font-weight: 500; color: var(--on-surface-variant);
   background: var(--surface-container); padding: 4px 8px; border-radius: var(--r-default);
 }
-.feed-card-title { font-family: 'Manrope'; font-size: 15px; font-weight: 600; color: var(--on-surface); margin-bottom: 8px; line-height: 1.5; }
+.feed-card-title { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 15px; font-weight: 600; color: var(--on-surface); margin-bottom: 8px; line-height: 1.5; }
 .feed-card-body { color: var(--on-surface-variant); font-size: 13px; line-height: 1.6; margin-bottom: var(--sp-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 .feed-card-tags { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -373,11 +374,11 @@ table { border-collapse: collapse; width: 100%; }
 
 /* Section Headers */
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-md); }
-.section-title { font-family: 'Manrope'; font-size: 20px; font-weight: 600; color: var(--on-surface); }
+.section-title { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 20px; font-weight: 600; color: var(--on-surface); }
 
 /* Page Header */
 .page-header { margin-bottom: var(--sp-xl); }
-.page-header h2 { font-family: 'Manrope'; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--on-surface); margin-bottom: 10px; }
+.page-header h2 { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--on-surface); margin-bottom: 10px; }
 .page-header p { color: var(--on-surface-variant); font-size: 14px; }
 
 /* Two Column Layout */
@@ -393,12 +394,12 @@ table { border-collapse: collapse; width: 100%; }
 }
 .dark-banner-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .dark-banner-head .material-symbols-outlined { color: var(--secondary-fixed); font-size: 20px; }
-.dark-banner-head span { font-family: 'Manrope'; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--secondary-fixed); }
+.dark-banner-head span { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--secondary-fixed); }
 .dark-banner p { font-size: 14px; color: var(--primary-fixed-dim); line-height: 1.6; margin-bottom: var(--sp-md); }
 .dark-banner .btn-action {
   width: 100%; padding: 10px;
   background: var(--secondary); color: white;
-  font-family: 'Manrope'; font-size: 13px; font-weight: 700;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 13px; font-weight: 700;
   border-radius: var(--r-lg); transition: background 0.2s;
 }
 .dark-banner .btn-action:hover { background: #1a7ae8; }
@@ -441,7 +442,7 @@ table { border-collapse: collapse; width: 100%; }
 .toast {
   background: var(--inverse-surface); color: var(--inverse-on-surface);
   padding: 14px 20px; border-radius: var(--r-md);
-  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; font-size: 14px; font-weight: 500;
   box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   display: flex; align-items: center; gap: 12px; pointer-events: auto;
   animation: toast-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
