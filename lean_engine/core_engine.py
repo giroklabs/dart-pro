@@ -448,22 +448,25 @@ class DartLeanEngine:
                     elif '계약상대방' in k:
                         partner = v
                         
-        if contract_amount and sales_amount:
+        details = []
+        if partner and partner != "-":
+            details.append(f"계약 상대방: {partner}")
+        if contract_amount:
+            details.append(f"계약 금액: {contract_amount}")
+            
+        if percent:
+            details.append(f"최근 매출액 대비: {percent}")
+        elif sales_amount and contract_amount:
             try:
                 c_num = float(contract_amount.replace(',', '').replace('원', '').strip())
                 s_num = float(sales_amount.replace(',', '').replace('원', '').strip())
-                
-                c_formatted = f"{c_num / 100_000_000:,.1f}억원"
-                s_formatted = f"{s_num / 100_000_000:,.1f}억원"
-                
-                pct_str = percent or f"{(c_num / s_num) * 100:.2f}"
-                partner_str = f" {partner}과" if partner and partner != "-" else ""
-                
-                return f"최근 매출액({s_formatted}) 대비 **{pct_str}%** 비중에 해당하는 약 **{c_formatted}** 규모의 단일판매ㆍ공급계약을{partner_str} 체결하였습니다."
+                details.append(f"최근 매출액 대비: {(c_num / s_num) * 100:.2f}%")
             except Exception:
                 pass
+                
+        if details:
+            return "\n".join(details)
         return None
-
     def _parse_dividend_details(self, raw_text: str):
         if not raw_text:
             return None
@@ -824,6 +827,51 @@ class DartLeanEngine:
         if details:
             return "\n".join(details)
             
+        return None
+
+    def _parse_stock_cancellation(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        shares_common = ""
+        shares_other = ""
+        amount = ""
+        date = ""
+        
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    k = parts[0].replace(" ", "")
+                    if '소각할주식의종류와수' in k or '보통주식(주)' in k or '기타주식(주)' in k:
+                        if '보통주' in parts[0] or '보통주' in line:
+                            shares_common = parts[-1]
+                        elif '기타주식' in parts[0] or '기타주식' in line:
+                            shares_other = parts[-1]
+                        elif '주식수' in k and not shares_common:
+                            shares_common = parts[-1] # fallback
+                    elif '소각예정금액' in k:
+                        amount = parts[-1]
+                    elif '소각예정일' in k:
+                        date = parts[-1]
+                        
+        details = []
+        shares_text = ""
+        if shares_common and shares_common not in ['-', '0']:
+            shares_text += f"보통주 {shares_common}주 "
+        if shares_other and shares_other not in ['-', '0']:
+            shares_text += f"기타주식 {shares_other}주"
+            
+        if shares_text:
+            details.append(f"소각 예정 주식수: {shares_text.strip()}")
+        if amount:
+            details.append(f"소각 예정 금액: {amount}원")
+        if date:
+            details.append(f"소각 예정일: {date}")
+            
+        if details:
+            return "\n".join(details)
         return None
 
     def _parse_unfaithful_disclosure(self, raw_text: str):
@@ -1681,20 +1729,22 @@ class DartLeanEngine:
             
         details = []
         if total_amount > 0:
-            details.append(f"총 증자 규모는 {self._format_krw(total_amount)}입니다.")
-        elif total_shares > 0:
-            details.append(f"총 {total_shares:,}주의 신주 발행을 결정했습니다.")
+            details.append(f"증자 규모: {self._format_krw(total_amount)}")
+        if total_shares > 0:
+            details.append(f"발행 신주 수: {total_shares:,}주")
+        if issue_price:
+            details.append(f"신주 발행가액: {issue_price:,}원")
             
         purposes = []
         for name, amt in funding_purposes.items():
             if amt and amt > 0:
                 purposes.append(f"{name}({self._format_krw(amt)})")
         if purposes:
-            details.append("자금 조달 목적은 " + ", ".join(purposes) + "입니다.")
+            details.append("자금조달 목적: " + ", ".join(purposes))
             
         if record_date:
             record_date_clean = re.sub(r'\s+', ' ', record_date).strip()
-            details.append(f"신주배정기준일은 {record_date_clean}이며,")
+            details.append(f"신주배정기준일: {record_date_clean}")
             
         if allocation_ratio:
             try:
@@ -1702,13 +1752,13 @@ class DartLeanEngine:
                 ratio_str = f"{ratio_val:.4f}주"
             except ValueError:
                 ratio_str = allocation_ratio
-            details.append(f"1주당 신주배정주식수는 {ratio_str}입니다.")
+            details.append(f"1주당 신주배정주식수: {ratio_str}")
             
         if listing_date:
             listing_date_clean = re.sub(r'\s+', ' ', listing_date).strip()
-            details.append(f"신주 상장 예정일은 {listing_date_clean}입니다.")
+            details.append(f"신주 상장 예정일: {listing_date_clean}")
             
-        return " ".join(details)
+        return "\n".join(details) if details else None
 
     def _build_summary(
         self,
@@ -1799,6 +1849,13 @@ class DartLeanEngine:
             if treasury_desc:
                 header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n{treasury_desc}", "[]"
+
+        # 00-20. 주식소각결정 스페셜 케이스 처리
+        if "주식소각결정" in report_nm_clean.replace(" ", ""):
+            cancel_desc = self._parse_stock_cancellation(raw_text)
+            if cancel_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{cancel_desc}", "[]"
 
         # 00-16. 일괄신고, 증권발행실적, 소액공모 스페셜 케이스 처리
         if any(k in report_nm_clean.replace(" ", "") for k in ["증권발행실적보고서", "소액공모공시서류"]):
