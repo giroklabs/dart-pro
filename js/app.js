@@ -13,9 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('auth-changed', () => router());
 
   router();
+  
+  // 실시간 공시알리미 폴링 시작
+  initNotificationPoller();
 });
 
-window.showToast = function(message, type = 'info') {
+window.showToast = function(message, type = 'info', duration = 3000, onClick = null) {
   let container = document.getElementById('toast-container');
   if (!container) {
     container = document.createElement('div');
@@ -29,15 +32,85 @@ window.showToast = function(message, type = 'info') {
   let icon = 'info';
   if (type === 'success') icon = 'check_circle';
   if (type === 'error') icon = 'error';
+  if (type === 'new_releases') icon = 'new_releases';
   
-  toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span><span>${message}</span>`;
+  toast.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;">${icon}</span><span style="flex:1;">${message}</span>`;
+  
+  if (onClick) {
+    toast.style.cursor = 'pointer';
+    toast.addEventListener('click', () => {
+      onClick();
+      toast.classList.add('toast-hiding');
+      setTimeout(() => { if (document.body.contains(toast)) toast.remove(); }, 300);
+    });
+  }
+  
   container.appendChild(toast);
   
   setTimeout(() => {
-    toast.classList.add('toast-hiding');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+    if (document.body.contains(toast)) {
+      toast.classList.add('toast-hiding');
+      setTimeout(() => { if (document.body.contains(toast)) toast.remove(); }, 300);
+    }
+  }, duration);
 };
+
+function initNotificationPoller() {
+  const POLLING_INTERVAL = 60 * 1000; // 1분 주기
+  const STORAGE_KEY = 'dart_notified_rcepts';
+  
+  setInterval(async () => {
+    try {
+      const watchlist = window.DART_API.getWatchlist();
+      if (!watchlist || watchlist.length === 0) return;
+      
+      const today = new Date();
+      const dateStr = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+      
+      // 최신 100건 전역 조회 후 관심종목 필터링 (API 한도 최적화)
+      const res = await window.DART_API.searchDisclosures({
+        bgn_de: dateStr,
+        end_de: dateStr,
+        page_count: 100
+      });
+      
+      if (res && res.list && res.list.length > 0) {
+        const matched = res.list.filter(item => watchlist.includes(item.corp_code));
+        if (matched.length === 0) return;
+
+        let notifiedObj = {};
+        try {
+          notifiedObj = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch(e) {}
+        
+        if (notifiedObj.date !== dateStr) {
+          notifiedObj = { date: dateStr, rcepts: [] };
+        }
+        
+        let newFound = false;
+        // 가장 최근 공시부터 오래된 순으로 오므로 역순으로 알림 띄우기 (오래된 것부터)
+        for (let i = matched.length - 1; i >= 0; i--) {
+          const item = matched[i];
+          if (!notifiedObj.rcepts.includes(item.rcept_no)) {
+            notifiedObj.rcepts.push(item.rcept_no);
+            newFound = true;
+            
+            const msg = `<strong style="color:var(--primary);font-size:14px;">${item.corp_name}</strong><br/><span style="font-size:13px;line-height:1.4;display:inline-block;margin-top:2px;">${item.report_nm}</span>`;
+            window.showToast(msg, 'new_releases', 8000, () => {
+              window.open(window.DART_API.viewerUrl(item.rcept_no), '_blank');
+            });
+          }
+        }
+        
+        if (newFound) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(notifiedObj));
+        }
+      }
+    } catch(err) {
+      console.warn('Notification poller error:', err);
+    }
+  }, POLLING_INTERVAL);
+}
 
 async function router() {
   try {
