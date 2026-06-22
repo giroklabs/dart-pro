@@ -69,7 +69,7 @@ async function renderStatistics() {
 
 async function initStatistics() {
   try {
-    const CACHE_KEY = 'dart_stats_cache_7days_v2';
+    const CACHE_KEY = 'dart_stats_cache_7days_v3';
     const CACHE_TTL = 10 * 60 * 1000; // 10분 캐싱
     let list = [];
     let dailyCountsCache = null;
@@ -88,19 +88,25 @@ async function initStatistics() {
     }
 
     if (list.length === 0 || !dailyCountsCache) {
-      // 6월 13일부터 6월 19일까지 일자별 병렬 조회 (데이터 정밀도 향상)
+      // 오늘 기준으로 최근 7일간 일자별 병렬 조회 (동적 계산)
       const promises = [];
-      for (let day = 13; day <= 19; day++) {
-        const dateStr = '202606' + String(day).padStart(2, '0');
+      const today = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}${mm}${dd}`;
+        const fmtDate = `${mm}/${dd}`;
         promises.push(
           window.DART_API.searchDisclosures({ bgn_de: dateStr, end_de: dateStr, page_count: 100 })
-            .then(res => ({ day, res }))
+            .then(res => ({ fmtDate, res }))
         );
       }
       const results = await Promise.all(promises);
       dailyCountsCache = {};
-      results.forEach(({ day, res }) => {
-        const fmtDate = `06/${String(day).padStart(2, '0')}`;
+      results.forEach(({ fmtDate, res }) => {
         dailyCountsCache[fmtDate] = res.total_count || (res.list ? res.list.length : 0);
         if (res.list) list = list.concat(res.list);
       });
