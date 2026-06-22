@@ -880,7 +880,7 @@ async function initDashboard() {
 
     // 데이터를 종목별로 그룹화 + 이름 교정
     const groups = await Promise.all(watchlist.map(async (code) => {
-      const corpList = allDisclosures.filter(item => item.corp_code === code).slice(0, 3);
+      const corpList = allDisclosures.filter(item => item.corp_code === code).slice(0, 5);
       const correctedName = await api.getCorpName(code);
       return {
         company: { code: code, name: correctedName },
