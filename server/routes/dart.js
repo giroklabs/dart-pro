@@ -30,6 +30,9 @@ router.get('/search', (req, res) => {
   res.json(results);
 });
 
+// Simple in-memory cache
+const apiCache = new Map();
+
 // 공통 프록시 핸들러
 router.get('/:endpoint', async (req, res, next) => {
   try {
@@ -40,11 +43,20 @@ router.get('/:endpoint', async (req, res, next) => {
       return res.status(500).json({ error: { message: '서버에 DART API 키가 설정되지 않았습니다.' } });
     }
 
-    // 클라이언트가 보낸 쿼리 파라미터에서 DART용 파라미터 구성
     const params = {
       crtfc_key: apiKey,
       ...req.query
     };
+
+    // 캐시 키 생성 및 확인 (list.json 전용, 60초 유지)
+    let cacheKey = null;
+    if (endpoint === 'list.json' || endpoint === 'searchDisclosures') {
+      cacheKey = endpoint + '_' + JSON.stringify(req.query);
+      const cached = apiCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < 60000)) {
+        return res.json(cached.data);
+      }
+    }
 
     // DART API 호출
     const dartUrl = `${DART_BASE_URL}/${endpoint}`;
@@ -64,6 +76,9 @@ router.get('/:endpoint', async (req, res, next) => {
     if (Buffer.isBuffer(response.data)) {
       res.send(response.data);
     } else {
+      if (cacheKey && response.data.status === '000') {
+        apiCache.set(cacheKey, { timestamp: Date.now(), data: response.data });
+      }
       res.json(response.data);
     }
 
