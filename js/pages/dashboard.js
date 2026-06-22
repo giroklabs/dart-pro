@@ -1017,7 +1017,7 @@ function renderDashboardUI(groups, stats, isFiltering = false) {
         </div>
       `}).join('');
     } else {
-      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>선택한 카테고리의 공시가 없거나 관심 종목을 추가해 주세요.</p></div>`;
+      feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>선택한 카테고리의 공시가 없습니다.</p></div>`;
     }
   }
 }
