@@ -95,7 +95,7 @@ function initNotificationPoller() {
             notifiedObj.rcepts.push(item.rcept_no);
             newFound = true;
             
-            const msg = `<strong style="color:var(--primary);font-size:14px;">${item.corp_name}</strong><br/><span style="font-size:13px;line-height:1.4;display:inline-block;margin-top:2px;">${item.report_nm}</span>`;
+            const msg = `<strong style="color:#ffffff;font-size:14px;">${item.corp_name}</strong><br/><span style="font-size:13px;line-height:1.4;display:inline-block;margin-top:2px;">${item.report_nm}</span>`;
             window.showToast(msg, 'new_releases', 8000, () => {
               window.open(window.DART_API.viewerUrl(item.rcept_no), '_blank');
             });
