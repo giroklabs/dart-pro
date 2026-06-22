@@ -1502,22 +1502,147 @@ class DartLeanEngine:
             return None
         lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
         
-        details = []
-        target_keys = ["자산명", "취득금액", "자산총액대비", "취득목적", "거래상대방", "양수금액", "양수목적", "취득예정일자", "양수예정일자", "처분금액"]
+        asset_name = ""
+        amount = ""
+        ratio = ""
+        purpose = ""
+        
         for line in lines:
-            if line.startswith("[테이블]"):
-                formatted = self.rule_engine.format_raw_table_to_korean(line)
-                if formatted:
-                    formatted = re.sub(r'^\d+\.\s*', '', formatted)
-                    if any(formatted.startswith(k) or f"({k})" in formatted for k in target_keys) or any(k in formatted.split(':')[0] for k in target_keys):
-                        if len(formatted) > 150:
-                            formatted = formatted[:147] + "..."
-                        details.append(f"  - {formatted}")
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    k = parts[0].replace(" ", "")
+                    v = parts[1] if len(parts) > 1 else ""
+                    if '자산의명칭' in k or '자산명칭' in k or '양수할자산' in k:
+                        asset_name = v
+                    elif '양수금액' in k or '취득금액' in k or '거래금액' in k:
+                        amount = parts[-1]
+                    elif '자산총액대비' in k:
+                        ratio = parts[-1]
+                    elif '양수목적' in k or '취득목적' in k or '거래목적' in k:
+                        purpose = v
                         
-        if not details:
-            return None
+        details = []
+        if asset_name:
+            details.append(f"자산의 명칭: {asset_name}")
+        if amount:
+            details.append(f"거래 금액: {amount}원")
+        if ratio:
+            details.append(f"자산총액 대비: {ratio}")
+        if purpose:
+            details.append(f"거래 목적: {purpose}")
             
-        return "자산 주요 변동 내역은 다음과 같습니다.\n" + "\n".join(details)
+        return "\n".join(details) if details else None
+
+    def _parse_bonus_issue(self, raw_text: str):
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        ratio = ""
+        record_date = ""
+        listing_date = ""
+        
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    k = parts[0].replace(" ", "")
+                    v = parts[-1] if len(parts) > 1 else ""
+                    if '1주당신주배정주식수' in k:
+                        ratio = v
+                    elif '신주배정기준일' in k:
+                        record_date = v
+                    elif '신주의상장예정일' in k or '상장예정일' in k:
+                        listing_date = v
+                        
+        details = []
+        if ratio:
+            details.append(f"1주당 신주배정주식수: {ratio}")
+        if record_date:
+            details.append(f"신주배정기준일: {record_date}")
+        if listing_date:
+            details.append(f"신주 상장예정일: {listing_date}")
+            
+        return "\n".join(details) if details else None
+
+    def _parse_cb_bw_issue(self, raw_text: str):
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        total_amount = ""
+        purpose = ""
+        rate1 = ""
+        rate2 = ""
+        conversion_price = ""
+        
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    k = parts[0].replace(" ", "")
+                    v = parts[-1] if len(parts) > 1 else ""
+                    if '사채의권면총액' in k or '사채의총액' in k:
+                        total_amount = v
+                    elif '자금조달의목적' in k or '자금조달목적' in k:
+                        if not purpose and '원' in v:
+                            purpose = parts[1] if len(parts) > 1 else "" 
+                    elif '표면이자율' in k:
+                        rate1 = v
+                    elif '만기이자율' in k:
+                        rate2 = v
+                    elif '전환가액' in k or '행사가액' in k:
+                        conversion_price = v
+                        
+        details = []
+        if total_amount:
+            details.append(f"권면총액(발행규모): {total_amount}원")
+        if purpose:
+            details.append(f"자금조달 목적: {purpose}")
+        if rate1 and rate2:
+            details.append(f"이자율: 표면 {rate1} / 만기 {rate2}")
+        if conversion_price:
+            details.append(f"전환/행사가액: {conversion_price}원")
+            
+        return "\n".join(details) if details else None
+
+    def _parse_other_corp_stock_acquisition(self, raw_text: str):
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        target_corp = ""
+        amount = ""
+        ratio = ""
+        purpose = ""
+        
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    k = parts[0].replace(" ", "")
+                    v = parts[1] if len(parts) > 1 else ""
+                    if '발행회사' in k or '대상회사' in k:
+                        target_corp = v
+                    elif '취득금액' in k:
+                        amount = parts[-1]
+                    elif '자기자본대비' in k:
+                        ratio = parts[-1]
+                    elif '취득목적' in k:
+                        purpose = v
+                        
+        details = []
+        if target_corp:
+            details.append(f"발행회사(인수 대상): {target_corp}")
+        if amount:
+            details.append(f"취득금액: {amount}원")
+        if ratio:
+            details.append(f"자기자본대비 비중: {ratio}")
+        if purpose:
+            details.append(f"취득목적: {purpose}")
+            
+        return "\n".join(details) if details else None
 
     def _parse_ceo_change(self, raw_text: str):
         if not raw_text:
@@ -1903,8 +2028,29 @@ class DartLeanEngine:
         if any(k in report_nm_clean.replace(" ", "") for k in ["자산취득결정", "자산양수도", "자산처분"]):
             asset_desc = self._parse_asset_acquisition(raw_text)
             if asset_desc:
-                header = f"{display_name} - {report_nm_clean} 요약"
-                return f"{header}\n\n▪ {asset_desc}", "[]"
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{asset_desc}", "[]"
+
+        # 00-21. 무상증자결정 스페셜 케이스 처리
+        if "무상증자" in report_nm_clean.replace(" ", ""):
+            bonus_desc = self._parse_bonus_issue(raw_text)
+            if bonus_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{bonus_desc}", "[]"
+
+        # 00-22. CB/BW 발행결정 스페셜 케이스 처리
+        if any(k in report_nm_clean.replace(" ", "") for k in ["전환사채권발행결정", "신주인수권부사채권발행결정"]):
+            cb_bw_desc = self._parse_cb_bw_issue(raw_text)
+            if cb_bw_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{cb_bw_desc}", "[]"
+
+        # 00-23. 타법인주식및출자증권취득결정 스페셜 케이스 처리
+        if "타법인주식" in report_nm_clean.replace(" ", "") and "취득" in report_nm_clean:
+            other_corp_desc = self._parse_other_corp_stock_acquisition(raw_text)
+            if other_corp_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{other_corp_desc}", "[]"
 
         # 00-10. 소송등의제기 스페셜 케이스 처리
         if "소송등의제기" in report_nm_clean.replace(" ", ""):
