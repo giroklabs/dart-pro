@@ -168,6 +168,70 @@ const server = http.createServer((req, res) => {
     }));
   }
 
+  // 개별 공시 블로그형 SSR 정적 페이지 (SEO)
+  const dMatch = pathname.match(/^\/d\/(\d+)$/);
+  if (dMatch) {
+    const rcept_no = dMatch[1];
+    return leanDb.get(
+      'SELECT f.report_nm, f.corp_code, f.rcept_dt, s.summary_text FROM filings f LEFT JOIN summaries s ON f.rcept_no = s.rcept_no WHERE f.rcept_no = ?',
+      [rcept_no],
+      (err, row) => {
+        if (err || !row) {
+          res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end('<h1>해당 공시를 찾을 수 없습니다.</h1><a href="/">DART Pro 홈으로 돌아가기</a>');
+        }
+        
+        let corpName = '알 수 없음';
+        try {
+          const corps = JSON.parse(fs.readFileSync(path.join(__dirname, 'corps.json'), 'utf8'));
+          const corp = corps.find(c => c.code === row.corp_code);
+          if (corp) corpName = corp.name;
+        } catch(e) {}
+
+        const title = `[${corpName}] ${row.report_nm} - 핵심 요약`;
+        const description = row.summary_text ? row.summary_text.replace(/\n/g, ' ').substring(0, 150) + '...' : `${corpName}의 ${row.report_nm} 주요 내용입니다.`;
+        const dateStr = row.rcept_dt ? `${row.rcept_dt.slice(0,4)}-${row.rcept_dt.slice(4,6)}-${row.rcept_dt.slice(6,8)}` : '';
+
+        const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} | DART Pro</title>
+  <meta name="description" content="${description}">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${description}">
+  <meta property="og:type" content="article">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+    .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h1 { font-size: 24px; color: #1a1a1a; margin-bottom: 8px; }
+    .meta { color: #666; font-size: 14px; margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 16px; }
+    .summary { font-size: 16px; white-space: pre-wrap; margin-bottom: 40px; }
+    .btn { display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center; }
+    .btn:hover { background: #1d4ed8; }
+    @media (max-width: 600px) { .container { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>[${corpName}] ${row.report_nm}</h1>
+    <div class="meta">접수일: ${dateStr} &nbsp;|&nbsp; 접수번호: ${rcept_no}</div>
+    <div class="summary">${row.summary_text ? row.summary_text.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '요약 정보가 아직 준비되지 않았습니다.'}</div>
+    <div style="text-align: center;">
+      <a href="/#/disclosures" class="btn">🚀 DART Pro에서 실시간 공시 더보기</a>
+      <div style="margin-top: 12px;"><a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${rcept_no}" target="_blank" style="color: #666; font-size: 14px;">DART 원문 보기</a></div>
+    </div>
+  </div>
+</body>
+</html>`;
+        
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+      }
+    );
+  }
+
   // 대시보드 페이지 서빙
   if (pathname === '/dashboard' || pathname === '/') {
     const indexPath = path.join(__dirname, 'public', 'index.html');
