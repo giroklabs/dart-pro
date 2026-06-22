@@ -472,25 +472,50 @@ table { border-collapse: collapse; width: 100%; }
 .pagination button.active { background: var(--primary); color: white; border-color: var(--primary); }
 .pagination button:disabled { opacity: 0.4; cursor: default; }
 
-/* Filter Bar */
+/* Filter Bar (Modern Inset Style) */
 .filter-bar {
-  display: flex; gap: var(--sp-sm); align-items: flex-end; flex-wrap: wrap;
-  padding: var(--sp-lg);
-  background: white; border: 1px solid var(--outline-variant);
-  border-radius: var(--r-lg); margin-bottom: var(--sp-lg);
+  display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap;
+  padding: 8px;
+  background: var(--surface-container-high); 
+  border: none;
+  border-radius: 12px; 
+  margin-bottom: var(--sp-lg);
 }
-.filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+.filter-bar .form-group { 
+  margin-bottom: 0; flex: 1; min-width: 140px; 
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.filter-bar .form-label {
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--on-surface-variant);
+}
+.filter-bar .form-input, .filter-bar .form-select {
+  height: 24px;
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  box-shadow: none;
+  font-size: 14px;
+  border-radius: 0;
+}
+.filter-bar .form-input:focus, .filter-bar .form-select:focus {
+  outline: none;
+  box-shadow: none;
+}
 .filter-bar .btn-primary {
-  align-self: flex-end; white-space: nowrap;
-  height: 42px;
-  border: 1px solid transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-}
-.filter-bar .form-input {
-  height: 42px;
+  align-self: stretch;
+  height: auto;
+  min-height: 48px;
+  border-radius: 8px;
+  padding: 0 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  white-space: nowrap;
 }
 
 /* Company Detail */
