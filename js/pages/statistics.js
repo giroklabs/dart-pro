@@ -112,11 +112,6 @@ async function initStatistics() {
       }));
     }
     
-    // Set Timestamp
-    const d = new Date(fetchTime);
-    const tsStr = `기준 시점: ${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
-    document.getElementById('stats-timestamp').innerText = tsStr;
-    
     // 가장 최신 일자 찾기
     const latestDate = list.reduce((max, item) => {
       const dt = item.rcept_dt ? item.rcept_dt.substring(0, 8) : '';
@@ -124,9 +119,15 @@ async function initStatistics() {
     }, '');
     const recentList = list.filter(item => item.rcept_dt && item.rcept_dt.startsWith(latestDate));
     
+    // Set Timestamp based on data
+    const latestFmtDate = latestDate ? parseInt(latestDate.substring(4,6)) + '/' + parseInt(latestDate.substring(6,8)) : '';
+    const d = new Date(fetchTime);
+    const tsStr = `기준: ${latestFmtDate}일자 공시 (조회: ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')})`;
+    document.getElementById('stats-timestamp').innerText = tsStr;
+    
     // Calculate KPIs (최신 1일 기준)
-    const latestFmtDate = latestDate ? latestDate.substring(4,6) + '/' + latestDate.substring(6,8) : '';
-    document.getElementById('kpi-total').innerText = (dailyCountsCache[latestFmtDate] || recentList.length) + ' 건';
+    const kpiFmtDate = latestDate ? latestDate.substring(4,6) + '/' + latestDate.substring(6,8) : '';
+    document.getElementById('kpi-total').innerText = (dailyCountsCache[kpiFmtDate] || recentList.length) + ' 건';
     
     let insiderCount = 0;
     let fundingCount = 0;
