@@ -706,6 +706,52 @@ class DartLeanEngine:
             
         return None
 
+    def _parse_treasury_stock_trust(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+            
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        amount = ""
+        purpose = ""
+        period = ""
+        agency = ""
+        
+        for line in lines:
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if not parts:
+                    continue
+                p_clean0 = parts[0].replace(" ", "")
+                
+                if '계약금액' in p_clean0:
+                    if len(parts) >= 2:
+                        amount = parts[1]
+                elif '계약체결목적' in p_clean0:
+                    if len(parts) >= 2:
+                        purpose = parts[1]
+                elif '계약기간' in p_clean0:
+                    if len(parts) >= 2:
+                        period = parts[1]
+                elif '위탁투자중개업자' in p_clean0:
+                    if len(parts) >= 2:
+                        agency = parts[1]
+
+        details = []
+        if amount:
+            details.append(f"취득 예정금액: {amount}")
+        if purpose:
+            details.append(f"취득 목적: {purpose}")
+        if period:
+            details.append(f"계약 기간: {period}")
+        if agency:
+            details.append(f"위탁 투자중개업자: {agency}")
+            
+        if details:
+            return "\n".join(details)
+            
+        return None
+
     def _parse_capital_reduction(self, raw_text: str) -> str:
         if not raw_text:
             return None
@@ -1743,7 +1789,12 @@ class DartLeanEngine:
                 return f"{header}\n\n{capital_desc}", "[]"
 
         # 00-19. 자기주식취득결정 스페셜 케이스 처리
-        if "자기주식취득결정" in report_nm_clean.replace(" ", ""):
+        if "자기주식취득신탁계약체결결정" in report_nm_clean.replace(" ", ""):
+            trust_desc = self._parse_treasury_stock_trust(raw_text)
+            if trust_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{trust_desc}", "[]"
+        elif "자기주식취득결정" in report_nm_clean.replace(" ", ""):
             treasury_desc = self._parse_treasury_stock_acquisition(raw_text)
             if treasury_desc:
                 header = f"{display_name} - {report_nm_clean}"
