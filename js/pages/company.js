@@ -5,8 +5,9 @@ async function renderCompany() {
 
   const buttons = [];
   if (watchlist.length > 0) {
+    const namesMap = await api.getCorpNames(watchlist);
     for (const code of watchlist) {
-      const name = await api.getCorpName(code);
+      const name = namesMap[code] || code;
       buttons.push(`
         <span class="pill pill-default" style="cursor:pointer; margin-left:8px;"
               onclick="document.getElementById('company-corp-code').value='${code}';doCompanySearch()"

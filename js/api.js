@@ -114,6 +114,39 @@ const api = {
     return db[code] || code;
   },
 
+  // 고유번호들로 회사 이름 한 번에 찾기 (배치 최적화)
+  async getCorpNames(codes) {
+    if (!codes || codes.length === 0) return {};
+    const INTERNAL_MAP = {
+      "00126380": "삼성전자", "00164779": "SK하이닉스", "00164742": "현대자동차",
+      "00111722": "미래에셋증권", "01042775": "HL만도", "00547583": "하나금융지주",
+      "00570387": "빌리앙뜨", "00258838": "카카오", "00266961": "NAVER",
+      "00305884": "에코프로", "00126431": "대한항공", "00155167": "한화솔루션",
+      "00159109": "한국전력공사"
+    };
+    const result = {};
+    const missing = [];
+    codes.forEach(code => {
+      if (INTERNAL_MAP[code]) result[code] = INTERNAL_MAP[code];
+      else missing.push(code);
+    });
+    if (missing.length > 0) {
+      try {
+        const res = await fetch(`/api/dart/names?codes=${missing.join(',')}`);
+        if (res.ok) {
+          const remoteNames = await res.json();
+          Object.assign(result, remoteNames);
+        }
+      } catch (err) {
+        console.error('[API] Batch fetch names failed:', err);
+      }
+    }
+    codes.forEach(code => {
+      if (!result[code]) result[code] = code;
+    });
+    return result;
+  },
+
 
   async findCorpCode(name) {
     const q = name.replace(/\s/g, '').toLowerCase();

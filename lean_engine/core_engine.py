@@ -8,11 +8,11 @@ import sqlite3
 import logging
 import requests
 import datetime
+import concurrent.futures
 from functools import wraps
 from difflib import SequenceMatcher
 from dotenv import load_dotenv
 
-import google.generativeai as genai
 from rules import SummaryRuleEngine
 from financial_extractor import FinancialExtractor, infer_period_label
 from self_healing import trigger_self_healing
@@ -62,13 +62,6 @@ class DartLeanEngine:
         self.base_url = "https://opendart.fss.or.kr/api"
         self.rule_engine = SummaryRuleEngine()
         self.financial_extractor = FinancialExtractor()
-        
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
-        if self.gemini_api_key:
-            genai.configure(api_key=self.gemini_api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
-        else:
-            self.gemini_model = None
 
         self._init_db()
 
@@ -84,20 +77,6 @@ class DartLeanEngine:
 
         self.conn.commit()
 
-    def _generate_ai_insight(self, report_nm: str, summary_text: str) -> str:
-        if not self.gemini_model:
-            return None
-            
-        prompt = f"다음은 한국 기업의 공시 요약문입니다. 이 공시가 기업가치나 주가에 미치는 영향을 1~2줄의 핵심 인사이트로 직관적이고 간결하게 평가해주세요.\n공시명: {report_nm}\n요약문: {summary_text}"
-        
-        try:
-            time.sleep(12)  # 무료 API 분당 5회 제한 방어 (12초 대기)
-            res = self.gemini_model.generate_content(prompt)
-            return res.text.strip()
-        except Exception as e:
-            logger.error("[%s] AI 분석 실패 (Fail-safe 작동): %s", report_nm, e)
-            return None
-
     def close(self):
         try:
             self.conn.close()
@@ -110,6 +89,7 @@ class DartLeanEngine:
         filings = self._fetch_filing_list(corp_code, bgn_de, end_de)
         logger.info("처리 대상: %s건", len(filings))
 
+        valid_filings = []
         for filing in filings:
             rcept_no = filing.get("rcept_no")
             if not rcept_no:
@@ -120,81 +100,112 @@ class DartLeanEngine:
                 continue
 
             report_nm = filing.get("report_nm", "")
-            # 집합투자증권, 투자설명서 등 대용량 펀드/금융상품 관련 무관한 공시는 분석 대상에서 사전 차단하여 대역폭 및 DART 쿼터를 절약합니다.
-            if any(k in report_nm for k in ["집합투자증권", "투자설명서", "효력발생안내", "일괄신고서", "자산운용보고서"]):
-                logger.debug("[%s] 자산운용/펀드 공시 스킵: %s", rcept_no, report_nm)
+            # 집합투자증권, 투자설명서 등 대용량 펀드/금융상품 및 단순 대규모기업집단현황공시는 분석 대상에서 사전 차단하여 대역폭 및 DART 쿼터를 절약합니다.
+            if any(k in report_nm for k in ["집합투자증권", "투자설명서", "효력발생안내", "일괄신고서", "자산운용보고서", "대규모기업집단현황공시"]):
+                logger.debug("[%s] 자산운용/펀드/대규모기업집단 공시 스킵: %s", rcept_no, report_nm)
                 continue
+            
+            valid_filings.append(filing)
 
-            try:
-                logger.info("[%s] %s 처리 중...", rcept_no, filing.get("report_nm"))
-                time.sleep(0.3)  # DART API 과부하 및 차단 방지용 안전 마이크로 딜레이
-
-                raw_content, raw_text = self._download_and_parse(rcept_no)
-                if not raw_text:
-                    logger.warning("[%s] raw_text 비어 있음", rcept_no)
-                    continue
-
-                is_periodic = self._is_periodic_report(filing.get("report_nm", ""))
-                metrics = []
-                period_label, period_type = None, None
-
-                if is_periodic:
-                    period_label, period_type = infer_period_label(
-                        filing.get("report_nm", ""),
-                        filing.get("rcept_dt", "")
-                    )
-                    metrics = self.financial_extractor.extract(
-                        content=raw_content,
-                        corp_code=filing.get("corp_code"),
-                        period_label=period_label,
-                        period_type=period_type,
-                        report_nm=filing.get("report_nm", "")
-                    )
-                else:
-                    logger.debug("[%s] skip financial extractor by report_nm=%s", rcept_no, filing.get("report_nm", ""))
-
-                sentences = self.rule_engine.split_sentences(raw_text)
-                scored_sentences = [
-                    {
-                        "order": i,
-                        "content": s,
-                        "score": self.rule_engine.score_sentence(s, i, len(sentences))
-                    }
-                    for i, s in enumerate(sentences)
-                ]
-
-                summary_text, top_ids_json = self._build_summary(
-                    scored_sentences=scored_sentences,
-                    report_nm=filing.get("report_nm", ""),
-                    metrics=metrics,
-                    corp_code=filing.get("corp_code"),
-                    period_label=period_label,
-                    corp_name=filing.get("corp_name", ""),
-                    raw_text=raw_text
-                )
+        results = []
+        if valid_filings:
+            logger.info("병렬 다운로드 및 파싱 시작 (총 %d건)", len(valid_filings))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                futures = []
+                for filing in valid_filings:
+                    futures.append(executor.submit(self._process_single_filing, filing))
+                    # DART API 과부하 및 차단 방지용 안전 마이크로 딜레이
+                    time.sleep(0.35)
                 
-                insight_text = self._generate_ai_insight(filing.get("report_nm", ""), summary_text)
-
-                self._save_to_db(
-                    filing=filing,
-                    raw_text=raw_text,
-                    scored_sentences=scored_sentences,
-                    summary_text=summary_text,
-                    top_ids_json=top_ids_json,
-                    metrics=metrics,
-                    insight_text=insight_text
-                )
-
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        res = future.result()
+                        if res:
+                            results.append(res)
+                    except Exception as e:
+                        logger.error("Future error: %s", e)
+        
+        if results:
+            logger.info("DB 벌크 인서트 진행 중... (%d건)", len(results))
+            self._save_many_to_db(results)
+            
+            # Post-processing: trigger self-healing sequentially
+            for res in results:
                 try:
-                    top_score = max([s["score"] for s in scored_sentences]) if scored_sentences else 0.0
-                    trigger_self_healing(DB_PATH, rcept_no, report_nm, top_score, summary_text)
+                    trigger_self_healing(
+                        DB_PATH,
+                        res["filing"]["rcept_no"],
+                        res["filing"].get("report_nm", ""),
+                        res["top_score"],
+                        res["summary_text"]
+                    )
                 except Exception as she:
-                    logger.warning("[%s] Self Healing trigger failed: %s", rcept_no, she)
-
-            except Exception as e:
-                logger.exception("[%s] 처리 실패: %s", rcept_no, e)
+                    logger.warning("[%s] Self Healing trigger failed: %s", res["filing"]["rcept_no"], she)
 
         logger.info("파이프라인 실행 완료.")
+
+    def _process_single_filing(self, filing) -> dict:
+        rcept_no = filing.get("rcept_no")
+        try:
+            logger.info("[%s] %s 다운로드 및 분석 중...", rcept_no, filing.get("report_nm"))
+            raw_content, raw_text = self._download_and_parse(rcept_no)
+            if not raw_text:
+                logger.warning("[%s] raw_text 비어 있음", rcept_no)
+                return None
+
+            is_periodic = self._is_periodic_report(filing.get("report_nm", ""))
+            metrics = []
+            period_label, period_type = None, None
+
+            if is_periodic:
+                period_label, period_type = infer_period_label(
+                    filing.get("report_nm", ""),
+                    filing.get("rcept_dt", "")
+                )
+                metrics = self.financial_extractor.extract(
+                    content=raw_content,
+                    corp_code=filing.get("corp_code"),
+                    period_label=period_label,
+                    period_type=period_type,
+                    report_nm=filing.get("report_nm", "")
+                )
+            else:
+                logger.debug("[%s] skip financial extractor by report_nm=%s", rcept_no, filing.get("report_nm", ""))
+
+            sentences = self.rule_engine.split_sentences(raw_text)
+            scored_sentences = [
+                {
+                    "order": i,
+                    "content": s,
+                    "score": self.rule_engine.score_sentence(s, i, len(sentences))
+                }
+                for i, s in enumerate(sentences)
+            ]
+
+            summary_text, top_ids_json = self._build_summary(
+                scored_sentences=scored_sentences,
+                report_nm=filing.get("report_nm", ""),
+                metrics=metrics,
+                corp_code=filing.get("corp_code"),
+                period_label=period_label,
+                corp_name=filing.get("corp_name", ""),
+                raw_text=raw_text
+            )
+            
+            top_score = max([s["score"] for s in scored_sentences]) if scored_sentences else 0.0
+
+            return {
+                "filing": filing,
+                "raw_text": raw_text,
+                "scored_sentences": scored_sentences,
+                "summary_text": summary_text,
+                "top_ids_json": top_ids_json,
+                "metrics": metrics,
+                "top_score": top_score
+            }
+        except Exception as e:
+            logger.exception("[%s] 처리 실패: %s", rcept_no, e)
+            return None
 
     def _extract_correction_info(self, raw_text: str):
         if not raw_text:
@@ -455,7 +466,8 @@ class DartLeanEngine:
             details.append(f"계약 금액: {contract_amount}")
             
         if percent:
-            details.append(f"최근 매출액 대비: {percent}")
+            clean_percent = percent.replace('%', '').strip()
+            details.append(f"최근 매출액 대비: {clean_percent}%")
         elif sales_amount and contract_amount:
             try:
                 c_num = float(contract_amount.replace(',', '').replace('원', '').strip())
@@ -766,6 +778,7 @@ class DartLeanEngine:
         shares_after = ""
         capital_before = ""
         capital_after = ""
+        reduction_ratio = ""
         
         capital_row_seen = False
         shares_row_seen = False
@@ -813,6 +826,11 @@ class DartLeanEngine:
                 line_clean = line.replace(" ", "")
                 if any(w in line_clean for w in ['감자완료일', '감자기준일']) and ':' in line:
                     reduction_date = line.split(':', 1)[-1].strip()
+                    
+            if '감자비율' in line.replace(" ", "") and '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    reduction_ratio = parts[-1]
 
         details = []
         if reduction_date:
@@ -823,6 +841,9 @@ class DartLeanEngine:
             cb = capital_before if '원' in capital_before else f"{capital_before}원"
             ca = capital_after if '원' in capital_after else f"{capital_after}원"
             details.append(f"▪ 자본금 변동 : {cb} → {ca}")
+        if reduction_ratio:
+            clean_ratio = reduction_ratio.replace('%', '').strip()
+            details.append(f"▪ 감자비율 : {clean_ratio}%")
             
         if details:
             return "\n".join(details)
@@ -1071,6 +1092,393 @@ class DartLeanEngine:
         
         return f"주식등의대량보유상황보고서가 제출되었습니다.{ratio_str}입니다.{trans_str}"
 
+    def _parse_trading_plan(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+        
+        reporter_match = re.search(r'\[테이블\]\s*보고자\s*:\s*\|\s*(.+)', raw_text)
+        reporter = reporter_match.group(1).strip() if reporter_match else "임원/주요주주"
+        
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        # 1. 거래목적 추출
+        purpose = "알 수 없음"
+        for i, line in enumerate(lines):
+            if "(1)거래목적" in line.replace(" ", ""):
+                for j in range(i+1, min(i+5, len(lines))):
+                    if not lines[j].startswith("[") and not lines[j].startswith("("):
+                        purpose = lines[j]
+                        break
+                break
+                
+        # 2. 거래수량 및 금액 추출
+        changes = []
+        in_detail = False
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            line_clean = line.replace(" ", "")
+            
+            # 여러 줄로 나뉜 표인 경우
+            if "[테이블]거래개시일" in line_clean and "거래방법" in line_clean:
+                in_detail = True
+                i += 1
+                continue
+                
+            if in_detail:
+                if "[테이블]" in line or line.startswith("①") or line.startswith("※"):
+                    in_detail = False
+                    continue
+                    
+                # 9줄 단위 (개시일, 종료일, 기간, 방법, 종류, 수량, 단가, 금액, 비고)
+                if i + 7 < len(lines) and not lines[i].startswith("["):
+                    start_date = lines[i]
+                    end_date = lines[i+1]
+                    method = lines[i+3]
+                    stock_type = lines[i+4]
+                    qty = lines[i+5].replace(",", "")
+                    price = lines[i+6].replace(",", "")
+                    
+                    try:
+                        qty_val = int(qty)
+                        if qty_val > 0:
+                            sign = "+" if ("매수" in method or "취득" in method) else ("-" if "매도" in method or "처분" in method else "")
+                            signal = "내부자 매수 계획" if sign == "+" else ("내부자 매도 계획" if sign == "-" else "")
+                            sig_suffix = f" [{signal}]" if signal else ""
+                            changes.append(f"▪ {reporter}: {method} {sign}{qty_val:,}주 ({start_date} ~ {end_date}) [단가: {price}원]{sig_suffix}")
+                    except ValueError:
+                        pass
+                        
+                    i += 9
+                    continue
+                    
+            # 한줄 표인 경우
+            if '|' in line and '[테이블]' in line and '거래개시일' in line_clean and '거래방법' in line_clean:
+                for j in range(i+1, min(i+10, len(lines))):
+                    if '|' in lines[j] and not lines[j].startswith("[테이블]"):
+                        parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in lines[j].split('|')]
+                        if len(parts) >= 8:
+                            start_date = parts[0]
+                            end_date = parts[1]
+                            method = parts[3]
+                            qty = parts[5].replace(",", "")
+                            price = parts[6].replace(",", "")
+                            try:
+                                qty_val = int(qty)
+                                sign = "+" if ("매수" in method or "취득" in method) else ("-" if "매도" in method or "처분" in method else "")
+                                signal = "내부자 매수 계획" if sign == "+" else ("내부자 매도 계획" if sign == "-" else "")
+                                sig_suffix = f" [{signal}]" if signal else ""
+                                changes.append(f"▪ {reporter}: {method} {sign}{qty_val:,}주 ({start_date} ~ {end_date}) [단가: {price}원]{sig_suffix}")
+                            except ValueError:
+                                pass
+            i += 1
+            
+        if changes:
+            unique_changes = list(dict.fromkeys(changes))
+            return "\n\n".join(unique_changes[:5])
+        return None
+
+    def _parse_new_facility_investment(self, raw_text: str) -> str:
+        if not raw_text: return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        inv_type = ""
+        inv_target = ""
+        amount = ""
+        ratio = ""
+        purpose = ""
+        start_date = ""
+        end_date = ""
+        
+        for i, line in enumerate(lines):
+            line_clean = line.replace(" ", "")
+            if "1.투자구분" in line_clean and "|" in line:
+                inv_type = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "-투자대상" in line_clean and "|" in line:
+                inv_target = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "2.투자내역" in line_clean and "투자금액" in line_clean and "|" in line:
+                amount = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "자기자본대비" in line_clean and "|" in line:
+                ratio = line.split("|")[-1].replace("[테이블]", "").strip() + "%"
+            elif "3.투자목적" in line_clean and "|" in line:
+                purpose = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "4.투자기간" in line_clean and "시작일" in line_clean and "|" in line:
+                start_date = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "종료일" in line_clean and "|" in line:
+                if not end_date:
+                    end_date = line.split("|")[-1].replace("[테이블]", "").strip()
+
+        amount_str = amount
+        try:
+            amt_val = float(amount.replace(",", ""))
+            if amt_val >= 100000000:
+                eok = int(amt_val // 100000000)
+                man = int((amt_val % 100000000) // 10000)
+                if man > 0:
+                    amount_str = f"{eok:,}억 {man:,}만 원"
+                else:
+                    amount_str = f"{eok:,}억 원"
+            else:
+                amount_str = f"{int(amt_val):,}원"
+        except ValueError:
+            pass
+
+        summary = f"▪ 투자구분: {inv_type}\n"
+        if inv_target:
+            summary += f"▪ 투자대상: {inv_target}\n"
+        summary += f"▪ 투자규모: {amount_str} (자기자본 대비 {ratio})\n"
+        summary += f"▪ 투자기간: {start_date} ~ {end_date}\n"
+        summary += f"▪ 투자목적: {purpose}\n"
+        summary += "💡 시그널: 대규모 시설 투자 (생산/영업능력 확대 기대)"
+        
+        return summary
+
+    def _parse_related_party_loan(self, raw_text: str, is_borrowing: bool = False) -> str:
+        if not raw_text:
+            return None
+        
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        target = "알 수 없음"
+        amount = ""
+        date = ""
+        interest = "알 수 없음"
+        purpose = "알 수 없음"
+        note = ""
+        unit_multiplier = 100000000 # default fallback
+        
+        for line in lines:
+            line_clean = line.replace(" ", "")
+            if "(단위:백만원)" in line_clean or "(단위:백만" in line_clean:
+                unit_multiplier = 1000000
+            elif "(단위:천원)" in line_clean or "(단위:천" in line_clean:
+                unit_multiplier = 1000
+            elif "(단위:원)" in line_clean:
+                unit_multiplier = 1
+            elif "(단위:억원)" in line_clean or "(단위:억" in line_clean:
+                unit_multiplier = 100000000
+
+            if "1.거래상대방" in line_clean and "|" in line:
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) >= 2:
+                    target = parts[1].replace("[테이블]", "").strip() if "1. 거래상대방" in parts[0] else parts[-3].replace("[테이블]", "").strip()
+            elif "가.거래일자" in line_clean and "|" in line:
+                parts = [p.strip() for p in line.split('|')]
+                date = parts[-1].replace("[테이블]", "").strip()
+            elif "나.거래금액" in line_clean and "|" in line:
+                parts = [p.strip() for p in line.split('|')]
+                amount = parts[-1].replace("[테이블]", "").strip()
+            elif "라.이자율(%)" in line_clean and "|" in line:
+                parts = [p.strip() for p in line.split('|')]
+                interest = parts[-1].replace("[테이블]", "").strip()
+            elif "3.거래의목적" in line_clean and "|" in line:
+                parts = [p.strip() for p in line.split('|')]
+                purpose = parts[-1].replace("[테이블]", "").strip()
+            elif "5.기타" in line_clean and "|" in line:
+                parts = [p.strip() for p in line.split('|')]
+                note = parts[-1].replace("[테이블]", "").strip()
+
+        amount_str = amount
+        try:
+            amt_val = float(amount.replace(",", "")) * unit_multiplier
+            if amt_val >= 100000000:
+                eok = int(amt_val // 100000000)
+                man = int((amt_val % 100000000) // 10000)
+                if man > 0:
+                    amount_str = f"{eok:,}억 {man:,}만 원"
+                else:
+                    amount_str = f"{eok:,}억 원"
+            else:
+                amount_str = f"{int(amt_val):,}원"
+        except ValueError:
+            pass
+            
+        target_label = "차입처" if is_borrowing else "거래상대방"
+        amount_label = "차입금액" if is_borrowing else "대여금액"
+        date_label = "차입일자" if is_borrowing else "거래일자"
+        purpose_label = "차입목적" if is_borrowing else "거래목적"
+        
+        summary = f"▪ {target_label}: {target}\n"
+        summary += f"▪ {amount_label}: {amount_str}\n"
+        summary += f"▪ {date_label}: {date}\n"
+        summary += f"▪ 이자율: {interest}\n"
+        summary += f"▪ {purpose_label}: {purpose}"
+        
+        is_extension = False
+        if "연장" in note or "재연장" in note or "만기" in note:
+            is_extension = True
+            
+        if is_borrowing:
+            signal = "\n💡 시그널: 기존 차입금 만기 연장" if is_extension else "\n💡 시그널: 신규 자금 차입"
+        else:
+            signal = "\n💡 시그널: 기존 대여금 만기 연장" if is_extension else "\n💡 시그널: 신규 자금 대여"
+            
+        summary += signal
+        
+        return summary
+
+    def _parse_ir_event(self, raw_text: str) -> str:
+        if not raw_text: return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        date = ""
+        place = ""
+        target = ""
+        purpose = ""
+        
+        for i, line in enumerate(lines):
+            line_clean = line.replace(" ", "")
+            if "2.장소" in line_clean and "|" in line:
+                place = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "3.대상자" in line_clean and "|" in line:
+                target = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "4.실시목적" in line_clean and "|" in line:
+                purpose = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "1.일시" in line_clean:
+                if i + 2 < len(lines):
+                    parts = lines[i+2].split("|")
+                    if len(parts) >= 2:
+                        date = parts[0].replace("[테이블]", "").strip()
+                        if len(parts) >= 3:
+                            date += f" {parts[2].strip()}"
+        
+        summary = f"▪ 일시: {date}\n▪ 장소: {place}\n▪ 대상자: {target}\n▪ 개최목적: {purpose}\n"
+        summary += "💡 시그널: 기업설명회(IR) 개최 (주주소통 및 정보제공)"
+        return summary
+
+    def _parse_record_date(self, raw_text: str) -> str:
+        if not raw_text: return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        date = ""
+        reason = ""
+        
+        for line in lines:
+            line_clean = line.replace(" ", "")
+            if "1.기준일" in line_clean and "|" in line:
+                date = line.split("|")[-1].replace("[테이블]", "").strip()
+            elif "3.설정사유" in line_clean and "|" in line:
+                reason = line.split("|")[-1].replace("[테이블]", "").strip()
+                
+        summary = f"▪ 기준일: {date}\n▪ 설정사유: {reason}\n"
+        if "배당" in reason:
+            summary += "💡 시그널: 배당 기준일 확정"
+        elif "무상증자" in reason:
+            summary += "💡 시그널: 무상증자 기준일 확정"
+        elif "유상증자" in reason:
+            summary += "💡 시그널: 유상증자 기준일 확정"
+        else:
+            summary += "💡 시그널: 주주총회 권리주주 확정"
+        return summary
+
+    def _parse_executive_shareholder_change(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+            
+        reporter_match = re.search(r'\[테이블\]\s*보고자\s*:\s*\|\s*(.+)', raw_text)
+        reporter = reporter_match.group(1).strip() if reporter_match else "임원/주요주주"
+
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        in_detail_section = False
+        changes = []
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            line_clean = line.replace(" ", "")
+            
+            # 1. | 로 구분된 정상적인 테이블 행 처리
+            if '|' in line and '[테이블]' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                if len(parts) >= 5 and "보고사유" not in line_clean and "변동일" not in line_clean and "주식의종류" not in line_clean:
+                    # 간단한 휴리스틱: "매수", "처분" 등의 단어가 들어간 컬럼 찾기
+                    reason = parts[0]
+                    for p in parts:
+                        if any(k in p for k in ["매수", "매도", "처분", "취득", "상여"]):
+                            reason = p
+                            break
+                    
+                    stock_type = "보통주"
+                    for p in parts:
+                        if "보통주" in p or "우선주" in p:
+                            stock_type = p
+                            break
+                    
+                    # 증감 수량 찾기 (+ 또는 - 부호가 있거나 숫자인 컬럼 중 3번째 이후)
+                    change_qty = "0"
+                    for p in reversed(parts):
+                        p_cl = p.replace(",", "").strip()
+                        if p_cl.startswith("+") or p_cl.startswith("-"):
+                            if p_cl[1:].isdigit():
+                                change_qty = p_cl
+                                break
+                        elif p_cl.isdigit() and int(p_cl) > 0 and len(p_cl) >= 2:
+                            # 부호가 없더라도 큰 숫자면 일단 저장
+                            change_qty = p_cl
+                            
+                    try:
+                        qty = int(change_qty)
+                        if qty != 0:
+                            if "매수" in reason or "상여" in reason or "취득" in reason:
+                                sign = "+" if qty > 0 else ""
+                                signal = "내부자 매수/취득"
+                            elif "매도" in reason or "처분" in reason:
+                                sign = "-" if qty > 0 else ""
+                                signal = "내부자 매도/처분"
+                            else:
+                                sign = "+" if qty > 0 else ""
+                                signal = ""
+                                
+                            sig_suffix = f" [{signal}]" if signal else ""
+                            changes.append(f"▪ {reporter}: {reason} ({stock_type} {sign}{qty:,}주){sig_suffix}")
+                    except ValueError:
+                        pass
+
+            # 2. 여러 줄로 쪼개진 비정상 테이블 (기존 SKT 형태 등)
+            if "[테이블]변동전|증감|변동후" in line_clean:
+                in_detail_section = True
+                i += 1
+                continue
+                
+            if in_detail_section:
+                if "[테이블]" in line:
+                    in_detail_section = False
+                    continue
+                    
+                if i + 6 < len(lines) and not "[테이블]" in lines[i]:
+                    reason = lines[i]
+                    stock_type = lines[i+2]
+                    change_qty = lines[i+4].replace(",", "")
+                    price = lines[i+6].replace(",", "")
+                    
+                    try:
+                        qty = int(change_qty)
+                        if qty != 0:
+                            if "매수" in reason or "상여" in reason or "취득" in reason:
+                                sign = "+" if qty > 0 else ""
+                                signal = "내부자 매수/취득"
+                            elif "매도" in reason or "처분" in reason:
+                                sign = "-" if qty > 0 else ""
+                                signal = "내부자 매도/처분"
+                            else:
+                                sign = "+" if qty > 0 else ""
+                                signal = ""
+                                
+                            price_str = f" [단가: {price}원]" if price.isdigit() else ""
+                            sig_suffix = f" [{signal}]" if signal else ""
+                            changes.append(f"▪ {reporter}: {reason} ({stock_type} {sign}{qty:,}주){price_str}{sig_suffix}")
+                    except ValueError:
+                        pass
+                    
+                    i += 9
+                    continue
+                    
+            i += 1
+            
+        if changes:
+            # 중복 제거 후 출력 (동일 행을 여러 번 파싱할 수 있으므로)
+            unique_changes = list(dict.fromkeys(changes))
+            return "\n\n".join(unique_changes[:5])
+        return None
+
     def _parse_major_shareholder_change(self, raw_text: str) -> str:
         if not raw_text:
             return None
@@ -1078,28 +1486,52 @@ class DartLeanEngine:
         
         changes = []
         for line in lines:
-            if '|' in line:
+            line_clean = line.replace(" ", "")
+            if '|' in line and '[테이블]' in line:
                 parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
-                if not parts or any(h in parts[0] for h in ["구분", "주주명", "계", "소계", "전체합계"]):
+                if not parts or any(h in parts[0] for h in ["구분", "주주명", "성명", "계", "소계", "전체합계", "성명(명칭)", "보고자"]):
                     continue
-                if len(parts) >= 11:
-                    share_type = parts[4]
-                    if share_type in ["보통주", "우선주"]:
-                        name = parts[1]
-                        change_qty = parts[7].replace(",", "")
-                        after_rate = parts[10]
-                        
-                        if change_qty and change_qty != "-" and change_qty != "0":
-                            try:
-                                qty_val = int(change_qty)
+                
+                # 최소 5칸 이상일 때 (보통 이름, 관계, 주식종류, 증감수량, 지분율 등이 포함됨)
+                if len(parts) >= 5:
+                    name = parts[0] if len(parts[0]) > 1 else (parts[1] if len(parts) > 1 else "주주")
+                    
+                    share_type = "보통주"
+                    for p in parts:
+                        if "보통주" in p or "우선주" in p:
+                            share_type = p
+                            break
+                            
+                    # 증감 찾기: 보통 뒤에서부터 찾아봄. +나 - 부호가 있거나 숫자인 컬럼
+                    change_qty = ""
+                    for p in reversed(parts[2:]):
+                        p_cl = p.replace(",", "").strip()
+                        if p_cl.startswith("+") or p_cl.startswith("-"):
+                            if p_cl[1:].isdigit():
+                                change_qty = p_cl
+                                break
+                                
+                    if change_qty and change_qty != "-" and change_qty != "0":
+                        try:
+                            qty_val = int(change_qty)
+                            if qty_val != 0:
                                 sign = "+" if qty_val > 0 else ""
                                 change_qty_formatted = f"{qty_val:,}"
-                                changes.append(f"▪ {name}: {share_type} {sign}{change_qty_formatted}주 변동 (지분율 {after_rate}%)")
-                            except ValueError:
-                                continue
+                                
+                                # 지분율 찾기: % 기호가 있거나 소수점이 있는 숫자
+                                after_rate = ""
+                                for p in reversed(parts):
+                                    if "%" in p or ("." in p and p.replace(".", "").isdigit()):
+                                        after_rate = f" (최종 지분율 {p.strip()}%)"
+                                        break
+                                        
+                                changes.append(f"▪ {name}: {share_type} {sign}{change_qty_formatted}주 변동{after_rate}")
+                        except ValueError:
+                            continue
                             
         if changes:
-            return "\n".join(changes[:5])
+            unique_changes = list(dict.fromkeys(changes))
+            return "\n".join(unique_changes[:5])
         return "최대주주 등의 주식 보유 지분율에 변동이 있었습니다. 세부 변동 내역은 원문을 참고하시기 바랍니다."
 
     def _parse_debt_security_확정(self, raw_text: str) -> str:
@@ -1171,6 +1603,8 @@ class DartLeanEngine:
         sec_idx = -1
         amt_idx = -1
         
+        invalid_sec_keywords = ["증권의종류", "개시", "종료", "일자", "납입", "비고", "청약", "발행", "인수", "기관", "비율", "금액", "회차", "모집", "건수", "배정", "현황"]
+        
         for idx, line in enumerate(lines):
             if '|' in line:
                 parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
@@ -1178,7 +1612,7 @@ class DartLeanEngine:
                 if sec_idx != -1 and sec_idx < len(parts) and not security_type:
                     v = parts[sec_idx].strip()
                     v_clean = v.replace(" ", "")
-                    if v_clean and not any(h in v_clean for h in ["증권", "종류", "개시", "종료", "일자", "납입", "비고"]):
+                    if v_clean and not any(h in v_clean for h in invalid_sec_keywords):
                         security_type = v
                         sec_idx = -1
                         
@@ -1192,14 +1626,15 @@ class DartLeanEngine:
                 for i, p in enumerate(parts):
                     p_clean = p.replace(" ", "")
                     if '증권의종류' in p_clean:
-                        if i + 1 < len(parts):
-                            v = parts[i+1].strip()
+                        found_val = False
+                        for j in range(i+1, len(parts)):
+                            v = parts[j].strip()
                             v_clean = v.replace(" ", "")
-                            if v_clean and not any(h in v_clean for h in ["개시", "종료", "일자", "납입", "비고", "청약일", "발행일"]):
+                            if v_clean and not any(h in v_clean for h in invalid_sec_keywords):
                                 security_type = v
-                            else:
-                                sec_idx = i
-                        else:
+                                found_val = True
+                                break
+                        if not found_val:
                             sec_idx = i
                     elif any(w in p_clean for w in ['매출총액', '모집총액', '발행총액', '발행금액']):
                         if i + 1 < len(parts):
@@ -1212,6 +1647,8 @@ class DartLeanEngine:
                         else:
                             amt_idx = i
             else:
+                sec_idx = -1
+                amt_idx = -1
                 line_clean = line.replace(" ", "")
                 if ('증권의종류' in line_clean) and ':' in line:
                     security_type = line.split(':', 1)[-1].strip()
@@ -1497,6 +1934,78 @@ class DartLeanEngine:
             return None
         return "전환청구권 행사 세부 내역은 다음과 같습니다.\n" + "\n".join(details)
 
+    def _parse_collateral_provision(self, raw_text: str):
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        target = ""
+        creditor = ""
+        collateral = ""
+        amount = ""
+        
+        unit_mult = 1
+        for i in range(min(20, len(lines))):
+            line_clean = lines[i].replace(" ", "")
+            if '단위:백만원' in line_clean or '단위:백만' in line_clean:
+                unit_mult = 1000000
+            elif '단위:천원' in line_clean:
+                unit_mult = 1000
+            elif '단위:원' in line_clean:
+                unit_mult = 1
+        
+        for line in lines:
+            line_clean = line.replace(" ", "")
+            if '|' in line:
+                parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                for i, p in enumerate(parts):
+                    p_clean = p.replace(" ", "")
+                    if '거래상대방' in p_clean and not target:
+                        if i + 1 < len(parts):
+                            target = parts[i+1].strip()
+                    elif '채권자' in p_clean and not creditor:
+                        if i + 1 < len(parts):
+                            creditor = parts[i+1].strip()
+                    elif '담보물' in p_clean and not collateral:
+                        if i + 1 < len(parts):
+                            collateral = parts[i+1].strip()
+                    elif '담보금액' in p_clean and not amount:
+                        if i + 1 < len(parts):
+                            amount = parts[i+1].strip()
+            else:
+                if '거래상대방' in line_clean and ':' in line and not target:
+                    target = line.split(':', 1)[-1].strip()
+                elif '채권자' in line_clean and ':' in line and not creditor:
+                    creditor = line.split(':', 1)[-1].strip()
+                elif '담보물' in line_clean and ':' in line and not collateral:
+                    collateral = line.split(':', 1)[-1].strip()
+                elif '담보금액' in line_clean and ':' in line and not amount:
+                    amount = line.split(':', 1)[-1].strip()
+                    
+        if target or amount:
+            res = []
+            if target:
+                res.append(f"▪ 담보제공 대상(거래상대방) : {target}")
+            if creditor:
+                res.append(f"▪ 채권자 : {creditor}")
+            if collateral:
+                res.append(f"▪ 제공 담보물 : {collateral}")
+            if amount:
+                amount_clean = amount.replace(" ", "")
+                if any(char.isdigit() for char in amount_clean):
+                    num = self._parse_number(amount_clean)
+                    if num is not None:
+                        amount_clean = self._format_krw(num * unit_mult)
+                    else:
+                        if not amount_clean.endswith('원'):
+                            amount_clean += '원'
+                else:
+                    if amount_clean != "-":
+                        pass
+                res.append(f"▪ 담보 설정 금액 : {amount_clean}")
+            return "\n".join(res)
+        return None
+
     def _parse_asset_acquisition(self, raw_text: str):
         if not raw_text:
             return None
@@ -1781,6 +2290,8 @@ class DartLeanEngine:
             
         lines = [line.strip() for line in parse_text.split('\n') if line.strip()]
         
+        target_company = ""
+        issue_method = ""
         funding_purposes = {}
         total_shares_common = 0
         total_shares_preferred = 0
@@ -1788,6 +2299,7 @@ class DartLeanEngine:
         record_date = ""
         allocation_ratio = ""
         listing_date = ""
+        discount_rate = ""
         
         i = 0
         while i < len(lines):
@@ -1798,7 +2310,11 @@ class DartLeanEngine:
                     k = parts[0].replace(" ", "")
                     v = parts[1].strip()
                     
-                    if '신주의종류와수' in k or '증자주식수' in k:
+                    if '종속회사인' in k or '회사명' in k:
+                        target_company = v or (parts[2] if len(parts) >= 3 else "")
+                    elif '증자방식' in k:
+                        issue_method = v or (parts[2] if len(parts) >= 3 else "")
+                    elif '신주의종류와수' in k or '증자주식수' in k:
                         if '보통주' in k or '보통주' in v or (len(parts) >= 3 and '보통주' in parts[1]):
                             val_str = parts[-1] if len(parts) >= 3 else v
                             total_shares_common = self._parse_number(val_str)
@@ -1830,6 +2346,8 @@ class DartLeanEngine:
                         allocation_ratio = v or (parts[2] if len(parts) >= 3 else "")
                     elif '상장예정일' in k or '상장예정' in k:
                         listing_date = v or (parts[2] if len(parts) >= 3 else "")
+                    elif '할인율' in k or '할증율' in k:
+                        discount_rate = v or (parts[2] if len(parts) >= 3 else "")
             i += 1
             
         for idx, line in enumerate(lines):
@@ -1859,6 +2377,10 @@ class DartLeanEngine:
             details.append(f"발행 신주 수: {total_shares:,}주")
         if issue_price:
             details.append(f"신주 발행가액: {issue_price:,}원")
+        if discount_rate:
+            # Clean discount rate (remove %, spaces, etc)
+            clean_discount = discount_rate.replace('%', '').strip()
+            details.append(f"할인율: {clean_discount}%")
             
         purposes = []
         for name, amt in funding_purposes.items():
@@ -1883,7 +2405,40 @@ class DartLeanEngine:
             listing_date_clean = re.sub(r'\s+', ' ', listing_date).strip()
             details.append(f"신주 상장 예정일: {listing_date_clean}")
             
-        return "\n".join(details) if details else None
+        custom_header = None
+        if target_company or issue_method:
+            target_str = f"종속회사 {target_company}의 " if target_company else ""
+            method_str = f"{issue_method} " if issue_method else "유상증자 "
+            scale_str = f"(규모: {self._format_krw(total_amount)})" if total_amount > 0 else ""
+            custom_header = f"{target_str}{method_str.strip()} {scale_str}".strip()
+            
+        return custom_header, "\n▪ ".join(details)
+            
+    def _parse_industrial_accident(self, raw_text: str):
+        if not raw_text:
+            return None
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        details = []
+        target_keys = ["발생 장소", "발생 재해 내용", "사망자 수", "부상자 수", "중대재해 발생일자", "고용노동부 보고일자", "조치사항", "발생일자"]
+        for line in lines:
+            if line.startswith("[테이블]"):
+                formatted = self.rule_engine.format_raw_table_to_korean(line)
+                if formatted:
+                    formatted = re.sub(r'^\d+\.\s*', '', formatted)
+                    # Filter matching keys
+                    if any(formatted.startswith(k) or f"({k})" in formatted for k in target_keys) or any(k in formatted.split(':')[0].strip() for k in target_keys):
+                        # Exclude subsidiary table info
+                        if "자산총액" in formatted or "자본금" in formatted or "종속회사명" in formatted or "대표자" in formatted:
+                            continue
+                        if len(formatted) > 150:
+                            formatted = formatted[:147] + "..."
+                        details.append(f"▪ {formatted}")
+                        
+        if not details:
+            return None
+            
+        return "중대재해 발생(종속회사의 주요경영사항) 관련 세부 내역은 다음과 같습니다.\n" + "\n".join(details)
 
     def _build_summary(
         self,
@@ -1937,16 +2492,65 @@ class DartLeanEngine:
                 header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n{share_desc}", "[]"
 
+        # 00-21. 중대재해발생 스페셜 케이스 처리
+        if "중대재해" in report_nm_clean.replace(" ", ""):
+            accident_desc = self._parse_industrial_accident(raw_text)
+            header = f"{display_name} - {report_nm_clean}"
+            if accident_desc:
+                return f"{header}\n\n{accident_desc}", "[]"
+            else:
+                return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
+
+        # 00-17-1. 임원ㆍ주요주주특정증권등거래계획보고서 스페셜 케이스 처리
+        if "거래계획보고서" in report_nm_clean.replace(" ", ""):
+            plan_desc = self._parse_trading_plan(raw_text)
+            header = f"{display_name} - {report_nm_clean}"
+            if plan_desc:
+                return f"{header}\n\n{plan_desc}", "[]"
+            else:
+                return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
+
+        # 00-17-2. 임원ㆍ주요주주특정증권등소유상황보고서 스페셜 케이스 처리
+        if "임원ㆍ주요주주" in report_nm_clean.replace(" ", ""):
+            exec_desc = self._parse_executive_shareholder_change(raw_text)
+            header = f"{display_name} - {report_nm_clean}"
+            if exec_desc:
+                return f"{header}\n\n{exec_desc}", "[]"
+            else:
+                return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
+
+        # 00-17-3. 특수관계인 자금 차입/대여 스페셜 케이스 처리
+        if "자금대여" in report_nm_clean.replace(" ", ""):
+            loan_desc = self._parse_related_party_loan(raw_text, is_borrowing=False)
+            header = f"{display_name} - {report_nm_clean}"
+            if loan_desc:
+                return f"{header}\n\n{loan_desc}", "[]"
+            else:
+                return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
+
+        if "자금차입" in report_nm_clean.replace(" ", ""):
+            loan_desc = self._parse_related_party_loan(raw_text, is_borrowing=True)
+            header = f"{display_name} - {report_nm_clean}"
+            if loan_desc:
+                return f"{header}\n\n{loan_desc}", "[]"
+            else:
+                return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
+
         # 00-17. 기업지배구조보고서 및 대규모기업집단현황공시 스페셜 케이스 처리
-        if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조", "대규모기업집단", "주주총회소집공고", "합병등종료보고서", "증권신고서", "일괄신고", "임원ㆍ주요주주특정증권", "임상시험결과"]):
+        if any(k in report_nm_clean.replace(" ", "") for k in ["기업지배구조", "대규모기업집단", "주주총회소집공고", "합병등종료보고서", "증권신고서", "일괄신고", "임상시험결과"]):
             header = f"{display_name} - {report_nm_clean}"
             return f"{header}\n\n▪ 본 공시는 세부 내용이 방대하므로 원문을 직접 열람하여 상세 현황을 확인하시기 바랍니다.", "[]"
 
         # 00-16. 주요사항보고서(유상증자결정) 스페셜 케이스 처리
         if "유상증자" in report_nm_clean.replace(" ", ""):
-            increase_desc = self._parse_paid_in_capital_increase(raw_text)
-            if increase_desc:
-                header = f"{display_name} - {report_nm_clean}"
+            increase_result = self._parse_paid_in_capital_increase(raw_text)
+            if increase_result:
+                if isinstance(increase_result, tuple):
+                    custom_header, increase_desc = increase_result
+                    header = f"{display_name} - {custom_header if custom_header else report_nm_clean}"
+                else:
+                    increase_desc = increase_result
+                    header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n▪ {increase_desc}", "[]"
 
         # 00-14. 전환청구권행사 스페셜 케이스 처리
@@ -2031,12 +2635,26 @@ class DartLeanEngine:
                 header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n{asset_desc}", "[]"
 
+        # 00-11-2. 담보제공 스페셜 케이스 처리
+        if "담보제공" in report_nm_clean.replace(" ", ""):
+            col_desc = self._parse_collateral_provision(raw_text)
+            if col_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{col_desc}", "[]"
+
         # 00-21. 무상증자결정 스페셜 케이스 처리
         if "무상증자" in report_nm_clean.replace(" ", ""):
             bonus_desc = self._parse_bonus_issue(raw_text)
             if bonus_desc:
                 header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n{bonus_desc}", "[]"
+
+        # 00-21-2. 신규시설투자등 스페셜 케이스 처리
+        if "신규시설투자" in report_nm_clean.replace(" ", ""):
+            facility_desc = self._parse_new_facility_investment(raw_text)
+            if facility_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{facility_desc}", "[]"
 
         # 00-22. CB/BW 발행결정 스페셜 케이스 처리
         if any(k in report_nm_clean.replace(" ", "") for k in ["전환사채권발행결정", "신주인수권부사채권발행결정"]):
@@ -2438,6 +3056,60 @@ class DartLeanEngine:
         try:
             cur.execute("SELECT 1 FROM summaries WHERE rcept_no = ?", (rcept_no,))
             return bool(cur.fetchone())
+        finally:
+            cur.close()
+
+    def _save_many_to_db(self, results):
+        if not results:
+            return
+            
+        cur = self.conn.cursor()
+        try:
+            with self.conn:
+                filings_args = [
+                    (res["filing"]["rcept_no"], res["filing"].get("corp_code"), res["filing"].get("report_nm"), res["filing"].get("rcept_dt"), res["raw_text"])
+                    for res in results
+                ]
+                cur.executemany("""
+                    INSERT OR IGNORE INTO filings (rcept_no, corp_code, report_nm, rcept_dt, raw_text)
+                    VALUES (?, ?, ?, ?, ?)
+                """, filings_args)
+
+                sentences_args = []
+                for res in results:
+                    sentences_args.extend([
+                        (res["filing"]["rcept_no"], s["order"], s["content"], s["score"])
+                        for s in res["scored_sentences"]
+                    ])
+                if sentences_args:
+                    cur.executemany("""
+                        INSERT OR IGNORE INTO sentences (rcept_no, sent_order, content, score)
+                        VALUES (?, ?, ?, ?)
+                    """, sentences_args)
+
+                summaries_args = [
+                    (res["filing"]["rcept_no"], res["summary_text"], res["top_ids_json"], res.get("insight_text"))
+                    for res in results
+                ]
+                cur.executemany("""
+                    INSERT OR REPLACE INTO summaries (rcept_no, summary_text, top_sentence_ids, insight_text)
+                    VALUES (?, ?, ?, ?)
+                """, summaries_args)
+
+                metrics_args = []
+                for res in results:
+                    metrics_args.extend([
+                        (res["filing"]["rcept_no"], m.get("corp_code"), m.get("period_label"), m.get("period_type"), m.get("metric_name"), m.get("metric_value"), m.get("raw_text"))
+                        for m in res["metrics"]
+                    ])
+                if metrics_args:
+                    cur.executemany("""
+                        INSERT OR REPLACE INTO financial_metrics (rcept_no, corp_code, period_label, period_type, metric_name, metric_value, raw_text)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, metrics_args)
+        except Exception as e:
+            logger.error("DB Bulk Insert Error: %s", e)
+            raise
         finally:
             cur.close()
 

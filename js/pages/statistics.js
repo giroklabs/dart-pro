@@ -69,7 +69,7 @@ async function renderStatistics() {
 
 async function initStatistics() {
   try {
-    const CACHE_KEY = 'dart_stats_cache_7days_v3';
+    const CACHE_KEY = 'dart_stats_cache_7days_v4';
     const CACHE_TTL = 10 * 60 * 1000; // 10분 캐싱
     let list = [];
     let dailyCountsCache = null;

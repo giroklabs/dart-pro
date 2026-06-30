@@ -121,8 +121,8 @@ class SummaryRuleEngine:
 
             combined = " | ".join([t for t in tds if t])
             if combined:
-                if len(combined) > 500:
-                    combined = combined[:500] + "..."
+                if len(combined) > 2000:
+                    combined = combined[:2000] + "..."
                 new_p = soup.new_tag("p")
                 new_p.string = f"[테이블] {combined}"
                 tr.replace_with(new_p)
@@ -139,10 +139,11 @@ class SummaryRuleEngine:
             if not line:
                 continue
 
+            # Split on standard endings, OR numbered lists (e.g. " 1)", " 2.", " ①")
             parts = re.split(
-                r'(?<=[\.\?\!])\s+|(?<=다\.)\s+|(?<=니다\.)\s+|(?<=합니다\.)\s+',
+                r'(?<=다\.)\s+|(?<=니다\.)\s+|(?<=합니다\.)\s+|(?<=\.)\s+(?=[A-Z가-힣])|\s+(?=\d+\))|\s+(?=[①②③④⑤⑥⑦⑧⑨⑩])',
                 line
-            )
+            )  # \d+\.은 소수점 오분리 위험으로 제외
 
             for p in parts:
                 p = re.sub(r'\s+', ' ', p).strip()
@@ -150,6 +151,8 @@ class SummaryRuleEngine:
                     continue
 
                 if any(k in p for k in self.noise_keywords):
+                    continue
+                if any(k in p.replace(" ", "") for k in self.noise_keywords):
                     continue
                 if any(reg.search(p) for reg in self.dynamic_noise_regexes):
                     continue
@@ -167,8 +170,8 @@ class SummaryRuleEngine:
                 if len(date_matches) >= 3:
                     continue
 
-                # 비율/콜론 연속 나열(퍼센트 3개 이상 또는 콜론 3개 이상이면서 숫자 포함) 배제
-                if (p.count('%') >= 3) or (p.count(':') >= 3 and any(ch.isdigit() for ch in p)):
+                # 비율/콜론 연속 나열(퍼센트 3개 이상 또는 콜론 4개 이상이면서 숫자 포함) 배제
+                if (p.count('%') >= 3) or (p.count(':') >= 4 and any(ch.isdigit() for ch in p)):
                     continue
 
                 # 사례 예시 나열 스킵 (지수증권 등 가상 시나리오)
@@ -239,9 +242,25 @@ class SummaryRuleEngine:
             if not any(k in sentence for k in ['조정사유', '조정에 관한 사항', '조정 전', '조정 후', '조정후', '조정전']):
                 score -= 2.0
 
+        # 투자판단관련주요경영사항 등 핵심 항목 가점
+        # 주의: '주요내용', '결정사유'는 너무 범용적이라 항목 제목 행에도 가점이 붙으므로 제외
+        if any(k in norm_sent for k in ['만료사유', '향후계획', '조달목적', '발행규모', '임상시험단계', '기대효과', '품목명', '신청일', '대상질환명', '적응증', '승인기관', '임상시험관련사항']):
+            score += 25.0
+        # 주요내용/결정사유는 내용이 충분히 길 때만 가점 (단순 라벨 행 방지)
+        elif any(k in norm_sent for k in ['주요내용', '결정사유']) and len(sentence.replace(' ', '')) > 20:
+            score += 15.0
+
         # 조정사유 및 조정 정보 가중치 상향 (가점)
         if any(k in sentence for k in ['조정사유', '조정에 관한 사항', '조정 전', '조정 후', '조정후', '조정전']):
             score += 15.0
+
+        # 불필요한 메타데이터 및 꼬리말 강력 감점 (Penalty)
+        if any(k in norm_sent for k in ['※관련공시', '1.제목', '관련공시:', '이사회결의일', '제출(확인)일자', '제출일자', '확인일자']):
+            score -= 50.0
+
+        # 바이오 임상 면책조항(투자유의사항) 노이즈 감점
+        if any(k in norm_sent for k in ['투자유의사항', '최종허가받을확률은', '통계적으로약10%']):
+            score -= 50.0
 
         # 법적 한도/면책/청약배정 노이즈 문구 대폭 감점 (감점)
         if any(k in norm_sent for k in ['70%에미달', '70%에해당', '새로운전환가액', '발행당시전환가액', '안분배정', '선배정', '발행취소', '초과청약', '경합하는경우', '누계금액', '의결일', '참석여부']):
@@ -271,8 +290,10 @@ class SummaryRuleEngine:
                 score -= 2.0
 
         # 특수기호 비율 검증 및 통계적 페널티 (10% 이상이면 점수 대폭 차감)
-        special_chars = sum(1 for ch in sentence if ch in '/[]|:{}\\<>#_')
-        if len(sentence) > 10 and (special_chars / len(sentence)) >= 0.1:
+        # 시스템이 삽입한 [테이블] 및 | 기호는 제외하고 계산
+        clean_for_chars = sentence.replace("[테이블]", "").replace(" | ", "")
+        special_chars = sum(1 for ch in clean_for_chars if ch in '/[]{}\\<>#_:')
+        if len(clean_for_chars) > 10 and (special_chars / len(clean_for_chars)) >= 0.1:
             score *= 0.1
 
         pos_ratio = sent_order / max(total_sents, 1)
@@ -551,6 +572,10 @@ class SummaryRuleEngine:
         # 먼저 테이블 원시 텍스트를 자연어로 해석 및 변환
         sentence = self.format_raw_table_to_korean(sentence)
 
+        # 파서를 거치고도 남아있는 | 구분자를 : 로 통일 (이중콜론 방지)
+        sentence = re.sub(r'(?<!:)\s*\|\s*(?!:)', ': ', sentence)
+        sentence = re.sub(r':\s+:', ':', sentence)
+
         sentence = re.sub(r'^[\s\-\*\※\■•▪]+', '', sentence)
         sentence = re.sub(r'^(?:\d{1,2}\.|\(\d{1,2}\)|\d{1,2}\))\s*', '', sentence)
         sentence = re.sub(r'\s+', ' ', sentence).strip()
@@ -568,7 +593,7 @@ class SummaryRuleEngine:
 
     def _looks_like_address(self, text: str) -> bool:
         return bool(re.search(
-            r'(?:서울|경기|인천|충북|충남|전북|전남|경북|경남|강원|제주|부산|대구|광주|대전|울산|세종)\s+'
+            r'(?:서울|경기|인천|충북|충남|전북|전남|경북|경남|강원|제주|부산|대구|광주|대전|울산|세종)[가-힣]*\s+'
             r'[가-힣a-zA-Z0-9\s]+(?:시|군|구|읍|면|동|리|로|길)\s+\d+',
             text
         ))

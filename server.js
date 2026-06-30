@@ -103,6 +103,36 @@ const USER_DATA_FILE = path.join(DATA_DIR, 'user_watchlist.json');
 // 실시간 로그를 임시 저장할 배열
 let mlLogs = [];
 
+// 7.5MB corps.json 파일 메모리 캐싱 및 인덱싱 (서버 기동 시 1회만 처리)
+let globalCorps = [];
+let globalCodeToName = {};
+
+try {
+  const corpsPath = path.join(__dirname, 'corps.json');
+  if (fs.existsSync(corpsPath)) {
+    const raw = fs.readFileSync(corpsPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    
+    if (Array.isArray(parsed)) {
+      globalCorps = parsed;
+    } else {
+      globalCorps = Object.entries(parsed)
+        .filter(([key, val]) => !/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val))
+        .map(([name, code]) => ({ code, name }));
+    }
+    
+    // code -> name 역방향 맵 캐싱
+    globalCorps.forEach(item => {
+      if (item.code && item.name) {
+        globalCodeToName[item.code] = item.name;
+      }
+    });
+    console.log(`[DART] corps.json loaded on startup. Total ${globalCorps.length} corporations indexed.`);
+  }
+} catch (e) {
+  console.error('[DART] Failed to pre-load corps.json:', e);
+}
+
 // Lean Engine DB 연결
 const sqlite3 = require('sqlite3').verbose();
 const LEAN_DB_PATH = path.join(__dirname, 'lean_engine.db');
@@ -261,7 +291,7 @@ const server = http.createServer((req, res) => {
   if (summaryMatch) {
     const rcept_no = summaryMatch[1];
     leanDb.get(
-      'SELECT summary_text FROM summaries WHERE rcept_no = ?',
+      'SELECT s.summary_text, f.report_nm FROM summaries s JOIN filings f ON s.rcept_no = f.rcept_no WHERE s.rcept_no = ?',
       [rcept_no],
       (err, row) => {
         if (err) {
@@ -269,8 +299,13 @@ const server = http.createServer((req, res) => {
           return res.end(JSON.stringify({ success: false, message: err.message }));
         }
         if (row) {
+          const aiComments = getFormattedCommentary(row.report_nm, row.summary_text);
+          let finalSummary = row.summary_text;
+          if (aiComments && aiComments.length > 0) {
+            finalSummary += '\n' + aiComments.join('\n');
+          }
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: true, summary: row.summary_text }));
+          return res.end(JSON.stringify({ success: true, summary: finalSummary }));
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, message: '아직 요약이 생성되지 않았습니다.' }));
@@ -365,6 +400,113 @@ const server = http.createServer((req, res) => {
   }
 
 
+
+// ==========================================
+// 1.5.1 AI 코멘트 자동 생성 유틸리티
+// ==========================================
+function getFormattedCommentary(reportName, text) {
+  const comments = [];
+  
+  if (/단일판매|공급계약/.test(reportName)) {
+    const ratioMatch = text.match(/매출액\s*대비[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 50) comments.push(`[코멘트] 전년 매출 대비 ${ratio}%에 달하는 초대형 수주입니다. 강력한 실적 턴어라운드 시그널일 수 있습니다.`);
+      else if (ratio >= 20) comments.push(`[코멘트] 전년 매출 대비 ${ratio}%의 대규모 수주로, 유의미한 실적 기여가 예상됩니다.`);
+      else if (ratio < 5) comments.push(`[코멘트] 전년 매출 대비 ${ratio}% 수주입니다. 단기 실적 기여도는 낮으나 안정적 수주 잔고 확보 차원에서 긍정적입니다.`);
+      else comments.push(`[코멘트] 전년 매출 대비 ${ratio}% 수준의 수주 계약을 체결했습니다.`);
+    }
+  }
+  else if (/유상증자/.test(reportName)) {
+    if (text.includes('제3자배정')) {
+      comments.push(`[코멘트] 제3자 배정 방식은 보통 신규 자금 유입 및 전략적 파트너십 확보로 호재로 인식됩니다.`);
+    } else if (text.includes('주주배정')) {
+      comments.push(`[주의 시그널] 주주배정 방식은 단기적인 주가 희석 우려가 발생할 수 있어 청약 흥행 여부가 중요합니다.`);
+    }
+    const discountMatch = text.match(/할인율[^\d]*([\d.]+)(?:%)?/);
+    if (discountMatch) {
+      const discount = parseFloat(discountMatch[1]);
+      if (discount >= 20) comments.push(`[주의 시그널] 할인율이 ${discount}%로 매우 높아 기존 주주가치 희석에 주의가 필요합니다.`);
+      else comments.push(`[코멘트] 할인율은 ${discount}%로 책정되었습니다.`);
+    }
+  }
+  else if (/임원ㆍ주요주주|대량보유/.test(reportName)) {
+    const isBuy = text.includes('내부자 시그널') || text.includes('내부자 매수') || /(?:장내매수|장내취득|신규보고|상속|증여받음)/.test(text);
+    const isSell = text.includes('내부자 매도') || /(?:장내매도|시간외매도|장내처분|퇴임|증여함)/.test(text);
+    
+    if (isBuy && !isSell) {
+      comments.push(`[코멘트] 내부자의 지분 매수는 현재 주가가 저평가되었다는 경영진의 자신감(책임경영)을 나타냅니다.`);
+    } else if (isSell && !isBuy) {
+      comments.push(`[주의 시그널] 내부자 지분 매도는 차익 실현 등 주가 단기 고점 시그널일 수 있으므로 유의해야 합니다.`);
+    } else if (isBuy && isSell) {
+      comments.push(`[코멘트] 내부자의 지분 매수 및 매도(처분)가 혼재되어 있습니다. 매매 사유와 순매수/순매도 여부를 상세 확인하세요.`);
+    } else {
+      comments.push(`[코멘트] 세부 변동 사항은 원문을 참조하세요.`);
+    }
+  }
+  else if (/배당/.test(reportName)) {
+    const yieldMatch = text.match(/시가배당률[^\d]*([\d.]+)(?:%)?/);
+    if (yieldMatch) {
+      const y = parseFloat(yieldMatch[1]);
+      if (y >= 5) comments.push(`[코멘트] 시가 배당률 ${y}%의 고배당 정책입니다. 배당 투자자들의 강력한 매수세 유입이 기대됩니다.`);
+      else if (y < 1) comments.push(`[코멘트] 배당률은 ${y}%로 다소 낮으나, 지속적인 주주 환원 정책의 일환으로 평가됩니다.`);
+      else comments.push(`[코멘트] 시가 배당률은 ${y}% 수준입니다.`);
+    }
+  }
+  else if (/무상증자/.test(reportName)) {
+    const ratioMatch = text.match(/1주당\s*신주배정[^\d]*([\d.]+)/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 1) comments.push(`[코멘트] 1주당 ${ratio}주를 배정하는 대규모 무상증자입니다. 권리락 효과와 유동성 증가로 주가에 긍정적입니다.`);
+      else comments.push(`[코멘트] 1주당 ${ratio}주 비율의 무상증자 결정입니다.`);
+    }
+  }
+  else if (/전환사채|신주인수권부사채/.test(reportName)) {
+    comments.push(`[주의 시그널] 메자닌 발행 공시: 향후 주식 전환 시 기존 주주 가치가 희석될 수 있으므로 전환가액을 확인하세요.`);
+    if (text.includes('운영자금')) comments.push(`[주의 시그널] 조달 목적이 '운영자금'인 경우 재무 건전성에 대한 우려가 제기될 수 있습니다.`);
+  }
+  else if (/자기주식취득/.test(reportName)) {
+    if (text.includes('소각')) comments.push(`[코멘트] 자사주 취득 후 소각은 유통 주식 수를 줄여 주당 가치를 높이는 가장 강력한 주주 환원책입니다.`);
+    else comments.push(`[코멘트] 자사주 취득 결정은 주가 부양 및 책임 경영에 대한 긍정적 시그널로 해석됩니다.`);
+  }
+  else if (/타법인주식.*취득/.test(reportName)) {
+    comments.push(`[코멘트] 신규 사업 진출 또는 시너지 창출을 위한 타법인 지분 투자입니다. 대상 기업의 성장성이 주가를 좌우합니다.`);
+  }
+  else if (/소송|제재|과징금|영업정지/.test(reportName)) {
+    const ratioMatch = text.match(/자기자본\s*대비[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 10) comments.push(`[주의 시그널] 자기자본 대비 ${ratio}%에 달하는 규모의 제재/소송입니다. 재무 및 영업 타격이 우려됩니다.`);
+      else comments.push(`[주의 시그널] 자기자본 대비 ${ratio}% 규모입니다. 당장의 타격은 제한적이나 진행 상황을 주시해야 합니다.`);
+    } else {
+      comments.push(`[주의 시그널] 법적 리스크 공시: 최종 처분 결과에 따라 불확실성이 확대될 수 있습니다.`);
+    }
+  }
+  else if (/감자결정|자본금감소/.test(reportName)) {
+    const ratioMatch = text.match(/감자비율[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 50) comments.push(`[주의 시그널] 감자비율이 ${ratio}%로 높습니다. 결손금 보전 등 재무구조 악화가 원인인지 확인하세요.`);
+      else comments.push(`[주의 시그널] 감자비율 ${ratio}% 수준의 감자결정입니다. 주주가치 희석에 유의해야 합니다.`);
+    } else if (text.includes('무상감자') || text.includes('결손보전')) {
+      comments.push(`[주의 시그널] 결손금 보전을 위한 무상감자는 심각한 재무 악화 상태를 의미하므로 상장폐지 리스크에 각별히 유의하세요.`);
+    }
+  }
+
+  const uniqueComments = [...new Set(comments)];
+  return uniqueComments.map(c => {
+    let cleanText = c;
+    let emoji = '💬';
+    if (c.startsWith('[코멘트] ')) {
+      emoji = '💬';
+      cleanText = c.replace('[코멘트] ', '');
+    } else if (c.startsWith('[주의 시그널] ')) {
+      emoji = '⚠️';
+      cleanText = c.replace('[주의 시그널] ', '');
+    }
+    return `${emoji} ${cleanText}`;
+  });
+}
 
 // ==========================================
 // 1.5 Disclosure Ranker 스코어링 유틸리티
@@ -478,10 +620,13 @@ function getRankLabel(score) {
                 points.push("자체 로컬 룰 엔진 스코어 기반 중요 수치 자동 하이라이팅이 적용되었습니다.");
               }
 
+              const aiComments = getFormattedCommentary(reportName, text);
+              const finalPoints = [...points.slice(0, 3), ...aiComments];
+
               const result = {
                 category,
                 insight,
-                points: points.slice(0, 3),
+                points: finalPoints,
                 impact: `로컬 Lean Engine 핵심 요약 (${rankScore}점)`,
                 typeCls,
                 rankScore,
@@ -555,25 +700,10 @@ function getRankLabel(score) {
     };
 
     try {
-      const corpsPath = path.join(__dirname, 'corps.json');
-      console.log(`[Search] Searching for "${query}" in ${corpsPath}`);
-      
-      if (!fs.existsSync(corpsPath)) {
-        console.error('[Search] corps.json not found!');
-        res.writeHead(404);
-        return res.end(JSON.stringify({ error: 'Data file missing' }));
-      }
-
-      const corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
-      let results = [];
-      if (Array.isArray(corps)) {
-        results = corps.filter(c => (c.name && (c.name.includes(query) || query.includes(c.name))) || (c.code && c.code.includes(query)));
-      } else {
-        results = Object.entries(corps)
-          .filter(([key, val]) => !/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val))
-          .filter(([name, code]) => name.includes(query) || query.includes(name) || code.includes(query))
-          .map(([name, code]) => ({ code, name }));
-      }
+      let results = globalCorps.filter(c => 
+        (c.name && (c.name.includes(query) || query.includes(c.name))) || 
+        (c.code && c.code.includes(query))
+      );
 
       // INTERNAL_MAP 데이터 병합 (중복 제거)
       const internalResults = Object.entries(INTERNAL_MAP)
@@ -622,12 +752,6 @@ function getRankLabel(score) {
     const codesStr = parsedUrl.searchParams.get('codes') || '';
     const codes = codesStr.split(',').filter(c => c.length > 0);
     
-    let corps = {};
-    try {
-      const corpsPath = path.join(__dirname, 'corps.json');
-      if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
-    } catch (e) { console.error('[API] Error loading corps.json', e); }
-
     const INTERNAL_MAP_REVERSE = {
       "00126380": "삼성전자", "00164779": "SK하이닉스", "00164742": "현대자동차",
       "00111722": "미래에셋증권", "01042775": "HL만도", "00547583": "하나금융지주",
@@ -636,16 +760,9 @@ function getRankLabel(score) {
       "00159109": "한국전력공사", "00106641": "기아"
     };
 
-    const codeToName = { ...INTERNAL_MAP_REVERSE };
-    for (const [key, val] of Object.entries(corps)) {
-      if (!/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) {
-        if (!codeToName[val]) codeToName[val] = key;
-      }
-    }
-
     const result = {};
     codes.forEach(code => {
-      result[code] = codeToName[code] || code;
+      result[code] = INTERNAL_MAP_REVERSE[code] || globalCodeToName[code] || code;
     });
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -695,12 +812,6 @@ function getRankLabel(score) {
 
     query += ` ORDER BY rcept_dt DESC, rcept_no DESC LIMIT 50`;
 
-    let corps = {};
-    try {
-      const corpsPath = path.join(__dirname, 'corps.json');
-      if (fs.existsSync(corpsPath)) corps = JSON.parse(fs.readFileSync(corpsPath, 'utf8'));
-    } catch (e) {}
-
     const INTERNAL_MAP_REVERSE = {
       "00126380": "삼성전자", "00164779": "SK하이닉스", "00164742": "현대자동차",
       "00111722": "미래에셋증권", "01042775": "HL만도", "00547583": "하나금융지주",
@@ -708,43 +819,47 @@ function getRankLabel(score) {
       "00126431": "대한항공", "00155167": "한화솔루션", "00159109": "한국전력공사", "00106641": "기아"
     };
 
-    const codeToName = { ...INTERNAL_MAP_REVERSE };
-    for (const [key, val] of Object.entries(corps)) {
-      if (!/^[0-9]{8}$/.test(key) && /^[0-9]{8}$/.test(val)) {
-        if (!codeToName[val]) codeToName[val] = key;
-      }
+    const codeToName = { ...globalCodeToName, ...INTERNAL_MAP_REVERSE };
+
+    let countQuery = `SELECT COUNT(*) as total FROM filings`;
+    if (conditions.length > 0) {
+      countQuery += ` WHERE ` + conditions.join(' AND ');
     }
 
-    leanDb.all(query, queryParams, (err, rows) => {
-      if (err) {
-        console.error('[Fallback DB] Query error:', err.message);
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        return res.end(JSON.stringify({ status: '000', message: '정상', list: [] }));
-      }
+    leanDb.get(countQuery, queryParams, (cErr, countRow) => {
+      const totalCount = countRow ? countRow.total : 0;
 
-      const list = (rows || []).map(row => {
-        const corpName = codeToName[row.corp_code] || row.corp_code;
-        const isKospi = ['00126380', '00164779', '00164742', '00126431', '00159109'].includes(row.corp_code);
-        return {
-          rcept_no: row.rcept_no,
-          corp_code: row.corp_code,
-          corp_name: corpName,
-          report_nm: row.report_nm,
-          rcept_dt: (row.rcept_dt || '').replace(/-/g, ''),
-          flr_nm: corpName,
-          corp_cls: isKospi ? 'Y' : 'K',
-          rm: ''
-        };
-      });
+      leanDb.all(query, queryParams, (err, rows) => {
+        if (err) {
+          console.error('[Fallback DB] Query error:', err.message);
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ status: '000', message: '정상', total_count: 0, list: [] }));
+        }
 
-      console.log(`[Fallback DB] Successfully served ${list.length} filings from local DB due to DART limit`);
-      res.writeHead(200, { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': '*'
+        const list = (rows || []).map(row => {
+          const corpName = codeToName[row.corp_code] || row.corp_code;
+          const isKospi = ['00126380', '00164779', '00164742', '00126431', '00159109'].includes(row.corp_code);
+          return {
+            rcept_no: row.rcept_no,
+            corp_code: row.corp_code,
+            corp_name: corpName,
+            report_nm: row.report_nm,
+            rcept_dt: (row.rcept_dt || '').replace(/-/g, ''),
+            flr_nm: corpName,
+            corp_cls: isKospi ? 'Y' : 'K',
+            rm: ''
+          };
+        });
+
+        console.log(`[Fallback DB] Successfully served ${list.length} filings (Total: ${totalCount}) from local DB due to DART limit`);
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': '*'
+        });
+        res.end(JSON.stringify({ status: '000', message: '정상 (로컬 DB 백업 수집 데이터)', total_count: totalCount, list }));
       });
-      res.end(JSON.stringify({ status: '000', message: '정상 (로컬 DB 백업 수집 데이터)', list }));
     });
   }
 
@@ -870,6 +985,20 @@ function getRankLabel(score) {
         try {
           const json = JSON.parse(responseData);
           if (json.status === '020') {
+            if (dartPath === 'company.json') {
+              const name = globalCodeToName[corpCode] || '알 수 없는 기업';
+              const fallbackData = {
+                status: '000',
+                message: '정상 (DART 한도 초과로 인한 기본 정보 제공)',
+                corp_name: name,
+                corp_code: corpCode,
+                stock_code: '',
+                ceo_nm: 'DART 한도 초과',
+                adres: 'DART API 일일 한도가 모두 소진되어 상세 정보 로드가 불가능합니다.'
+              };
+              res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              return res.end(JSON.stringify(fallbackData));
+            }
             console.warn('[DART Proxy] Single request limit exceeded (020). Falling back to local DB...');
             return serveFromLocalDB(corpCode, res, bgnDe, endDe);
           }
