@@ -402,6 +402,31 @@ class SummaryRuleEngine:
                     if summary_parts:
                         return f"{label} 실적: {', '.join(summary_parts)}"
 
+        # 0-2. 자기주식취득결과보고서 매칭 (취득 총합 결과 추출)
+        is_treasury_result = any(k in report_nm for k in ['자기주식취득결과', '자사주취득결과'])
+        if is_treasury_result and len(parts) >= 5:
+            if first in ['계', '합계', '총계']:
+                p_clean = [p.replace(",", "").strip() for p in parts]
+                nums = []
+                for p in p_clean[1:]:
+                    if re.match(r"^\d+$", p):
+                        nums.append(int(p))
+                
+                if len(nums) >= 3:
+                    shares = nums[1] if len(nums) > 1 else nums[0]
+                    price = nums[-2]
+                    total_amount = nums[-1]
+                    
+                    amount_str = ""
+                    if total_amount >= 100_000_000_000:
+                        amount_str = f"{total_amount / 1_000_000_000_000:.1f}조원"
+                    elif total_amount >= 100_000_000:
+                        amount_str = f"{total_amount / 100_000_000:.1f}억원"
+                    else:
+                        amount_str = f"{total_amount:,}원"
+                        
+                    return f"자기주식 최종 취득 결과: 총 {shares:,}주를 평균 단가 {price:,}원에 취득 완료 (총 취득금액 {amount_str})"
+
         # 1. 재무 지표 매칭 (매출액, 영업이익, 당기순이익 등)
         financial_metrics = ['매출액', '영업이익', '당기순이익', '영업손실', '당기순손실']
         if any(m in first for m in financial_metrics):
