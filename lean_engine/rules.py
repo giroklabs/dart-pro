@@ -277,6 +277,10 @@ class SummaryRuleEngine:
         if re.search(r'[\:\|]\s*-\s*$', sentence.strip()) or any(k in sentence for k in ['자체적인 판단에 의함', '조세특례제한법']):
             score -= 20.0
 
+        # 테이블 내에 빈 값(- 또는 공란)이 다수 나열된 단순 나열행 감점
+        if sentence.startswith("[테이블]") and (": -" in sentence or "| -" in sentence or ":  -" in sentence or "|  -" in sentence):
+            score -= 15.0
+
         # 공시 제목 자체를 요약 불릿에 넣지 않도록 감점
         if any(k in sentence for k in ['증권발행실적보고서', '투자설명서', '주요사항보고서', '증권신고서', '사업보고서', '분기보고서', '반기보고서']):
             score -= 15.0
@@ -342,6 +346,62 @@ class SummaryRuleEngine:
             if first in ignorable_headers or first.strip() in ignorable_headers:
                 return ""
             
+        # 0. 영업(잠정)실적(공정공시) 내 판매대수/실적 매칭 (자연어 포맷팅)
+        report_nm = getattr(self, 'current_report_nm', '')
+        is_earnings_preview = any(k in report_nm for k in ['영업(잠정)실적', '영업실적'])
+        if is_earnings_preview and len(parts) >= 4:
+            target_categories = ['국내', '해외', '계']
+            if any(c == first or c in first for c in target_categories):
+                p_clean = [p.replace(",", "").strip() for p in parts]
+                label = p_clean[0]
+                
+                # 누적 여부 판별: 2번째, 3번째 컬럼이 '-' 이고 5번째 또는 6번째 컬럼에 값이 있는 경우 누적
+                is_cumulative = False
+                if len(p_clean) >= 7:
+                    is_cumulative = (p_clean[2] == '-' and p_clean[3] == '-' and p_clean[5] != '-' and p_clean[6] != '-')
+                
+                unit = "대" if any(k in label for k in ['국내', '해외', '계']) else "원"
+                
+                if is_cumulative and len(p_clean) >= 7:
+                    cum_val = p_clean[1]
+                    prev_cum_val = p_clean[5]
+                    cum_rate = p_clean[6]
+                    
+                    summary_parts = []
+                    if cum_val != '-':
+                        try:
+                            summary_parts.append(f"상반기 누적 {int(float(cum_val)):,}대")
+                        except ValueError:
+                            summary_parts.append(f"상반기 누적 {cum_val}대")
+                    if cum_rate != '-' and cum_rate != '0':
+                        sign = "+" if not cum_rate.startswith("-") else ""
+                        summary_parts.append(f"전년동기대비 {sign}{cum_rate}%")
+                    
+                    if summary_parts:
+                        return f"{label} 누적 실적: {', '.join(summary_parts)}"
+                else:
+                    curr_val = p_clean[1]
+                    prev_val = p_clean[2] if len(p_clean) > 2 else '-'
+                    prev_rate = p_clean[3] if len(p_clean) > 3 else '-'
+                    year_ago_val = p_clean[5] if len(p_clean) > 5 else '-'
+                    year_ago_rate = p_clean[6] if len(p_clean) > 6 else '-'
+                    
+                    summary_parts = []
+                    if curr_val != '-':
+                        try:
+                            summary_parts.append(f"당월 {int(float(curr_val)):,}대")
+                        except ValueError:
+                            summary_parts.append(f"당월 {curr_val}대")
+                    if prev_rate != '-' and prev_rate != '0' and prev_rate != '':
+                        sign = "+" if not prev_rate.startswith("-") else ""
+                        summary_parts.append(f"전월대비 {sign}{prev_rate}%")
+                    if year_ago_rate != '-' and year_ago_rate != '0' and year_ago_rate != '':
+                        sign = "+" if not year_ago_rate.startswith("-") else ""
+                        summary_parts.append(f"전년동월대비 {sign}{year_ago_rate}%")
+                        
+                    if summary_parts:
+                        return f"{label} 실적: {', '.join(summary_parts)}"
+
         # 1. 재무 지표 매칭 (매출액, 영업이익, 당기순이익 등)
         financial_metrics = ['매출액', '영업이익', '당기순이익', '영업손실', '당기순손실']
         if any(m in first for m in financial_metrics):
