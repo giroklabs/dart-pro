@@ -496,9 +496,9 @@ function getFormattedCommentary(reportName, text) {
   const uniqueComments = [...new Set(comments)];
   return uniqueComments.map(c => {
     let cleanText = c;
-    let emoji = '💬';
+    let emoji = '💡';
     if (c.startsWith('[코멘트] ')) {
-      emoji = '💬';
+      emoji = '💡';
       cleanText = c.replace('[코멘트] ', '');
     } else if (c.startsWith('[주의 시그널] ')) {
       emoji = '⚠️';

@@ -173,6 +173,174 @@ function getRankLabel(score) {
   return 0; // 참고
 }
 
+function getFormattedCommentary(reportName, text) {
+  if (!text) return [];
+  const comments = [];
+  
+  if (/단일판매|공급계약/.test(reportName)) {
+    const ratioMatch = text.match(/매출액\s*대비[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 50) comments.push(`[코멘트] 전년 매출 대비 ${ratio}%에 달하는 초대형 수주입니다. 강력한 실적 턴어라운드 시그널일 수 있습니다.`);
+      else if (ratio >= 10) comments.push(`[코멘트] 전년 매출 대비 ${ratio}%의 유의미한 수주 공시입니다. 추가 계약 여부를 모니터링하세요.`);
+    }
+  }
+  else if (/유상증자/.test(reportName)) {
+    if (text.includes('제3자배정')) {
+      comments.push(`[코멘트] 제3자배정 방식은 특수관계인 또는 전략적 투자자 유치 목적일 가능성이 높아 시장에서 호재로 인식될 수 있습니다.`);
+    } else if (text.includes('주주배정')) {
+      comments.push(`[주의 시그널] 주주배정 방식은 단기적인 주가 희석 우려가 발생할 수 있어 청약 흥행 여부가 중요합니다.`);
+    }
+    const discountMatch = text.match(/할인율[^\d]*([\d.]+)(?:%)?/);
+    if (discountMatch) {
+      const discount = parseFloat(discountMatch[1]);
+      if (discount >= 20) comments.push(`[주의 시그널] 할인율이 ${discount}%로 매우 높아 기존 주주가치 희석에 주의가 필요합니다.`);
+    }
+  }
+  else if (/무상증자/.test(reportName)) {
+    const ratioMatch = text.match(/1주당\s*신주배정[^\d]*([\d.]+)/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 1) comments.push(`[코멘트] 1주당 ${ratio}주의 파격적인 무상증자입니다. 단기 수급 개선 및 유동성 확보에 강력한 호재입니다.`);
+      else comments.push(`[코멘트] 무상증자를 통한 긍정적 주주환원 정책입니다. 권리락 일정을 체크하세요.`);
+    }
+  }
+  else if (/배당/.test(reportName)) {
+    const yieldMatch = text.match(/시가배당률[^\d]*([\d.]+)(?:%)?/);
+    if (yieldMatch) {
+      const y = parseFloat(yieldMatch[1]);
+      if (y >= 5) comments.push(`[코멘트] 시가 배당률 ${y}%의 고배당 정책입니다. 배당 투자자들의 강력한 매수세 유입이 기대됩니다.`);
+      else comments.push(`[코멘트] 배당성향 및 주당 배당금의 전년 동기 대비 증감률을 우선 확인하세요.`);
+    }
+  }
+  else if (/자기주식소각|자사주소각/.test(reportName)) {
+    comments.push(`[코멘트] 유통 주식 수 감소로 직결되는 가장 강력하고 확실한 주주환원 정책입니다.`);
+  }
+  else if (/소유상황/.test(reportName)) {
+    if (text.includes('장내매수')) {
+      comments.push(`[코멘트] 주요 주주 또는 임원의 장내매수는 기업 가치 저평가에 대한 강력한 시그널일 수 있습니다.`);
+    } else if (text.includes('장내매도')) {
+      comments.push(`[주의 시그널] 주요 경영진의 장내매도는 고점 징후나 차익 실현으로 해석될 수 있어 주의가 필요합니다.`);
+    }
+  }
+  else if (/타법인주식/.test(reportName) && text.includes('취득')) {
+    comments.push(`[코멘트] 신규 사업 진출 또는 시너지 창출을 위한 타법인 지분 투자입니다. 대상 기업의 성장성이 주가를 좌우합니다.`);
+  }
+  else if (/소송|제재|과징금|영업정지/.test(reportName)) {
+    const ratioMatch = text.match(/자기자본\s*대비[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 10) comments.push(`[주의 시그널] 자기자본 대비 ${ratio}%에 달하는 규모의 제재/소송입니다. 재무 및 영업 타격이 우려됩니다.`);
+      else comments.push(`[주의 시그널] 소송/제재의 성격과 향후 발생 가능한 우발 채무 리스크를 점검하세요.`);
+    }
+  }
+  else if (/감자결정|자본금감소/.test(reportName)) {
+    const ratioMatch = text.match(/감자비율[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 50) comments.push(`[주의 시그널] 감자비율이 ${ratio}%로 높습니다. 결손금 보전 등 재무구조 악화가 원인인지 확인하세요.`);
+      else comments.push(`[주의 시그널] 감자는 대부분 재무구조 개선 목적으로 진행되며 주주 가치 하락 우려가 있습니다.`);
+    }
+  }
+
+  return comments.map(c => {
+    let emoji = '💡';
+    let cleanText = c;
+    if (c.includes('[코멘트]')) {
+      emoji = '💡';
+      cleanText = c.replace('[코멘트] ', '');
+    } else if (c.includes('[주의 시그널]')) {
+      emoji = '⚠️';
+      cleanText = c.replace('[주의 시그널] ', '');
+    }
+    return `${emoji} ${cleanText}`;
+  });
+}
+
+function getFormattedCommentary(reportName, text) {
+  if (!text) return [];
+  const comments = [];
+  
+  if (/단일판매|공급계약/.test(reportName)) {
+    const ratioMatch = text.match(/매출액\s*대비[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 50) comments.push(`[코멘트] 전년 매출 대비 ${ratio}%에 달하는 초대형 수주입니다. 강력한 실적 턴어라운드 시그널일 수 있습니다.`);
+      else if (ratio >= 10) comments.push(`[코멘트] 전년 매출 대비 ${ratio}%의 유의미한 수주 공시입니다. 추가 계약 여부를 모니터링하세요.`);
+    }
+  }
+  else if (/유상증자/.test(reportName)) {
+    if (text.includes('제3자배정')) {
+      comments.push(`[코멘트] 제3자배정 방식은 특수관계인 또는 전략적 투자자 유치 목적일 가능성이 높아 시장에서 호재로 인식될 수 있습니다.`);
+    } else if (text.includes('주주배정')) {
+      comments.push(`[주의 시그널] 주주배정 방식은 단기적인 주가 희석 우려가 발생할 수 있어 청약 흥행 여부가 중요합니다.`);
+    }
+    const discountMatch = text.match(/할인율[^\d]*([\d.]+)(?:%)?/);
+    if (discountMatch) {
+      const discount = parseFloat(discountMatch[1]);
+      if (discount >= 20) comments.push(`[주의 시그널] 할인율이 ${discount}%로 매우 높아 기존 주주가치 희석에 주의가 필요합니다.`);
+    }
+  }
+  else if (/무상증자/.test(reportName)) {
+    const ratioMatch = text.match(/1주당\s*신주배정[^\d]*([\d.]+)/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 1) comments.push(`[코멘트] 1주당 ${ratio}주의 파격적인 무상증자입니다. 단기 수급 개선 및 유동성 확보에 강력한 호재입니다.`);
+      else comments.push(`[코멘트] 무상증자를 통한 긍정적 주주환원 정책입니다. 권리락 일정을 체크하세요.`);
+    }
+  }
+  else if (/배당/.test(reportName)) {
+    const yieldMatch = text.match(/시가배당률[^\d]*([\d.]+)(?:%)?/);
+    if (yieldMatch) {
+      const y = parseFloat(yieldMatch[1]);
+      if (y >= 5) comments.push(`[코멘트] 시가 배당률 ${y}%의 고배당 정책입니다. 배당 투자자들의 강력한 매수세 유입이 기대됩니다.`);
+      else comments.push(`[코멘트] 배당성향 및 주당 배당금의 전년 동기 대비 증감률을 우선 확인하세요.`);
+    }
+  }
+  else if (/자기주식소각|자사주소각/.test(reportName)) {
+    comments.push(`[코멘트] 유통 주식 수 감소로 직결되는 가장 강력하고 확실한 주주환원 정책입니다.`);
+  }
+  else if (/소유상황/.test(reportName)) {
+    if (text.includes('장내매수')) {
+      comments.push(`[코멘트] 주요 주주 또는 임원의 장내매수는 기업 가치 저평가에 대한 강력한 시그널일 수 있습니다.`);
+    } else if (text.includes('장내매도')) {
+      comments.push(`[주의 시그널] 주요 경영진의 장내매도는 고점 징후나 차익 실현으로 해석될 수 있어 주의가 필요합니다.`);
+    }
+  }
+  else if (/타법인주식/.test(reportName) && text.includes('취득')) {
+    comments.push(`[코멘트] 신규 사업 진출 또는 시너지 창출을 위한 타법인 지분 투자입니다. 대상 기업의 성장성이 주가를 좌우합니다.`);
+  }
+  else if (/소송|제재|과징금|영업정지/.test(reportName)) {
+    const ratioMatch = text.match(/자기자본\s*대비[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 10) comments.push(`[주의 시그널] 자기자본 대비 ${ratio}%에 달하는 규모의 제재/소송입니다. 재무 및 영업 타격이 우려됩니다.`);
+      else comments.push(`[주의 시그널] 소송/제재의 성격과 향후 발생 가능한 우발 채무 리스크를 점검하세요.`);
+    }
+  }
+  else if (/감자결정|자본금감소/.test(reportName)) {
+    const ratioMatch = text.match(/감자비율[^\d]*([\d.]+)(?:%)?/);
+    if (ratioMatch) {
+      const ratio = parseFloat(ratioMatch[1]);
+      if (ratio >= 50) comments.push(`[주의 시그널] 감자비율이 ${ratio}%로 높습니다. 결손금 보전 등 재무구조 악화가 원인인지 확인하세요.`);
+      else comments.push(`[주의 시그널] 감자는 대부분 재무구조 개선 목적으로 진행되며 주주 가치 하락 우려가 있습니다.`);
+    }
+  }
+
+  return comments.map(c => {
+    let emoji = '💡';
+    let cleanText = c;
+    if (c.includes('[코멘트]')) {
+      emoji = '💡';
+      cleanText = c.replace('[코멘트] ', '');
+    } else if (c.includes('[주의 시그널]')) {
+      emoji = '⚠️';
+      cleanText = c.replace('[주의 시그널] ', '');
+    }
+    return `${emoji} ${cleanText}`;
+  });
+}
+
 function summarizeDisclosure(item, aiData = null, leanSummary = null) {
   const aiMode = localStorage.getItem('dart_ai_mode') || 'gemini';
   const title = item.report_nm || '';
@@ -758,6 +926,51 @@ const QUICK_RULES = [
       '배당 기준일 전일까지 매수 완료 필요',
       '예상 배당금 및 시가배당률 확인',
       '기존 연간 배당 정책과의 일관성 체크'
+    ]
+  },
+  {
+    id: 'clinical',
+    match: [/품목허가/, /임상시험/, /임상 3상/, /임상 1상/, /임상 2상/, /식품의약품안전처/],
+    category: '공급·투자',
+    impact: '성장 투자',
+    urgency: 75,
+    typeCls: 'insight-info',
+    icon: 'science',
+    insight: '임상시험 및 품목허가 관련 공시: 신약 개발/허가 단계 진척 및 기대 효과를 확인하세요.',
+    points: [
+      '임상 단계(1/2/3상) 및 대상 질환 확인',
+      '허가/승인 기관 및 허가 신청 국가 확인',
+      '추후 일정 및 상용화 가능성 검토'
+    ]
+  },
+  {
+    id: 'accident',
+    match: [/재해/, /사고/, /사망/],
+    category: '리스크',
+    impact: '주의 요망',
+    urgency: 90,
+    typeCls: 'insight-warning',
+    icon: 'warning',
+    insight: '재해/사고 관련 공시: 인적·물적 피해 규모 및 생산 차질 여부를 확인해야 합니다.',
+    points: [
+      '피해 규모 및 재해 발생 내역 확인',
+      '작업 중지 범위 및 생산 중단 영향 검토',
+      '경영진의 안전 보건 조치 및 재발 방지 대책 확인'
+    ]
+  },
+  {
+    id: 'reorganization',
+    match: [/회생/, /파산/],
+    category: '법적분쟁',
+    impact: '주의 요망',
+    urgency: 92,
+    typeCls: 'insight-warning',
+    icon: 'gavel',
+    insight: '회생/파산 절차 공시: 기업의 존립 및 구조조정 과정에 중요한 변화가 발생했습니다.',
+    points: [
+      '회생계획 인가 여부 및 주요 내용 확인',
+      '채권자 권리 조정 및 출자전환 비율 검토',
+      '상장유지/상장폐지 리스크 여부 판단'
     ]
   }
 ];
