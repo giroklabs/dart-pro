@@ -2578,7 +2578,7 @@ class DartLeanEngine:
                         break
             
             if earnings_lines:
-                header = f"{display_name} - {report_nm_clean}"
+                header = "실적 관련 공시: 매출 또는 이익 변동 내용이 포함되어 있습니다."
                 body = "\n".join(earnings_lines[:3])
                 return f"{header}\n\n{body}", "[]"
 
