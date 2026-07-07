@@ -148,8 +148,9 @@ class DartLeanEngine:
         rcept_no = filing.get("rcept_no")
         try:
             logger.info("[%s] %s 다운로드 및 분석 중...", rcept_no, filing.get("report_nm"))
-            raw_content, raw_text = self._download_and_parse(rcept_no)
-            if not raw_text:
+            is_periodic = self._is_periodic_report(filing.get("report_nm", ""))
+            raw_content, raw_text = self._download_and_parse(rcept_no, skip_text_parsing=is_periodic)
+            if not is_periodic and not raw_text:
                 logger.warning("[%s] raw_text 비어 있음", rcept_no)
                 return None
 
@@ -172,15 +173,20 @@ class DartLeanEngine:
             else:
                 logger.debug("[%s] skip financial extractor by report_nm=%s", rcept_no, filing.get("report_nm", ""))
 
-            sentences = self.rule_engine.split_sentences(raw_text)
-            scored_sentences = [
-                {
-                    "order": i,
-                    "content": s,
-                    "score": self.rule_engine.score_sentence(s, i, len(sentences))
-                }
-                for i, s in enumerate(sentences)
-            ]
+            # 정기보고서(사업/반기/분기)는 FinancialExtractor로 재무지표만 추출하고
+            # 문장 점수화 단계를 완전히 건너뜀 → 파싱 시간 대폭 단축
+            if is_periodic:
+                scored_sentences = []
+            else:
+                sentences = self.rule_engine.split_sentences(raw_text)
+                scored_sentences = [
+                    {
+                        "order": i,
+                        "content": s,
+                        "score": self.rule_engine.score_sentence(s, i, len(sentences))
+                    }
+                    for i, s in enumerate(sentences)
+                ]
 
             summary_text, top_ids_json = self._build_summary(
                 scored_sentences=scored_sentences,
@@ -1380,6 +1386,11 @@ class DartLeanEngine:
         in_detail_section = False
         changes = []
         
+        # 가. 소유 특정증권등의 수 및 소유비율 추출용 변수
+        prev_ratio, prev_shares = None, None
+        curr_ratio, curr_shares = None, None
+        diff_ratio, diff_shares = None, None
+        
         i = 0
         while i < len(lines):
             line = lines[i]
@@ -1388,49 +1399,69 @@ class DartLeanEngine:
             # 1. | 로 구분된 정상적인 테이블 행 처리
             if '|' in line and '[테이블]' in line:
                 parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
+                
+                # 소유비율 테이블 정보 추출
+                if len(parts) >= 5:
+                    label = parts[0].replace(" ", "")
+                    if "직전보고서" in label:
+                        prev_shares = parts[2]
+                        prev_ratio = parts[3]
+                    elif "이번보고서" in label:
+                        curr_shares = parts[2]
+                        curr_ratio = parts[3]
+                    elif "증감" in label or "증_감" in label:
+                        diff_shares = parts[2]
+                        diff_ratio = parts[3]
+
                 if len(parts) >= 5 and "보고사유" not in line_clean and "변동일" not in line_clean and "주식의종류" not in line_clean:
-                    # 간단한 휴리스틱: "매수", "처분" 등의 단어가 들어간 컬럼 찾기
-                    reason = parts[0]
-                    for p in parts:
-                        if any(k in p for k in ["매수", "매도", "처분", "취득", "상여"]):
-                            reason = p
-                            break
+                    # 요약 표 헤더/합계 및 수치로 시작하는 행 제외 (실제 변동 사유가 있는 행만 추출)
+                    reason_clean = parts[0].replace(" ", "")
+                    is_summary_row = (not reason_clean or reason_clean == "-" or 
+                                      reason_clean.replace(",", "").replace(".", "").isdigit() or
+                                      any(k in reason_clean for k in ["직전보고서", "이번보고서", "증감", "합계", "소계", "계"]))
                     
-                    stock_type = "보통주"
-                    for p in parts:
-                        if "보통주" in p or "우선주" in p:
-                            stock_type = p
-                            break
-                    
-                    # 증감 수량 찾기 (+ 또는 - 부호가 있거나 숫자인 컬럼 중 3번째 이후)
-                    change_qty = "0"
-                    for p in reversed(parts):
-                        p_cl = p.replace(",", "").strip()
-                        if p_cl.startswith("+") or p_cl.startswith("-"):
-                            if p_cl[1:].isdigit():
-                                change_qty = p_cl
+                    if not is_summary_row:
+                        reason = parts[0]
+                        for p in parts:
+                            if any(k in p for k in ["매수", "매도", "처분", "취득", "상여"]):
+                                reason = p
                                 break
-                        elif p_cl.isdigit() and int(p_cl) > 0 and len(p_cl) >= 2:
-                            # 부호가 없더라도 큰 숫자면 일단 저장
-                            change_qty = p_cl
-                            
-                    try:
-                        qty = int(change_qty)
-                        if qty != 0:
-                            if "매수" in reason or "상여" in reason or "취득" in reason:
-                                sign = "+" if qty > 0 else ""
-                                signal = "내부자 매수/취득"
-                            elif "매도" in reason or "처분" in reason:
-                                sign = "-" if qty > 0 else ""
-                                signal = "내부자 매도/처분"
-                            else:
-                                sign = "+" if qty > 0 else ""
-                                signal = ""
+                        
+                        stock_type = "보통주"
+                        for p in parts:
+                            if "보통주" in p or "우선주" in p:
+                                stock_type = p
+                                break
+                        
+                        # 증감 수량 찾기 (+ 또는 - 부호가 있거나 숫자인 컬럼 중 3번째 이후)
+                        change_qty = "0"
+                        for p in reversed(parts):
+                            p_cl = p.replace(",", "").strip()
+                            if p_cl.startswith("+") or p_cl.startswith("-"):
+                                if p_cl[1:].isdigit():
+                                    change_qty = p_cl
+                                    break
+                            elif p_cl.isdigit() and int(p_cl) > 0 and len(p_cl) >= 2:
+                                # 부호가 없더라도 큰 숫자면 일단 저장
+                                change_qty = p_cl
                                 
-                            sig_suffix = f" [{signal}]" if signal else ""
-                            changes.append(f"▪ {reporter}: {reason} ({stock_type} {sign}{qty:,}주){sig_suffix}")
-                    except ValueError:
-                        pass
+                        try:
+                            qty = int(change_qty)
+                            if qty != 0:
+                                if "매수" in reason or "상여" in reason or "취득" in reason:
+                                    sign = "+" if qty > 0 else ""
+                                    signal = "내부자 매수/취득"
+                                elif "매도" in reason or "처분" in reason:
+                                    sign = "-" if qty > 0 else ""
+                                    signal = "내부자 매도/처분"
+                                else:
+                                    sign = "+" if qty > 0 else ""
+                                    signal = ""
+                                    
+                                sig_suffix = f" [{signal}]" if signal else ""
+                                changes.append(f"▪ {reporter}: {reason} ({stock_type} {sign}{qty:,}주){sig_suffix}")
+                        except ValueError:
+                            pass
 
             # 2. 여러 줄로 쪼개진 비정상 테이블 (기존 SKT 형태 등)
             if "[테이블]변동전|증감|변동후" in line_clean:
@@ -1473,10 +1504,39 @@ class DartLeanEngine:
                     
             i += 1
             
+        ratio_summary = None
+        if prev_ratio is not None and curr_ratio is not None:
+            try:
+                p_shares = int(prev_shares.replace(",", ""))
+                c_shares = int(curr_shares.replace(",", ""))
+                d_shares_val = c_shares - p_shares
+                d_shares_sign = "+" if d_shares_val > 0 else ""
+                d_shares_str = f"{d_shares_sign}{d_shares_val:,}"
+            except Exception:
+                d_shares_str = diff_shares or "0"
+
+            try:
+                p_ratio_val = float(prev_ratio)
+                c_ratio_val = float(curr_ratio)
+                d_ratio_val = c_ratio_val - p_ratio_val
+                d_ratio_sign = "+" if d_ratio_val > 0 else ""
+                d_ratio_str = f"{d_ratio_sign}{d_ratio_val:.2f}"
+            except Exception:
+                d_ratio_str = diff_ratio or "0.00"
+
+            if d_shares_str.startswith("++"): d_shares_str = d_shares_str[1:]
+            if d_ratio_str.startswith("++"): d_ratio_str = d_ratio_str[1:]
+            
+            ratio_summary = f"▪ {reporter} 지분율 변동: {prev_ratio}% ({prev_shares}주) -> {curr_ratio}% ({curr_shares}주) [증감: {d_ratio_str}%p ({d_shares_str}주)]"
+
         if changes:
-            # 중복 제거 후 출력 (동일 행을 여러 번 파싱할 수 있으므로)
             unique_changes = list(dict.fromkeys(changes))
-            return "\n\n".join(unique_changes[:5])
+            detail_str = "\n".join(unique_changes[:5])
+            if ratio_summary:
+                return f"{ratio_summary}\n\n[세부 변동 내역]\n{detail_str}"
+            return detail_str
+        elif ratio_summary:
+            return ratio_summary
         return None
 
     def _parse_major_shareholder_change(self, raw_text: str) -> str:
@@ -1484,15 +1544,46 @@ class DartLeanEngine:
             return None
         lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
         
+        total_summaries = []
         changes = []
         for line in lines:
             line_clean = line.replace(" ", "")
             if '|' in line and '[테이블]' in line:
                 parts = [re.sub(r'\[\s*테이블\s*\]', '', p).strip() for p in line.split('|')]
-                if not parts or any(h in parts[0] for h in ["구분", "주주명", "성명", "계", "소계", "전체합계", "성명(명칭)", "보고자"]):
+                parts = [p for p in parts if p]
+                if not parts:
+                    continue
+                    
+                # 1. '보고의 개요' 등에서 나타나는 총 '증감' 로직 처리
+                if "증감" in parts[0].replace(" ", ""):
+                    share_type = ""
+                    qty_str = ""
+                    ratio_str = ""
+                    for p in parts[1:]:
+                        p_cl = p.replace(",", "").replace(" ", "")
+                        if "보통주" in p_cl or "종류주" in p_cl:
+                            share_type = p.strip()
+                        elif p_cl.lstrip("+-").isdigit() and not qty_str:
+                            qty_str = p.strip()
+                        elif "." in p_cl and p_cl.replace(".", "").lstrip("+-").isdigit() and not ratio_str:
+                            ratio_str = p.strip()
+                    
+                    if share_type and qty_str and qty_str != "0":
+                        try:
+                            qty_val = int(qty_str.replace(",", ""))
+                            if qty_val != 0:
+                                sign = "+" if qty_val > 0 else ""
+                                qty_formatted = f"{qty_val:,}"
+                                ratio_suffix = f" (지분율 {ratio_str}%p 변동)" if ratio_str and ratio_str != "0.00" else ""
+                                total_summaries.append(f"▪ [총합] {share_type}: {sign}{qty_formatted}주 변동{ratio_suffix}")
+                        except ValueError:
+                            pass
+                        continue
+                
+                # 2. 기존 로직: 개인별 세부 변동사항 처리
+                if any(h in parts[0].replace(" ", "") for h in ["구분", "주주명", "성명", "계", "소계", "전체합계", "성명(명칭)", "보고자"]):
                     continue
                 
-                # 최소 5칸 이상일 때 (보통 이름, 관계, 주식종류, 증감수량, 지분율 등이 포함됨)
                 if len(parts) >= 5:
                     name = parts[0] if len(parts[0]) > 1 else (parts[1] if len(parts) > 1 else "주주")
                     
@@ -1502,7 +1593,6 @@ class DartLeanEngine:
                             share_type = p
                             break
                             
-                    # 증감 찾기: 보통 뒤에서부터 찾아봄. +나 - 부호가 있거나 숫자인 컬럼
                     change_qty = ""
                     for p in reversed(parts[2:]):
                         p_cl = p.replace(",", "").strip()
@@ -1518,7 +1608,6 @@ class DartLeanEngine:
                                 sign = "+" if qty_val > 0 else ""
                                 change_qty_formatted = f"{qty_val:,}"
                                 
-                                # 지분율 찾기: % 기호가 있거나 소수점이 있는 숫자
                                 after_rate = ""
                                 for p in reversed(parts):
                                     if "%" in p or ("." in p and p.replace(".", "").isdigit()):
@@ -1528,10 +1617,22 @@ class DartLeanEngine:
                                 changes.append(f"▪ {name}: {share_type} {sign}{change_qty_formatted}주 변동{after_rate}")
                         except ValueError:
                             continue
-                            
+
+        result_parts = []
+        if total_summaries:
+            unique_totals = list(dict.fromkeys(total_summaries))
+            result_parts.append("\n".join(unique_totals))
+            
         if changes:
             unique_changes = list(dict.fromkeys(changes))
-            return "\n".join(unique_changes[:5])
+            if result_parts:
+                result_parts.append("[세부 변동 내역]\n" + "\n".join(unique_changes[:5]))
+            else:
+                result_parts.append("\n".join(unique_changes[:5]))
+                
+        if result_parts:
+            return "\n\n".join(result_parts)
+            
         return "최대주주 등의 주식 보유 지분율에 변동이 있었습니다. 세부 변동 내역은 원문을 참고하시기 바랍니다."
 
     def _parse_debt_security_확정(self, raw_text: str) -> str:
@@ -2453,6 +2554,33 @@ class DartLeanEngine:
         display_name = (corp_name or "").strip() or "해당 기업"
         report_nm_clean = (report_nm or "").strip()
         self.rule_engine.current_report_nm = report_nm_clean
+        self.rule_engine.current_raw_text = raw_text or ""
+
+        # 00-0. 영업(잠정)실적(공정공시) 스페셜 케이스 처리
+        if any(k in report_nm_clean for k in ['영업(잠정)실적', '영업실적', '잠정실적']):
+            valid_sents = [s for s in scored_sentences if s["score"] > 0]
+            valid_sents.sort(key=lambda x: x["score"], reverse=True)
+            
+            earnings_lines = []
+            for s in valid_sents:
+                text = s["text"]
+                # rules.py가 테이블에서 추출한 핵심 지표 텍스트 우선 선별
+                if text.startswith("▪ ") and any(k in text for k in ["매출", "영업이익", "영업손실", "당기순이익", "당기순손실", "당월", "누적"]):
+                    earnings_lines.append(text)
+            
+            # 테이블 파싱 결과가 없다면 콜론이 많은 노이즈 텍스트를 배제하고 일반 상위 문장 3개 추출
+            if not earnings_lines:
+                for s in valid_sents:
+                    if s["text"].count(" : ") >= 2:
+                        continue
+                    earnings_lines.append(s["text"])
+                    if len(earnings_lines) >= 3:
+                        break
+            
+            if earnings_lines:
+                header = f"{display_name} - {report_nm_clean}"
+                body = "\n".join(earnings_lines[:3])
+                return f"{header}\n\n{body}", "[]"
 
         # 00. 정정공시 스페셜 케이스 처리 (정정항목 / 정정사유 정밀 추출)
         if "정정" in report_nm_clean:
@@ -2903,7 +3031,7 @@ class DartLeanEngine:
 
     def _is_periodic_report(self, report_nm: str) -> bool:
         report_nm = (report_nm or "").strip()
-        return report_nm.startswith(("사업보고서", "반기보고서", "분기보고서"))
+        return any(k in report_nm for k in ("사업보고서", "반기보고서", "분기보고서"))
 
     def _format_korean_amount(self, value_in_million) -> str:
         try:
@@ -2966,7 +3094,7 @@ class DartLeanEngine:
         return all_filings
 
     @retry_on_exception(max_retries=2, delay=1.0)
-    def _download_and_parse(self, rcept_no):
+    def _download_and_parse(self, rcept_no, skip_text_parsing=False):
         url = f"{self.base_url}/document.xml"
         res = requests.get(
             url,
@@ -3045,6 +3173,13 @@ class DartLeanEngine:
 
         if not content:
             return "", ""
+
+        if skip_text_parsing:
+            txt_sample = content if isinstance(content, str) else content.decode("utf-8", errors="ignore")
+            txt_sample = txt_sample[:10000]
+            if "파일이 존재하지 않습니다" in txt_sample or "사용한도" in txt_sample or "초과하였습니다" in txt_sample:
+                raise ValueError("DART API 원문 파일이 아직 생성되지 않았거나 일시적인 부재/에러 상태입니다. (추후 재시도 예정)")
+            return content, ""
 
         parsed_text = self.rule_engine.process_content(content)
         if "파일이 존재하지 않습니다" in parsed_text or "사용한도" in parsed_text or "초과하였습니다" in parsed_text or not parsed_text.strip() or len(parsed_text.strip()) < 15:
