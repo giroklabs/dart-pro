@@ -2580,7 +2580,7 @@ class DartLeanEngine:
                     parts = cleaned.split(' ', 2)
                     if len(parts) >= 2:
                         label = parts[1]
-                        if label in seen_labels and "(누계)" not in label:
+                        if label in seen_labels and "(누계)" not in label and "전망" not in report_nm_clean:
                             cleaned = cleaned.replace(label, f"{label}(누계)", 1)
                         elif label:
                             seen_labels.add(label)

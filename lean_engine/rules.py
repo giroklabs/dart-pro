@@ -463,6 +463,7 @@ class SummaryRuleEngine:
                         except ValueError:
                             summary_parts.append(f"상반기 누적 {cum_val}대")
                     if cum_rate != '-' and cum_rate != '0':
+                        cum_rate = cum_rate.replace('+', '').replace('%', '').strip()
                         sign = "+" if not cum_rate.startswith("-") else ""
                         summary_parts.append(f"전년동기대비 {sign}{cum_rate}%")
                     
@@ -480,9 +481,11 @@ class SummaryRuleEngine:
                         except ValueError:
                             summary_parts.append(f"당월 {curr_val}대")
                     if prev_rate != '-' and prev_rate != '0' and prev_rate != '':
+                        prev_rate = prev_rate.replace('+', '').replace('%', '').strip()
                         sign = "+" if not prev_rate.startswith("-") else ""
                         summary_parts.append(f"전월대비 {sign}{prev_rate}%")
                     if year_ago_rate != '-' and year_ago_rate != '0' and year_ago_rate != '':
+                        year_ago_rate = year_ago_rate.replace('+', '').replace('%', '').strip()
                         sign = "+" if not year_ago_rate.startswith("-") else ""
                         summary_parts.append(f"전년동월대비 {sign}{year_ago_rate}%")
                         
