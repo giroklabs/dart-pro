@@ -438,7 +438,7 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
     const typeCls = quickData.typeCls;
     const icon = quickData.icon;
 
-    let headerText = '';
+    let headerText = quickData.insight || '';
     const bulletLines = [];
     const lines = (leanSummary || '').split('\n').map(l => l.trim()).filter(Boolean);
 
@@ -446,13 +446,16 @@ function summarizeDisclosure(item, aiData = null, leanSummary = null) {
       const line = lines[i];
       const cleanedLine = line.replace(/^[-▪💡📢📌▯\s]+/, '');
       
-      // 첫 줄이면서 불릿/이모지 시작이 아닌 경우 헤더로 지정
-      if (!headerText && !line.startsWith('-') && !line.startsWith('▪') && !line.startsWith('💡') && !line.startsWith('📢') && !line.startsWith('📌') && !line.startsWith('▯')) {
-        headerText = cleanedLine;
-      } else {
-        const cleanedBullet = cleanedLine.replace(/\*\*/g, '');
-        bulletLines.push(`<li>${cleanedBullet}</li>`);
+      // 첫 줄이면서 불릿/이모지 시작이 아닌 경우 헤더 처리 (이미 insight가 있으면 무시)
+      if (i === 0 && !line.startsWith('-') && !line.startsWith('▪') && !line.startsWith('💡') && !line.startsWith('📢') && !line.startsWith('📌') && !line.startsWith('▯')) {
+        if (!headerText) {
+          headerText = cleanedLine;
+        }
+        continue;
       }
+      
+      const cleanedBullet = cleanedLine.replace(/\*\*/g, '');
+      bulletLines.push(`<li>${cleanedBullet}</li>`);
     }
 
     let finalHeader = '';
