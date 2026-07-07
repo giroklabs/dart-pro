@@ -2564,9 +2564,9 @@ class DartLeanEngine:
             earnings_lines = []
             for s in valid_sents:
                 text = s.get("content", s.get("text", ""))
-                # rules.py가 테이블에서 추출한 핵심 지표 텍스트 우선 선별
-                if text.startswith("▪ ") and any(k in text for k in ["매출", "영업이익", "영업손실", "당기순이익", "당기순손실", "당월", "누적"]):
-                    earnings_lines.append(text)
+                # rules.py가 테이블에서 추출한 핵심 지표 텍스트 우선 선별 (불릿 대신 [테이블] 접두어 없는 자연어 위주로)
+                if not text.startswith("[테이블]") and any(k in text for k in ["매출", "영업이익", "영업손실", "당기순이익", "당기순손실", "당월", "누적"]):
+                    earnings_lines.append(f"▪ {text}" if not text.startswith("▪ ") else text)
             
             # 테이블 파싱 결과가 없다면 콜론이 많은 노이즈 텍스트를 배제하고 일반 상위 문장 3개 추출
             if not earnings_lines:
