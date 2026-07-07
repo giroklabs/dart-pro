@@ -2563,6 +2563,7 @@ class DartLeanEngine:
             valid_sents = scored_sentences
             valid_sents.sort(key=lambda x: x["order"])
             
+            seen_labels = set()
             earnings_lines = []
             for s in valid_sents:
                 raw_text = s.get("content", s.get("text", ""))
@@ -2571,6 +2572,19 @@ class DartLeanEngine:
                 
                 # 변환 후의 문자열(cleaned)에서 핵심 지표를 확인
                 if cleaned and not cleaned.startswith("[테이블]") and any(k in cleaned for k in ["매출", "영업이익", "영업손실", "당기순이익", "당기순손실", "당월", "누적"]):
+                    # 1) 쓰레기 기호나 너무 긴 주석 문장 제외
+                    if len(cleaned) > 80 or '====' in cleaned or '----' in cleaned or '상기' in cleaned:
+                        continue
+                        
+                    # 2) 중복 라벨(누계) 처리
+                    parts = cleaned.split(' ', 2)
+                    if len(parts) >= 2:
+                        label = parts[1]
+                        if label in seen_labels and "(누계)" not in label:
+                            cleaned = cleaned.replace(label, f"{label}(누계)", 1)
+                        elif label:
+                            seen_labels.add(label)
+                            
                     earnings_lines.append(f"▪ {cleaned}" if not cleaned.startswith("▪ ") else cleaned)
             
             # 테이블 파싱 결과가 없다면 콜론이 많은 노이즈 텍스트를 배제하고 일반 상위 문장 3개 추출
