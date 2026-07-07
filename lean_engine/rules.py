@@ -115,7 +115,7 @@ class SummaryRuleEngine:
             s.decompose()
 
         for tr in soup.find_all(["tr", "table_row"]):
-            tds = [td.get_text(separator=" ", strip=True) for td in tr.find_all(["td", "th", "table_data"])]
+            tds = [td.get_text(separator=" ", strip=True) for td in tr.find_all(["td", "th", "table_data", "tu", "te"])]
             if not tds:
                 continue
 
@@ -141,9 +141,9 @@ class SummaryRuleEngine:
 
             # Split on standard endings, OR numbered lists (e.g. " 1)", " 2.", " ①")
             parts = re.split(
-                r'(?<=다\.)\s+|(?<=니다\.)\s+|(?<=합니다\.)\s+|(?<=\.)\s+(?=[A-Z가-힣])|\s+(?=\d+\))|\s+(?=[①②③④⑤⑥⑦⑧⑨⑩])',
+                r'(?<=다\.)\s+|(?<=니다\.)\s+|(?<=합니다\.)\s+|(?<!\d\.)(?<=\.)\s+(?=[A-Z가-힣])|\s+(?=\d+\))|\s+(?=[①②③④⑤⑥⑦⑧⑨⑩])',
                 line
-            )  # \d+\.은 소수점 오분리 위험으로 제외
+            )  # \d+\.은 소수점 및 리스트 번호(1. 2.) 오분리 위험으로 제외
 
             for p in parts:
                 p = re.sub(r'\s+', ' ', p).strip()
@@ -171,8 +171,10 @@ class SummaryRuleEngine:
                     continue
 
                 # 비율/콜론 연속 나열(퍼센트 3개 이상 또는 콜론 4개 이상이면서 숫자 포함) 배제
-                if (p.count('%') >= 3) or (p.count(':') >= 4 and any(ch.isdigit() for ch in p)):
-                    continue
+                # [테이블] 마킹 행은 파이프로 구분되므로 콜론 필터 예외 처리
+                if not p.startswith("[테이블]"):
+                    if (p.count('%') >= 3) or (p.count(':') >= 4 and any(ch.isdigit() for ch in p)):
+                        continue
 
                 # 사례 예시 나열 스킵 (지수증권 등 가상 시나리오)
                 if any(k in p for k in ['지표가치가', '원 상환', '손실이 발생할 수', '투자 시나리오', '상환가격 결정일']) or re.search(r'사례\d+', p):
@@ -346,25 +348,112 @@ class SummaryRuleEngine:
             if first in ignorable_headers or first.strip() in ignorable_headers:
                 return ""
             
-        # 0. 영업(잠정)실적(공정공시) 내 판매대수/실적 매칭 (자연어 포맷팅)
+        # 0. 영업(잠정)실적(공정공시) 매칭
         report_nm = getattr(self, 'current_report_nm', '')
-        is_earnings_preview = any(k in report_nm for k in ['영업(잠정)실적', '영업실적'])
-        if is_earnings_preview and len(parts) >= 4:
-            target_categories = ['국내', '해외', '계']
-            if any(c == first or c in first for c in target_categories):
-                p_clean = [p.replace(",", "").strip() for p in parts]
-                label = p_clean[0]
+        is_earnings_preview = any(k in report_nm for k in ['영업(잠정)실적', '영업실적', '잠정실적'])
+        if is_earnings_preview and len(parts) >= 2:
+            p_clean = [p.replace(",", "").strip() for p in parts]
+            label = p_clean[0]
+
+            # 0-A. 재무수치 행 파서 (매출액, 영업이익 등 / 흑자전환, 적자전환 및 국가별/법인별 실적 포함)
+            financial_labels = ['매출액', '영업이익', '영업손실', '당기순이익', '당기순손실', '매출']
+            ignorable_headers_extended = {
+                '발행주식 총수', '발행주식총수', '발행주식 총수 (주)', '비고', '구분', '일자', '내용',
+                '보고사유', '변동일', '특정증권의 종류', '특정증권등의종류', '실적기간', '전기실적',
+                '당기실적', '전년동기실적', '당기누계실적', '전년동기누적실적', '연락처', '전화번호',
+                '정보제공자', '정보제공대상자', '정보제공(예정)일자', '정보제공(예정)시간', '행사명(장소)',
+                '관련부서', '※ 관련공시', '관련공시', '지배기업', '누계실적', '합계'
+            }
+            # 흑자전환/적자전환/전환여부 컬럼 값 및 수치 값 감지
+            turn_str = ''
+            num_vals = []
+            for p in p_clean[1:]:
+                if any(k in p for k in ['흑자전환', '적자전환', '흑자지속', '적자지속', '전환여부']):
+                    turn_str = p
+                elif re.match(r'^-?[\d.]+$', p):
+                    try:
+                        num_vals.append(float(p))
+                    except ValueError:
+                        pass
+
+            has_numbers = len(num_vals) > 0
+            sales_categories = {'국내', '해외', '계', '내수', '수출', '국내판매', '해외판매'}
+            is_financial_row = any(fl in label for fl in financial_labels) or (
+                label not in ignorable_headers_extended and 
+                not any(ih in label for ih in ignorable_headers_extended) and 
+                label not in sales_categories and
+                has_numbers
+            )
+
+            if is_financial_row:
+                if not has_numbers and not turn_str:
+                    # 헤더 행 (분기명 등) → 무시
+                    return ''
+                summary_parts = []
+                # 수치 단위 판별 (명시적 단위 표기 우선 탐색)
+                raw_text = getattr(self, 'current_raw_text', '')
+                unit_label = '억원' # 기본값
                 
+                m = re.search(r'단위\s*[:\s]*([^,\n|]+)', raw_text)
+                if m:
+                    unit_str = m.group(1).replace(" ", "")
+                    if '조원' in unit_str:
+                        unit_label = '조원'
+                    elif '십억원' in unit_str:
+                        unit_label = '십억원'
+                    elif '백만원' in unit_str:
+                        unit_label = '백만원'
+                    elif '억원' in unit_str:
+                        unit_label = '억원'
+                else:
+                    if '조원' in raw_text:
+                        unit_label = '조원'
+                    elif '십억원' in raw_text:
+                        unit_label = '십억원'
+                    elif '백만원' in raw_text:
+                        unit_label = '백만원'
+
+                def _fmt_currency(val, unit):
+                    if unit == '억원' and abs(val) >= 10000:
+                        return f"{val / 10000:,.1f}조원".replace('.0조원', '조원')
+                    elif unit == '백만원' and abs(val) >= 1_000_000:
+                        return f"{val / 1_000_000:,.1f}조원".replace('.0조원', '조원')
+                    elif unit == '조원':
+                        return f"{val:,.1f}조원".replace('.0조원', '조원')
+                    else:
+                        return f"{val:,.0f}{unit}"
+
+                if len(num_vals) >= 2:
+                    curr = num_vals[0]
+                    prev = num_vals[1]
+                    # 수치가 이미 억원/백만원 단위인 경우 큰 금액은 조 단위로 변환하여 표기
+                    curr_str = _fmt_currency(curr, unit_label)
+                    prev_str = _fmt_currency(prev, unit_label)
+                    if prev != 0:
+                        rate = ((curr - prev) / abs(prev)) * 100
+                        rate_str = f"+{rate:.1f}%" if rate >= 0 else f"{rate:.1f}%"
+                        summary_parts.append(f"{label} {curr_str} (전기 {prev_str}, {rate_str})")
+                    else:
+                        summary_parts.append(f"{label} {curr_str} (전기 {prev_str})")
+                elif len(num_vals) == 1:
+                    summary_parts.append(f"{label} {_fmt_currency(num_vals[0], unit_label)}")
+
+                if turn_str and turn_str != '흑자지속' and turn_str != '적자지속':
+                    summary_parts.append(turn_str)
+
+                if summary_parts:
+                    return ' / '.join(summary_parts)
+
+            # 0-B. 판매대수 행 파서 (국내/해외/계)
+            target_categories = ['국내', '해외', '계', '내수', '수출', '국내판매', '해외판매']
+            if label in target_categories and len(p_clean) >= 4:
                 # 누적 여부 판별: 2번째, 3번째 컬럼이 '-' 이고 5번째 또는 6번째 컬럼에 값이 있는 경우 누적
                 is_cumulative = False
                 if len(p_clean) >= 7:
                     is_cumulative = (p_clean[2] == '-' and p_clean[3] == '-' and p_clean[5] != '-' and p_clean[6] != '-')
                 
-                unit = "대" if any(k in label for k in ['국내', '해외', '계']) else "원"
-                
                 if is_cumulative and len(p_clean) >= 7:
                     cum_val = p_clean[1]
-                    prev_cum_val = p_clean[5]
                     cum_rate = p_clean[6]
                     
                     summary_parts = []
@@ -381,9 +470,7 @@ class SummaryRuleEngine:
                         return f"{label} 누적 실적: {', '.join(summary_parts)}"
                 else:
                     curr_val = p_clean[1]
-                    prev_val = p_clean[2] if len(p_clean) > 2 else '-'
                     prev_rate = p_clean[3] if len(p_clean) > 3 else '-'
-                    year_ago_val = p_clean[5] if len(p_clean) > 5 else '-'
                     year_ago_rate = p_clean[6] if len(p_clean) > 6 else '-'
                     
                     summary_parts = []
@@ -401,6 +488,10 @@ class SummaryRuleEngine:
                         
                     if summary_parts:
                         return f"{label} 실적: {', '.join(summary_parts)}"
+
+            # 0-C. is_earnings_preview이지만 위 파서에 매칭되지 않은 행은 헤더/메타 행으로 판단하여 제거
+            # (예: "구분 | (26.2Q) | (26.1Q) | 증감율(%) | 흑자적자전환여부" 같은 컬럼명 행)
+            return ''
 
         # 0-2. 자기주식취득결과보고서 매칭 (취득 총합 결과 추출)
         is_treasury_result = any(k in report_nm for k in ['자기주식취득결과', '자사주취득결과'])
@@ -648,6 +739,10 @@ class SummaryRuleEngine:
         elif len(parts) == 2:
             return f"{parts[0]}: {parts[1]}"
             
+        if len(parts) >= 4:
+            # 4열 이상의 구조화된 표는 가독성이 떨어져 요약문에 부적합하므로 생략
+            return ''
+            
         joined_content = " : ".join(parts)
         return joined_content
 
@@ -673,6 +768,8 @@ class SummaryRuleEngine:
             sentence = sentence[:limit] + "..."
 
         if is_table:
+            if not sentence.strip():
+                return ''
             return f"▪ {sentence.strip()}"
         return sentence.strip()
 
