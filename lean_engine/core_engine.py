@@ -1153,7 +1153,11 @@ class DartLeanEngine:
                             sign = "+" if ("매수" in method or "취득" in method) else ("-" if "매도" in method or "처분" in method else "")
                             signal = "내부자 매수 계획" if sign == "+" else ("내부자 매도 계획" if sign == "-" else "")
                             sig_suffix = f" [{signal}]" if signal else ""
-                            changes.append(f"▪ {reporter}: {method} {sign}{qty_val:,}주 ({start_date} ~ {end_date}) [단가: {price}원]{sig_suffix}")
+                            try:
+                                price_fmt = f"{int(float(price)):,}"
+                            except ValueError:
+                                price_fmt = price
+                            changes.append(f"▪ {reporter}: {method} {sign}{qty_val:,}주 ({start_date} ~ {end_date}) [단가: {price_fmt}원]{sig_suffix}")
                     except ValueError:
                         pass
                         
@@ -1176,7 +1180,11 @@ class DartLeanEngine:
                                 sign = "+" if ("매수" in method or "취득" in method) else ("-" if "매도" in method or "처분" in method else "")
                                 signal = "내부자 매수 계획" if sign == "+" else ("내부자 매도 계획" if sign == "-" else "")
                                 sig_suffix = f" [{signal}]" if signal else ""
-                                changes.append(f"▪ {reporter}: {method} {sign}{qty_val:,}주 ({start_date} ~ {end_date}) [단가: {price}원]{sig_suffix}")
+                                try:
+                                    price_fmt = f"{int(float(price)):,}"
+                                except ValueError:
+                                    price_fmt = price
+                                changes.append(f"▪ {reporter}: {method} {sign}{qty_val:,}주 ({start_date} ~ {end_date}) [단가: {price_fmt}원]{sig_suffix}")
                             except ValueError:
                                 pass
             i += 1
@@ -1478,6 +1486,7 @@ class DartLeanEngine:
                     
                 if i + 6 < len(lines) and not "[테이블]" in lines[i]:
                     reason = lines[i]
+                    date_str = lines[i+1]
                     stock_type = lines[i+2]
                     change_qty = lines[i+4].replace(",", "")
                     price = lines[i+6].replace(",", "")
@@ -1495,9 +1504,14 @@ class DartLeanEngine:
                                 sign = "+" if qty > 0 else ""
                                 signal = ""
                                 
-                            price_str = f" [단가: {price}원]" if price.isdigit() else ""
+                            try:
+                                price_fmt = f"{int(float(price)):,}"
+                            except ValueError:
+                                price_fmt = price
+                            
+                            price_str = f" [단가: {price_fmt}원]" if price.replace('.', '').isdigit() else ""
                             sig_suffix = f" [{signal}]" if signal else ""
-                            changes.append(f"▪ {reporter}: {reason} ({stock_type} {sign}{qty:,}주){price_str}{sig_suffix}")
+                            changes.append(f"▪ {reporter}: {reason} ({stock_type} {sign}{qty:,}주, {date_str}){price_str}{sig_suffix}")
                     except ValueError:
                         pass
                     
