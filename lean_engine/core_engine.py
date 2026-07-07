@@ -178,6 +178,8 @@ class DartLeanEngine:
             if is_periodic:
                 scored_sentences = []
             else:
+                self.rule_engine.current_report_nm = filing.get("report_nm", "")
+                self.rule_engine.current_raw_text = raw_text or ""
                 sentences = self.rule_engine.split_sentences(raw_text)
                 scored_sentences = [
                     {
@@ -2558,15 +2560,18 @@ class DartLeanEngine:
 
         # 00-0. 영업(잠정)실적(공정공시) 스페셜 케이스 처리
         if any(k in report_nm_clean for k in ['영업(잠정)실적', '영업실적', '잠정실적']):
-            valid_sents = [s for s in scored_sentences if s["score"] > 0]
-            valid_sents.sort(key=lambda x: x["score"], reverse=True)
+            valid_sents = scored_sentences
+            valid_sents.sort(key=lambda x: x["order"])
             
             earnings_lines = []
             for s in valid_sents:
-                text = s.get("content", s.get("text", ""))
-                # rules.py가 테이블에서 추출한 핵심 지표 텍스트 우선 선별 (불릿 대신 [테이블] 접두어 없는 자연어 위주로)
-                if not text.startswith("[테이블]") and any(k in text for k in ["매출", "영업이익", "영업손실", "당기순이익", "당기순손실", "당월", "누적"]):
-                    earnings_lines.append(f"▪ {text}" if not text.startswith("▪ ") else text)
+                raw_text = s.get("content", s.get("text", ""))
+                # 먼저 테이블 원문을 자연어로 변환 (rules.py의 clean_sentence 호출)
+                cleaned = self.rule_engine.clean_sentence(raw_text)
+                
+                # 변환 후의 문자열(cleaned)에서 핵심 지표를 확인
+                if cleaned and not cleaned.startswith("[테이블]") and any(k in cleaned for k in ["매출", "영업이익", "영업손실", "당기순이익", "당기순손실", "당월", "누적"]):
+                    earnings_lines.append(f"▪ {cleaned}" if not cleaned.startswith("▪ ") else cleaned)
             
             # 테이블 파싱 결과가 없다면 콜론이 많은 노이즈 텍스트를 배제하고 일반 상위 문장 3개 추출
             if not earnings_lines:
