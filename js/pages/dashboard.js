@@ -1091,7 +1091,7 @@ async function initDashboard() {
 
     // 데이터를 종목별로 그룹화 + 이름 교정
     const groups = await Promise.all(watchlist.map(async (code) => {
-      const corpList = allDisclosures.filter(item => item.corp_code === code).slice(0, 5);
+      const corpList = allDisclosures.filter(item => item.corp_code === code).slice(0, 3);
       const correctedName = await api.getCorpName(code);
       return {
         company: { code: code, name: correctedName },
@@ -1107,17 +1107,25 @@ async function initDashboard() {
 
     // 4. AI 인사이트 업데이트 (청크 단위 처리: 한 번에 3개씩, 1초 간격)
     const updateInsights = async () => {
-      if (groups.some(g => g.list.length > 0)) {
-        const activeGroups = groups.filter(g => g.list.length > 0);
+      const allItemsToUpdate = [];
+      groups.forEach((group) => {
+        if (group.list && group.list.length > 0) {
+          group.list.forEach((item) => {
+            allItemsToUpdate.push(item);
+          });
+        }
+      });
+
+      if (allItemsToUpdate.length > 0) {
         const CHUNK_SIZE = 2; // [가이드 4-3] 요청 분산 처리
-        for (let i = 0; i < activeGroups.length; i += CHUNK_SIZE) {
-          const chunk = activeGroups.slice(i, i + CHUNK_SIZE);
-          await Promise.all(chunk.map(async (g, idx) => {
+        for (let i = 0; i < allItemsToUpdate.length; i += CHUNK_SIZE) {
+          const chunk = allItemsToUpdate.slice(i, i + CHUNK_SIZE);
+          await Promise.all(chunk.map(async (item, idx) => {
             const globalIdx = i + idx;
             const divId = `insight-item-${globalIdx}`;
-            await renderInsight(divId, g.list[0]);
+            await renderInsight(divId, item);
           }));
-          if (i + CHUNK_SIZE < activeGroups.length) {
+          if (i + CHUNK_SIZE < allItemsToUpdate.length) {
             await new Promise(r => setTimeout(r, 500)); // [가이드 4-3] 500ms 대기
           }
         }
@@ -1182,17 +1190,21 @@ function renderDashboardUI(groups, stats, isFiltering = false) {
   const feedEl = document.getElementById('dashboard-feed');
   const insightContainer = document.getElementById('quick-insight-container');
 
-  // 1. 인사이트 컨테이너 초기화
+  // 1. 인사이트 컨테이너 초기화 (종목별 최신 3개까지의 공시를 각각의 인사이트 카드로 렌더링)
   if (insightContainer) {
     insightContainer.innerHTML = '';
     const activeGroups = groups.filter(g => g.list.length > 0);
-    activeGroups.forEach((group, i) => {
-      const divId = `insight-item-${i}`;
-      const div = document.createElement('div');
-      div.id = divId;
-      div.style.marginBottom = "12px";
-      insightContainer.appendChild(div);
-      div.innerHTML = summarizeDisclosure(group.list[0]);
+    let itemIdx = 0;
+    activeGroups.forEach((group) => {
+      group.list.forEach((item) => {
+        const divId = `insight-item-${itemIdx}`;
+        const div = document.createElement('div');
+        div.id = divId;
+        div.style.marginBottom = "12px";
+        insightContainer.appendChild(div);
+        div.innerHTML = summarizeDisclosure(item);
+        itemIdx++;
+      });
     });
   }
 
