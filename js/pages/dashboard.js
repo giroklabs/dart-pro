@@ -1195,25 +1195,37 @@ function renderDashboardUI(groups, stats, isFiltering = false) {
   const feedEl = document.getElementById('dashboard-feed');
   const insightContainer = document.getElementById('quick-insight-container');
 
-  // 1. 인사이트 컨테이너 초기화 (종목별 최신 3개까지의 공시를 각각의 인사이트 카드로 렌더링)
+  // 1. 인사이트 컨테이너 초기화 (모든 관심종목 공시를 모아 최신순으로 렌더링)
   if (insightContainer) {
     insightContainer.innerHTML = '';
     const activeGroups = groups.filter(g => g.list.length > 0);
+    
+    // 그룹핑을 해제하고 전체를 타임라인 순(rcept_no 내림차순)으로 정렬
+    const allInsightItems = [];
+    activeGroups.forEach((group) => {
+      group.list.forEach((item) => {
+        // 개별 아이템에 회사명과 코드가 없다면 그룹 정보에서 상속
+        item.corp_name = item.corp_name || group.company.name;
+        item.corp_code = item.corp_code || group.company.code;
+        allInsightItems.push(item);
+      });
+    });
+    
+    allInsightItems.sort((a, b) => b.rcept_no.localeCompare(a.rcept_no));
+
     let itemIdx = 0;
     const allItemsToUpdate = [];
 
-    activeGroups.forEach((group) => {
-      group.list.forEach((item) => {
-        const divId = `insight-item-${itemIdx}`;
-        const div = document.createElement('div');
-        div.id = divId;
-        div.style.marginBottom = "12px";
-        insightContainer.appendChild(div);
-        div.innerHTML = summarizeDisclosure(item);
-        
-        allItemsToUpdate.push({ divId, item });
-        itemIdx++;
-      });
+    allInsightItems.forEach((item) => {
+      const divId = `insight-item-${itemIdx}`;
+      const div = document.createElement('div');
+      div.id = divId;
+      div.style.marginBottom = "12px";
+      insightContainer.appendChild(div);
+      div.innerHTML = summarizeDisclosure(item);
+      
+      allItemsToUpdate.push({ divId, item });
+      itemIdx++;
     });
 
     // 화면 렌더링 직후 비동기로 요약 불러오기 (청크 처리)
