@@ -1143,7 +1143,7 @@ async function initDashboard() {
       });
 
       if (allItemsToUpdate.length > 0) {
-        const CHUNK_SIZE = 2; // [가이드 4-3] 요청 분산 처리
+        const CHUNK_SIZE = 5; // [가이드 4-3] 요청 분산 처리 완화
         for (let i = 0; i < allItemsToUpdate.length; i += CHUNK_SIZE) {
           const chunk = allItemsToUpdate.slice(i, i + CHUNK_SIZE);
           await Promise.all(chunk.map(async (item, idx) => {
@@ -1152,7 +1152,7 @@ async function initDashboard() {
             await renderInsight(divId, item);
           }));
           if (i + CHUNK_SIZE < allItemsToUpdate.length) {
-            await new Promise(r => setTimeout(r, 500)); // [가이드 4-3] 500ms 대기
+            await new Promise(r => setTimeout(r, 200)); // [가이드 4-3] 200ms 대기
           }
         }
       }
