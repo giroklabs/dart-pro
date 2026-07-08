@@ -153,13 +153,15 @@ async function router() {
             if (input) {
               input.value = watchlist[0];
               doCompanySearch();
-            }
-          }
         }
         break;
       case '#/statistics':
         content.innerHTML = await renderStatistics();
         if (window.initStatistics) initStatistics();
+        break;
+      case '#/reports':
+        content.innerHTML = renderReports();
+        initReports();
         break;
       case '#/settings':
         content.innerHTML = await renderSettings();
