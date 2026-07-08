@@ -184,6 +184,11 @@ function calculateDisclosureScore(reportName) {
   score += Math.min(amountMatches, 3) * 0.5;
   const percentMatches = (reportName.match(/[0-9.]+%/g) || []).length;
   score += Math.min(percentMatches, 2) * 0.3;
+  
+  // 실적 공시는 그 자체로 매우 중요하므로 바로 기준 점수 충족 (+2.5)
+  const earningsKeywords = ['실적', '사업보고서', '분기보고서', '반기보고서', '매출액', '영업이익'];
+  if (earningsKeywords.some(k => reportName.includes(k))) score += 2.5;
+
   const riskKeywords = ['리스크', '불확실성', '위험', '손실', '하락', '변동성', '소송', '제재', '과징금', '관리종목', '상장폐지'];
   if (riskKeywords.some(k => reportName.includes(k))) score += 2.0;
   return parseFloat(score.toFixed(1));
