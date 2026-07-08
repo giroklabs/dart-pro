@@ -1234,37 +1234,34 @@ function renderDashboardUI(groups, stats, isFiltering = false) {
     }
   }
 
-  // 2. 피드 카드 렌더링
+  // 2. 피드 카드 렌더링 (전체 플랫 시간순 타임라인)
   if (feedEl) {
     if (groups.length > 0) {
-      feedEl.innerHTML = groups.map(group => {
-        const hasList = group.list && group.list.length > 0;
-        return `
-        <div class="company-group-card card card-static" style="margin-bottom:var(--sp-xl); padding:0; overflow:hidden;">
-          <div style="padding:16px 20px; border-bottom:1px solid var(--outline-variant); background:var(--surface-container-low); display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div class="corp-logo">${(group.company.name && group.company.name[0]) || '?'}</div>
-              <h3 class="t-headline-sm">${group.company.name || group.company.code}</h3>
-            </div>
-            <button class="btn-text" onclick="location.hash='#/company?q=${group.company.code}'">전체보기 &rarr;</button>
+      // 모든 종목의 공시를 하나의 배열로 평탄화
+      const allItems = [];
+      groups.forEach(g => {
+        if (g.list) {
+          g.list.forEach(item => {
+            // 개별 아이템에 회사명과 코드가 없다면 그룹 정보에서 상속
+            item.corp_name = item.corp_name || g.company.name;
+            item.corp_code = item.corp_code || g.company.code;
+            allItems.push(item);
+          });
+        }
+      });
+      
+      // 최신 접수번호(시간순) 기준으로 내림차순 정렬
+      allItems.sort((a, b) => b.rcept_no.localeCompare(a.rcept_no));
+
+      if (allItems.length > 0) {
+        feedEl.innerHTML = `
+          <div style="display:grid; gap:16px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+            ${allItems.map(item => renderFeedCard(item)).join('')}
           </div>
-          <div class="group-disclosures" style="padding:8px 0;">
-            ${hasList ? group.list.map(item => `
-              <div class="group-item" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')" style="padding:12px 20px; border-bottom:1px solid var(--outline-variant); cursor:pointer; transition:background 0.2s;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
-                  <span class="t-label-sm" style="color:var(--secondary);">${api.formatDate(item.rcept_dt)}</span>
-                  <span class="badge ${item.corp_cls === 'Y' ? 'badge-primary' : 'badge-secondary'}">${item.corp_cls === 'Y' ? '유가' : '코스닥'}</span>
-                </div>
-                <div class="t-body-md bold" style="color:var(--on-surface);">${item.report_nm}</div>
-              </div>
-            `).join('') : `
-              <div style="padding:16px 20px; color:var(--secondary); font-size:13px; text-align:center;">
-                최근 30일 이내 공시가 없습니다.
-              </div>
-            `}
-          </div>
-        </div>
-      `}).join('');
+        `;
+      } else {
+        feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>최근 30일 이내 공시가 없습니다.</p></div>`;
+      }
     } else {
       feedEl.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>선택한 카테고리의 공시가 없습니다.</p></div>`;
     }
