@@ -28,12 +28,29 @@ async function renderDashboard() {
 
   // 디폴트 필터는 전체
   window.currentDashboardFilter = window.currentDashboardFilter || '전체';
+  window.currentDashboardCorpFilter = window.currentDashboardCorpFilter || 'ALL';
   
   const categories = ['전체', '중요', '자금조달', '감사·리스크', '내부자시그널', '주주환원', '실적발표', '공급·투자', '경영·지배구조', '법적분쟁'];
   const filterTabsHtml = categories.map(cat => {
     const activeCls = window.currentDashboardFilter === cat ? 'active' : '';
     return `<div class="filter-tab ${activeCls}" data-filter="${cat}" onclick="filterDashboardCategory('${cat}')">${cat}</div>`;
   }).join('');
+
+  // 관심종목 필터 탭 생성
+  const api = window.DART_API;
+  const watchlist = api.getWatchlist();
+  let corpTabsHtml = '';
+  
+  if (watchlist && watchlist.length > 0) {
+    const allActive = window.currentDashboardCorpFilter === 'ALL' ? 'active' : '';
+    corpTabsHtml += `<div class="filter-tab ${allActive}" data-corp="ALL" onclick="filterDashboardCorp('ALL')">⭐ 전체 종목</div>`;
+    
+    for (const code of watchlist) {
+      const corpName = await api.getCorpName(code);
+      const activeCls = window.currentDashboardCorpFilter === code ? 'active' : '';
+      corpTabsHtml += `<div class="filter-tab ${activeCls}" data-corp="${code}" onclick="filterDashboardCorp('${code}')">${corpName}</div>`;
+    }
+  }
 
   return `
     <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -50,6 +67,12 @@ async function renderDashboard() {
     <div class="filter-tabs" id="category-filter-tabs">
       ${filterTabsHtml}
     </div>
+
+    ${corpTabsHtml ? `
+    <!-- 관심종목 필터 탭 -->
+    <div class="filter-tabs" id="corp-filter-tabs" style="margin-top: 8px;">
+      ${corpTabsHtml}
+    </div>` : ''}
 
     <div id="quick-insight-container"></div>
     <div id="dashboard-main-content">
@@ -1261,11 +1284,41 @@ window.filterDashboardCategory = function(category) {
     }
   });
   
+  applyDashboardFilters();
+};
+
+window.filterDashboardCorp = function(corpCode) {
+  window.currentDashboardCorpFilter = corpCode;
+  
+  const tabs = document.querySelectorAll('#corp-filter-tabs .filter-tab');
+  tabs.forEach(tab => {
+    if (tab.getAttribute('data-corp') === corpCode) {
+      tab.classList.add('active');
+    } else {
+      tab.classList.remove('active');
+    }
+  });
+  
+  applyDashboardFilters();
+};
+
+function applyDashboardFilters() {
   if (window.DART_GROUPS) {
-    const filtered = filterGroupsByCategory(window.DART_GROUPS, category);
+    let filtered = window.DART_GROUPS;
+    
+    // 1. 관심종목(기업) 필터
+    const corpCode = window.currentDashboardCorpFilter || 'ALL';
+    if (corpCode !== 'ALL') {
+      filtered = filtered.filter(g => g.company && g.company.code === corpCode);
+    }
+    
+    // 2. 카테고리 필터
+    const category = window.currentDashboardFilter || '전체';
+    filtered = filterGroupsByCategory(filtered, category);
+    
     renderDashboardUI(filtered, null, true);
   }
-};
+}
 
 function filterGroupsByCategory(groups, category) {
   if (category === '전체') return groups;
