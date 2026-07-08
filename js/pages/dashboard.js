@@ -1136,33 +1136,7 @@ async function initDashboard() {
     // 3. UI 1차 업데이트 (피드 우선 표시, 통계는 로딩중 상태)
     renderDashboardUI(groups, null);
 
-    // 4. AI 인사이트 업데이트 (청크 단위 처리: 한 번에 3개씩, 1초 간격)
-    const updateInsights = async () => {
-      const allItemsToUpdate = [];
-      groups.forEach((group) => {
-        if (group.list && group.list.length > 0) {
-          group.list.forEach((item) => {
-            allItemsToUpdate.push(item);
-          });
-        }
-      });
-
-      if (allItemsToUpdate.length > 0) {
-        const CHUNK_SIZE = 5; // [가이드 4-3] 요청 분산 처리 완화
-        for (let i = 0; i < allItemsToUpdate.length; i += CHUNK_SIZE) {
-          const chunk = allItemsToUpdate.slice(i, i + CHUNK_SIZE);
-          await Promise.all(chunk.map(async (item, idx) => {
-            const globalIdx = i + idx;
-            const divId = `insight-item-${globalIdx}`;
-            await renderInsight(divId, item);
-          }));
-          if (i + CHUNK_SIZE < allItemsToUpdate.length) {
-            await new Promise(r => setTimeout(r, 200)); // [가이드 4-3] 200ms 대기
-          }
-        }
-      }
-    };
-    updateInsights(); 
+    // (업데이트 인사이트 로직은 renderDashboardUI 내부로 이동됨)
 
     // 대시보드 상태 저장
     localStorage.setItem('dashboard_cache', JSON.stringify({ watchlist, groups }));
@@ -1226,6 +1200,8 @@ function renderDashboardUI(groups, stats, isFiltering = false) {
     insightContainer.innerHTML = '';
     const activeGroups = groups.filter(g => g.list.length > 0);
     let itemIdx = 0;
+    const allItemsToUpdate = [];
+
     activeGroups.forEach((group) => {
       group.list.forEach((item) => {
         const divId = `insight-item-${itemIdx}`;
@@ -1234,9 +1210,28 @@ function renderDashboardUI(groups, stats, isFiltering = false) {
         div.style.marginBottom = "12px";
         insightContainer.appendChild(div);
         div.innerHTML = summarizeDisclosure(item);
+        
+        allItemsToUpdate.push({ divId, item });
         itemIdx++;
       });
     });
+
+    // 화면 렌더링 직후 비동기로 요약 불러오기 (청크 처리)
+    if (allItemsToUpdate.length > 0) {
+      setTimeout(async () => {
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < allItemsToUpdate.length; i += CHUNK_SIZE) {
+          const chunk = allItemsToUpdate.slice(i, i + CHUNK_SIZE);
+          await Promise.all(chunk.map(async ({ divId, item }) => {
+            if (!document.getElementById(divId)) return; // 탭 변경 시 방어 로직
+            await renderInsight(divId, item);
+          }));
+          if (i + CHUNK_SIZE < allItemsToUpdate.length) {
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      }, 0);
+    }
   }
 
   // 2. 피드 카드 렌더링
