@@ -2,12 +2,12 @@
 function getDisclosureCategory(item) {
   const title = item.report_nm || '';
   if (/배당|소각|자기주식/.test(title)) return '주주환원';
-  if (/유상증자|사채권발행|단기차입금|채무보증|금전대여|증권발행|자산유동화/.test(title)) return '자금조달';
+  if (/유상증자|사채권발행|전환사채|신주인수권|교환사채|증자|단기차입금|채무보증|금전대여|증권발행|자산유동화/.test(title)) return '자금조달';
   if (/감사보고서|부적정|의견거절|한정/.test(title)) return '감사·리스크';
   if (/소유주식변동|임원ㆍ주요주주|대량보유/.test(title)) return '내부자시그널';
-  if (/잠정실적|영업실적|매출액|영업이익/.test(title)) return '실적발표';
-  if (/공급계약|단일판매|시설투자|특허/.test(title)) return '공급·투자';
-  if (/대표이사|주주총회|최대주주변동|지배구조|불성실공시/.test(title)) return '경영·지배구조';
+  if (/잠정실적|영업실적|매출액|영업이익|기업설명회|사업보고서|분기보고서|반기보고서|연결재무제표/.test(title)) return '실적발표';
+  if (/공급계약|단일판매|시설투자|특허|유형자산|신규시설/.test(title)) return '공급·투자';
+  if (/대표이사|주주총회|최대주주변동|지배구조|불성실공시|타법인주식|합병|분할|영업양수도/.test(title)) return '경영·지배구조';
   if (/소송|판결|법원|회생|파산/.test(title)) return '법적분쟁';
   return '기타';
 }
