@@ -153,6 +153,8 @@ async function router() {
             if (input) {
               input.value = watchlist[0];
               doCompanySearch();
+            }
+          }
         }
         break;
       case '#/statistics':
