@@ -132,6 +132,9 @@ class SummaryRuleEngine:
         return text.strip()
 
     def split_sentences(self, text: str) -> List[str]:
+        # 의미없이 끊긴 줄바꿈 복원: 줄이 조사나 기호로 끝나고 다음 줄이 이어지는 경우
+        text = re.sub(r'([은는이가을를와과에로도만의,(])\s*\n\s*', r'\1 ', text)
+        
         candidates = []
 
         for line in text.splitlines():
