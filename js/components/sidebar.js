@@ -13,7 +13,7 @@ function renderSidebar() {
 
   // 개발자 계정인 경우에만 AI 리포트 탭 추가
   if (user && user.email === 'javachip8686@gmail.com') {
-    items.splice(4, 0, { hash: '#/reports', icon: 'article', label: 'AI 리포트' });
+    items.splice(4, 0, { hash: '#/reports', icon: 'article', label: '공시 인사이트' });
   }
 
   return `
