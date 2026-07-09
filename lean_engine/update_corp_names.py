@@ -10,9 +10,7 @@ if not os.path.exists(db_path) or not os.path.exists(json_path):
     exit(1)
 
 with open(json_path, 'r', encoding='utf-8') as f:
-    corps = json.load(f)
-
-corp_map = {item['corp_code']: item['corp_name'] for item in corps}
+    corp_map = json.load(f)
 
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
