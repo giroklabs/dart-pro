@@ -316,6 +316,47 @@ const server = http.createServer((req, res) => {
   }
 
   // ==========================================
+  // 0-1. AI 인사이트 리포트 조회 API
+  // ==========================================
+  if (pathname === '/api/reports' && req.method === 'GET') {
+    leanDb.all(
+      'SELECT report_id as id, category, corp_name, title, summary, publish_date FROM ai_reports ORDER BY report_id DESC LIMIT 20',
+      [],
+      (err, rows) => {
+        if (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: true, data: rows }));
+      }
+    );
+    return;
+  }
+
+  const reportDetailMatch = pathname.match(/^\/api\/reports\/(.+)$/);
+  if (reportDetailMatch && req.method === 'GET') {
+    const reportId = reportDetailMatch[1];
+    leanDb.get(
+      'SELECT report_id as id, category, corp_name, title, summary, content, publish_date FROM ai_reports WHERE report_id = ?',
+      [reportId],
+      (err, row) => {
+        if (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+        if (!row) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Report not found' }));
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: true, data: row }));
+      }
+    );
+    return;
+  }
+
+  // ==========================================
   // 0. 테스트 푸시 알림 발송 API
   // ==========================================
   if (pathname === '/api/test-push' && req.method === 'POST') {
@@ -886,12 +927,16 @@ function getRankLabel(score) {
   // ==========================================
   if (pathname.startsWith('/api/dart/') || pathname.startsWith('/dart/')) {
     const dartPath = pathname.replace('/api/dart/', '').replace('/dart/', '');
-    const DART_API_KEY = process.env.DART_API_KEY;
+    const DART_API_KEYS = (process.env.DART_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
     
-    if (!DART_API_KEY) {
+    if (DART_API_KEYS.length === 0) {
       console.error('[DART Proxy] Error: DART_API_KEY is not set in .env');
       res.writeHead(500);
       return res.end('Server Configuration Error: API Key Missing');
+    }
+
+    if (global.currentKeyIndex === undefined) {
+      global.currentKeyIndex = 0;
     }
 
     const corpCode = parsedUrl.searchParams.get('corp_code');
@@ -908,126 +953,177 @@ function getRankLabel(score) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(cached.data));
     }
-    
-    let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
-    if (!targetUrl.includes('crtfc_key=')) {
-      targetUrl += (targetUrl.includes('?') ? '&' : '?') + `crtfc_key=${DART_API_KEY}`;
-    }
 
-    const options = { headers: { 'User-Agent': 'DART-Pro-Server' } };
-
-    // 다중 종목 코드 처리 (콤마로 구분된 경우)
-    if (corpCode && corpCode.includes(',')) {
-      const codes = corpCode.split(',');
-      console.log(`[DART Proxy] Batch requesting for ${codes.length} codes...`);
-      
-      const fetchPromises = codes.map((code, index) => {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            const urlObj = new URL(targetUrl);
-            urlObj.searchParams.set('corp_code', code);
-            urlObj.searchParams.set('page_count', '10');
-            const singleUrl = urlObj.toString();
-
-            https.get(singleUrl, options, (pRes) => {
-              let data = '';
-              pRes.on('data', chunk => data += chunk);
-              pRes.on('end', () => {
-                try { 
-                  const json = JSON.parse(data);
-                  resolve({ list: json.list || [], status: json.status }); 
-                } catch (e) { resolve({ list: [], status: '999' }); }
-              });
-            }).on('error', () => resolve({ list: [], status: '500' }));
-          }, index * 100);
-        });
-      });
-
-      Promise.all(fetchPromises).then(results => {
-        const hasLimitError = results.some(r => r.status === '020');
-        if (hasLimitError) {
-          console.warn('[DART Proxy] Batch request hit limit (020). Falling back to local DB...');
-          return serveFromLocalDB(corpCode, res, bgnDe, endDe);
+    // 2. company.json 인 경우 로컬 DB 영구 캐시 우선 검사
+    if (dartPath === 'company.json' && corpCode && !corpCode.includes(',')) {
+      leanDb.get("SELECT * FROM company_details WHERE corp_code = ?", [corpCode], (dbErr, row) => {
+        if (dbErr) console.warn('[LeanDB] company_details 조회 실패:', dbErr.message);
+        if (row) {
+          console.log(`[DART Proxy] [DB Hit] Serving company details from DB for: ${corpCode}`);
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ status: '000', message: '정상', ...row }));
         }
-
-        const mergedList = [].concat(...results.map(r => r.list)).sort((a, b) => {
-          const aNo = String(a.rcept_no || '0');
-          const bNo = String(b.rcept_no || '0');
-          return bNo.localeCompare(aNo);
-        });
-
-        const successResponse = { status: '000', message: '정상', list: mergedList.slice(0, 50) };
-        
-        // 캐시 적재
-        global.DART_CACHE.set(cacheKey, { timestamp: Date.now(), data: successResponse });
-
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(successResponse));
+        // DB에 없으면 DART API 호출 진행
+        executeProxyRequest();
       });
-      return;
+    } else {
+      executeProxyRequest();
     }
 
-    console.log(`[DART Proxy] Requesting: ${targetUrl.replace(DART_API_KEY, 'HIDDEN')}`);
-    
-    const proxyReq = https.get(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*'
-      },
-      rejectUnauthorized: false
-    }, (proxyRes) => {
-      console.log(`[DART Proxy] Response Status: ${proxyRes.statusCode}`);
-      
-      let responseData = '';
-      proxyRes.on('data', chunk => responseData += chunk);
-      proxyRes.on('end', () => {
-        try {
-          const json = JSON.parse(responseData);
-          if (json.status === '020') {
-            if (dartPath === 'company.json') {
-              const name = globalCodeToName[corpCode] || '알 수 없는 기업';
-              const fallbackData = {
-                status: '000',
-                message: '정상 (DART 한도 초과로 인한 기본 정보 제공)',
-                corp_name: name,
-                corp_code: corpCode,
-                stock_code: '',
-                ceo_nm: 'DART 한도 초과',
-                adres: 'DART API 일일 한도가 모두 소진되어 상세 정보 로드가 불가능합니다.'
-              };
-              res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-              return res.end(JSON.stringify(fallbackData));
-            }
-            console.warn('[DART Proxy] Single request limit exceeded (020). Falling back to local DB...');
+    function executeProxyRequest() {
+      // 다중 종목 코드 처리 (콤마로 구분된 경우)
+      if (corpCode && corpCode.includes(',')) {
+        const codes = corpCode.split(',');
+        console.log(`[DART Proxy] Batch requesting for ${codes.length} codes...`);
+        
+        const fetchPromises = codes.map((code, index) => {
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              let batchKey = DART_API_KEYS[global.currentKeyIndex];
+              let batchUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
+              const uObj = new URL(batchUrl);
+              uObj.searchParams.set('crtfc_key', batchKey);
+              uObj.searchParams.set('corp_code', code);
+              uObj.searchParams.set('page_count', '10');
+              const singleUrl = uObj.toString();
+
+              https.get(singleUrl, { headers: { 'User-Agent': 'DART-Pro-Server' } }, (pRes) => {
+                let data = '';
+                pRes.on('data', chunk => data += chunk);
+                pRes.on('end', () => {
+                  try { 
+                    const json = JSON.parse(data);
+                    if (json.status === '020' && DART_API_KEYS.length > 1) {
+                      global.currentKeyIndex = (global.currentKeyIndex + 1) % DART_API_KEYS.length;
+                      console.log(`[DART Proxy] Batch key rotated to index ${global.currentKeyIndex}.`);
+                    }
+                    resolve({ list: json.list || [], status: json.status }); 
+                  } catch (e) { resolve({ list: [], status: '999' }); }
+                });
+              }).on('error', () => resolve({ list: [], status: '500' }));
+            }, index * 100);
+          });
+        });
+
+        Promise.all(fetchPromises).then(results => {
+          const hasLimitError = results.some(r => r.status === '020');
+          if (hasLimitError) {
+            console.warn('[DART Proxy] Batch request hit limit (020). Falling back to local DB...');
             return serveFromLocalDB(corpCode, res, bgnDe, endDe);
           }
+
+          const mergedList = [].concat(...results.map(r => r.list)).sort((a, b) => {
+            const aNo = String(a.rcept_no || '0');
+            const bNo = String(b.rcept_no || '0');
+            return bNo.localeCompare(aNo);
+          });
+
+          const successResponse = { status: '000', message: '정상', list: mergedList.slice(0, 50) };
+          global.DART_CACHE.set(cacheKey, { timestamp: Date.now(), data: successResponse });
+
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(successResponse));
+        });
+        return;
+      }
+
+      performSingleRequest(0);
+    }
+
+    function performSingleRequest(attempt) {
+      let currentKey = DART_API_KEYS[global.currentKeyIndex];
+      let targetUrl = `https://opendart.fss.or.kr/api/${dartPath}${parsedUrl.search}`;
+      
+      const uObj = new URL(targetUrl);
+      uObj.searchParams.set('crtfc_key', currentKey);
+      const finalUrl = uObj.toString();
+
+      console.log(`[DART Proxy] Requesting (Attempt ${attempt + 1}): ${finalUrl.replace(currentKey, 'HIDDEN')}`);
+      
+      https.get(finalUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        },
+        rejectUnauthorized: false
+      }, (proxyRes) => {
+        console.log(`[DART Proxy] Response Status: ${proxyRes.statusCode}`);
+        
+        let responseData = '';
+        proxyRes.on('data', chunk => responseData += chunk);
+        proxyRes.on('end', () => {
+          try {
+            const json = JSON.parse(responseData);
+            
+            if (json.status === '020') {
+              if (attempt < DART_API_KEYS.length - 1) {
+                global.currentKeyIndex = (global.currentKeyIndex + 1) % DART_API_KEYS.length;
+                console.warn(`[DART Proxy] Key limit exceeded (020). Rotating key to index ${global.currentKeyIndex}...`);
+                return performSingleRequest(attempt + 1);
+              }
+              
+              if (dartPath === 'company.json') {
+                const name = globalCodeToName[corpCode] || '알 수 없는 기업';
+                const fallbackData = {
+                  status: '000',
+                  message: '정상 (DART 한도 초과로 인한 기본 정보 제공)',
+                  corp_name: name,
+                  corp_code: corpCode,
+                  stock_code: '',
+                  ceo_nm: 'DART 한도 초과',
+                  adres: 'DART API 일일 한도가 모두 소진되어 상세 정보 로드가 불가능합니다.'
+                };
+                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                return res.end(JSON.stringify(fallbackData));
+              }
+              console.warn('[DART Proxy] Single request limit exceeded (020). Falling back to local DB...');
+              return serveFromLocalDB(corpCode, res, bgnDe, endDe);
+            }
+            
+            if (json.status === '000') {
+              if (proxyRes.statusCode === 200) {
+                global.DART_CACHE.set(cacheKey, { timestamp: Date.now(), data: json });
+              }
+              
+              if (dartPath === 'company.json' && corpCode) {
+                console.log(`[DART Proxy] Saving company details for: ${corpCode} to local DB.`);
+                leanDb.run(`
+                  INSERT OR REPLACE INTO company_details (
+                    corp_code, corp_name, corp_name_eng, stock_name, stock_code, ceo_nm, corp_cls,
+                    jurir_no, bizr_no, adres, hm_url, ir_url, phn_no, fax_no, induty_code, est_dt, acc_mt
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [
+                  json.corp_code || corpCode, json.corp_name || '', json.corp_name_eng || '',
+                  json.stock_name || '', json.stock_code || '', json.ceo_nm || '', json.corp_cls || '',
+                  json.jurir_no || '', json.bizr_no || '', json.adres || '', json.hm_url || '',
+                  json.ir_url || '', json.phn_no || '', json.fax_no || '', json.induty_code || '',
+                  json.est_dt || '', json.acc_mt || ''
+                ], (insertErr) => {
+                  if (insertErr) console.error('[LeanDB] company_details 저장 실패:', insertErr.message);
+                });
+              }
+            }
+          } catch (e) {}
+
+          const headers = { ...proxyRes.headers };
+          delete headers['x-frame-options'];
+          delete headers['content-security-policy'];
+          delete headers['content-length'];
           
-          // 단일 종목 성공 응답 캐시 적재
-          if (proxyRes.statusCode === 200 && json.status === '000') {
-            global.DART_CACHE.set(cacheKey, { timestamp: Date.now(), data: json });
-          }
-        } catch (e) {}
-
-        const headers = { ...proxyRes.headers };
-        delete headers['x-frame-options'];
-        delete headers['content-security-policy'];
-        delete headers['content-length'];
-        
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', '*');
-        
-        res.writeHead(proxyRes.statusCode, headers);
-        res.end(responseData);
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', '*');
+          
+          res.writeHead(proxyRes.statusCode, headers);
+          res.end(responseData);
+        });
+      }).on('error', (err) => {
+        console.error('DART 통신 에러, 로컬 DB 폴백 시도:', err.message);
+        serveFromLocalDB(corpCode, res, bgnDe, endDe);
       });
-    });
-
-    proxyReq.on('error', (err) => {
-      console.error('DART 통신 에러, 로컬 DB 폴백 시도:', err.message);
-      serveFromLocalDB(corpCode, res, bgnDe, endDe);
-    });
-    
+    }
     return;
   }
 
