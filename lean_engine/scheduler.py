@@ -3,8 +3,9 @@ import schedule
 import logging
 import datetime
 import threading
+import os
 from core_engine import DartLeanEngine
-
+from insight_generator import InsightGenerator
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -39,6 +40,17 @@ def job():
 
         logger.info("전 종목 공시 수집 시작: %s ~ %s", start_date, end_date)
         engine.run_pipeline(None, start_date, end_date)
+        logger.info("공시 수집 완료, AI 인사이트 리포트 생성 시작...")
+        
+        # AI Insight 생성기 실행
+        try:
+            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lean_engine.db")
+            insight_gen = InsightGenerator(db_path)
+            insight_gen.generate_daily_reports(today.strftime('%Y%m%d'))
+            logger.info("AI 인사이트 리포트 생성 완료")
+        except Exception as e:
+            logger.error("AI 인사이트 리포트 생성 실패: %s", e)
+
         logger.info("정기 작업 완료")
     except Exception:
         logger.exception("작업 실패")
