@@ -6,7 +6,6 @@ function renderReports() {
     <div class="header">
       <div>
         <h1 class="page-title">공시 인사이트</h1>
-        <p class="page-subtitle">Gemini AI가 분석한 핵심 공시 심층 레포트입니다.</p>
       </div>
     </div>
     
