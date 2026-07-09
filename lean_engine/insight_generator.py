@@ -131,6 +131,6 @@ class InsightGenerator:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    db_path = os.path.join(current_dir, "lean_engine.db")
+    db_path = os.path.join(os.path.dirname(current_dir), "lean_engine.db")
     generator = InsightGenerator(db_path)
     generator.generate_daily_reports()
