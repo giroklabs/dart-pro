@@ -56,7 +56,7 @@ class InsightGenerator:
                 OR f.report_nm LIKE '%합병%'
                 OR f.report_nm LIKE '%분할%'
             )
-            LIMIT 5
+            LIMIT 3
         """
         cursor.execute(query, (target_date,))
         targets = cursor.fetchall()
