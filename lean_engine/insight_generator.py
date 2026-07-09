@@ -106,11 +106,12 @@ class InsightGenerator:
                 response = self.model.generate_content(prompt)
                 response_text = response.text.strip()
                 
-                # JSON 파싱 (코드블록 제거 처리)
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:-3].strip()
-                elif response_text.startswith("```"):
-                    response_text = response_text[3:-3].strip()
+                # JSON 파싱 (코드블록 및 여분 텍스트 제거 처리)
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                if not json_match:
+                    raise ValueError("No JSON object found in response")
+                response_text = json_match.group(0)
 
                 result = json.loads(response_text)
                 title = result.get("title", f"{corp_name} 주요 공시 분석")
