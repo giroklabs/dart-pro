@@ -9,7 +9,7 @@ function renderReports() {
       </div>
     </div>
     
-    <div class="content-panel" style="max-width: 800px; margin: 0 auto;">
+    <div class="content-panel" style="max-width: 800px; margin: 30px auto 0 auto;">
       <div id="reports-list-container">
         <div style="text-align:center; padding:40px; color:var(--on-surface-variant);">
           로딩 중...
@@ -50,7 +50,7 @@ async function fetchAndRenderList() {
       let html = '';
       reportsList.forEach(report => {
         html += `
-        <div class="report-card" onclick="location.hash='#/reports/${report.id}'" style="border:1px solid var(--outline); border-radius:12px; padding:20px; margin-bottom:16px; cursor:pointer; transition:all 0.2s ease; background:var(--surface);">
+        <div class="report-card" onclick="location.hash='#/reports/${report.id}'" style="border:1px solid var(--outline); border-radius:12px; padding:20px; margin-bottom:28px; cursor:pointer; transition:all 0.2s ease; background:var(--surface);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
             <div style="display:flex; gap:8px;">
               <span class="badge" style="background:var(--primary-container); color:var(--on-primary-container); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600;">${report.category}</span>
