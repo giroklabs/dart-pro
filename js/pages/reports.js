@@ -4,9 +4,9 @@ let reportsList = [];
 function renderReports() {
   return `
     <div class="header">
-      <div style="display:flex; align-items:flex-end; gap:12px;">
-        <h1 class="page-title">공시 인사이트</h1>
-        <span style="font-size:0.55em; color:#9aa0aa; padding-bottom:3px; line-height:1.4;">오늘의 중요 공시, AI가 분석해서 알려드릴게요</span>
+      <div style="display:flex; align-items:flex-end; gap:14px;">
+        <h1 class="page-title" style="margin:0;">공시 인사이트</h1>
+        <span style="font-size:0.9em; color:#9aa0aa; padding-bottom:2px; white-space:nowrap;">오늘의 중요 공시, AI가 분석해서 알려드릴게요</span>
       </div>
     </div>
     
