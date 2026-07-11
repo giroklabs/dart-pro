@@ -954,17 +954,18 @@ function getRankLabel(score) {
       return res.end(JSON.stringify(cached.data));
     }
 
-    // 2. company.json 인 경우 로컬 DB 영구 캐시 우선 검사
+    // 2. company.json 인 경우 로컬 DB 영구 캐시 우선 검사 (상세정보 있는 경우만 캐시 히트)
     if (dartPath === 'company.json' && corpCode && !corpCode.includes(',')) {
       leanDb.get("SELECT * FROM company_details WHERE corp_code = ?", [corpCode], (dbErr, row) => {
         if (dbErr) console.warn('[LeanDB] company_details 조회 실패:', dbErr.message);
-        if (row) {
+        // ceo_nm이 있어야 상세정보가 채워진 캐시로 간주
+        if (row && row.ceo_nm) {
           console.log(`[DART Proxy] [DB Hit] Serving company details from DB for: ${corpCode}`);
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ status: '000', message: '정상', ...row }));
         }
-        // DB에 없으면 DART API 호출 진행
+        // 상세정보 없으면 DART API 호출 진행 (응답 후 DB 업데이트는 executeProxyRequest 내부에서 처리)
         executeProxyRequest();
       });
     } else {
