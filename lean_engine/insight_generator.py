@@ -2,6 +2,7 @@ import sqlite3
 import os
 import json
 import logging
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -68,8 +69,12 @@ class InsightGenerator:
 
         logger.info(f"[{target_date}] Found {len(targets)} disclosures for AI Insight generation.")
 
-        for row in targets:
+        for i, row in enumerate(targets):
             rcept_no, corp_code, corp_name, report_nm, summary_text = row
+            # 무료 Gemini API: 분당 5건 한도 → 건당 15초 간격 (첫 건 제외)
+            if i > 0:
+                logger.info(f"Rate limit 방지: 15초 대기 중...")
+                time.sleep(15)
             if not corp_name:
                 corp_name = "알 수 없음"
 
@@ -131,7 +136,31 @@ class InsightGenerator:
                 logger.info(f"Successfully generated insight report for {rcept_no} ({corp_name})")
 
             except Exception as e:
-                logger.error(f"Failed to generate insight report for {rcept_no}: {e}")
+                err_str = str(e)
+                if '429' in err_str:
+                    logger.warning(f"429 Rate limit for {rcept_no}. 65초 후 재시도...")
+                    time.sleep(65)
+                    try:
+                        response = self.model.generate_content(prompt)
+                        response_text = response.text.strip()
+                        import re
+                        json_match = re.search(r'\{[\s\S]*\}', response_text)
+                        if json_match:
+                            result = json.loads(json_match.group(0))
+                            title = result.get("title", f"{corp_name} 주요 공시 분석")
+                            summary = result.get("summary", "")
+                            content = result.get("content_html", "<p>내용을 생성하지 못했습니다.</p>")
+                            publish_date = datetime.strptime(target_date, "%Y%m%d").strftime("%Y.%m.%d")
+                            cursor.execute("""
+                                INSERT INTO ai_reports (rcept_no, corp_code, corp_name, category, title, summary, content, publish_date)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (rcept_no, corp_code, corp_name, category, title, summary, content, publish_date))
+                            conn.commit()
+                            logger.info(f"Retry 성공: {rcept_no} ({corp_name})")
+                    except Exception as retry_e:
+                        logger.error(f"Retry 실패 {rcept_no}: {retry_e}")
+                else:
+                    logger.error(f"Failed to generate insight report for {rcept_no}: {e}")
 
         conn.close()
 
