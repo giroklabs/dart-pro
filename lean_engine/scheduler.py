@@ -23,10 +23,12 @@ job_lock = threading.Lock()
 
 
 def job():
-    # DART 공시 미운영 시간(주말 및 평일 19:00 ~ 07:30) API 호출 차단
-    now = datetime.datetime.now()
+    # DART 공시 미운영 시간(주말 및 평일 19:00 ~ 07:30) API 호출 차단 — KST 기준
+    import pytz
+    kst = pytz.timezone('Asia/Seoul')
+    now = datetime.datetime.now(kst)
     if now.weekday() >= 5 or not (datetime.time(7, 30) <= now.time() <= datetime.time(19, 0)):
-        logger.debug("DART 미운영 시간대(평일 07:30~19:00 외)이므로 API 호출을 건너뜁니다.")
+        logger.debug("DART 미운영 시간대(평일 07:30~19:00 KST 외)이므로 API 호출을 건너뜁니다.")
         return
 
     if not job_lock.acquire(blocking=False):
