@@ -753,6 +753,10 @@ class SummaryRuleEngine:
         return joined_content
 
     def clean_sentence(self, sentence: str) -> str:
+        # 공시 본문의 불필요한 주석(주1, 주2, 주) 등 제거
+        if re.match(r'^(?:\[테이블\])?\s*주\s*\d*\)', sentence.strip()):
+            return ''
+            
         is_table = sentence.startswith("[테이블]")
         
         # 먼저 테이블 원시 텍스트를 자연어로 해석 및 변환
