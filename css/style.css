@@ -181,6 +181,15 @@ table { border-collapse: collapse; width: 100%; }
   width: 100%;
 }
 
+.app-footer {
+  margin-left: var(--sidebar-width);
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--on-surface-variant, #888);
+  margin-top: auto;
+}
+
 /* ===== Components ===== */
 
 /* Buttons */
@@ -653,6 +662,7 @@ table { border-collapse: collapse; width: 100%; }
   .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
   .sidebar.open { transform: translateX(0); }
   .main-content { margin-left: 0; }
+  .app-footer { margin-left: 0; }
   .topbar { left: 0; }
   .stat-grid { grid-template-columns: 1fr; }
   .filter-bar { flex-direction: column; }
