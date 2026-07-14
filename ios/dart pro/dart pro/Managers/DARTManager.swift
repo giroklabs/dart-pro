@@ -8,10 +8,6 @@ class DARTManager: ObservableObject {
     @Published var watchlist: [WatchItem] = [] {
         didSet {
             saveWatchlist()
-            // 서버에서 가져오는 중에는 다시 서버로 저장하지 않음 (무한루프 방지)
-            if !isFetchingFromServer {
-                syncWithBackend()
-            }
         }
     }
     @Published var isLoading = false
@@ -63,9 +59,7 @@ class DARTManager: ObservableObject {
         
         // FCM 토큰 갱신 시 자동 동기화
         NotificationCenter.default.addObserver(forName: Notification.Name("FCMTokenUpdated"), object: nil, queue: .main) { _ in
-            if !self.isFetchingFromServer {
-                self.syncWithBackend()
-            }
+            self.syncFCMTokenWithBackend()
         }
         
         // 로그인 상태 변경 시 서버에서 관심 종목 가져오기
@@ -197,12 +191,37 @@ class DARTManager: ObservableObject {
     func toggleWatch(code: String, name: String) {
         if let index = watchlist.firstIndex(where: { $0.code == code }) {
             watchlist.remove(at: index)
+            removeInterestFromCloud(code: code)
         } else {
             watchlist.append(WatchItem(code: code, name: name))
+            addInterestToCloud(code: code)
         }
         saveWatchlist()
         fetchLatestDisclosures()
-        syncWithBackend()
+    }
+    
+    private func addInterestToCloud(code: String) {
+        guard let uid = AuthManager.shared.user?.uid else { return }
+        Firestore.firestore().collection("users").document(uid).setData([
+            "interests": FieldValue.arrayUnion([code]),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], merge: true) { error in
+            if let error = error {
+                print("[Firestore] Add interest error: \(error)")
+            }
+        }
+    }
+    
+    private func removeInterestFromCloud(code: String) {
+        guard let uid = AuthManager.shared.user?.uid else { return }
+        Firestore.firestore().collection("users").document(uid).setData([
+            "interests": FieldValue.arrayRemove([code]),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], merge: true) { error in
+            if let error = error {
+                print("[Firestore] Remove interest error: \(error)")
+            }
+        }
     }
     
     // 서버에서 관심 종목 리스트 가져오기 (동기화)
@@ -228,10 +247,10 @@ class DARTManager: ObservableObject {
                         // 로컬 데이터를 보존하고 Firestore에 역업로드
                         guard !interests.isEmpty else {
                             if let localItems = self?.watchlist, !localItems.isEmpty {
-                                print("[API] Firestore empty, uploading local watchlist (\(localItems.count) items) to Firestore")
+                                print("[API] Firestore empty, uploading local watchlist (\(localItems.count) items) to Firestore using arrayUnion")
                                 let codes = localItems.map { $0.code }
                                 db.collection("users").document(uid).setData(
-                                    ["interests": codes], merge: true
+                                    ["interests": FieldValue.arrayUnion(codes)], merge: true
                                 )
                             } else {
                                 print("[API] Firestore returned 0 items, local also empty")
@@ -292,27 +311,23 @@ class DARTManager: ObservableObject {
         }
     }
     
-    // 백엔드(Firestore)에 FCM 토큰 및 관심 종목 동기화
-    func syncWithBackend() {
+    // 백엔드(Firestore)에 FCM 토큰 동기화
+    func syncFCMTokenWithBackend() {
         guard let uid = AuthManager.shared.user?.uid else { return }
         
         let fcmToken = UserDefaults.standard.string(forKey: "fcm_token") ?? ""
-        let codes = watchlist.map { $0.code }
+        guard !fcmToken.isEmpty else { return }
         
-        var dataToSave: [String: Any] = [
-            "interests": codes,
+        let dataToSave: [String: Any] = [
+            "fcmToken": fcmToken,
             "updatedAt": FieldValue.serverTimestamp()
         ]
         
-        if !fcmToken.isEmpty {
-            dataToSave["fcmToken"] = fcmToken
-        }
-        
         Firestore.firestore().collection("users").document(uid).setData(dataToSave, merge: true) { error in
             if let error = error {
-                print("[Firestore] Sync error: \(error)")
+                print("[Firestore] FCM Sync error: \(error)")
             } else {
-                print("[Firestore] Sync success")
+                print("[Firestore] FCM Sync success")
             }
         }
     }

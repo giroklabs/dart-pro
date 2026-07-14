@@ -77,15 +77,40 @@ const FB_AUTH = {
     }
   },
 
-  async saveInterestsToCloud() {
+  async addInterestToCloud(corpCode) {
     if (!this.currentUser) return;
     try {
-      const corpCodes = window.DART_API.getWatchlist();
       await db().collection('users').doc(this.currentUser.uid).set({
-        interests: corpCodes,
+        interests: firebase.firestore.FieldValue.arrayUnion(corpCode),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      console.log('Firebase: Interests synced to cloud successfully');
+      console.log(`Firebase: Interest ${corpCode} added to cloud successfully`);
+    } catch (error) {
+      console.error('Cloud sync failed:', error);
+    }
+  },
+
+  async removeInterestFromCloud(corpCode) {
+    if (!this.currentUser) return;
+    try {
+      await db().collection('users').doc(this.currentUser.uid).set({
+        interests: firebase.firestore.FieldValue.arrayRemove(corpCode),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log(`Firebase: Interest ${corpCode} removed from cloud successfully`);
+    } catch (error) {
+      console.error('Cloud sync failed:', error);
+    }
+  },
+
+  async clearInterestsInCloud() {
+    if (!this.currentUser) return;
+    try {
+      await db().collection('users').doc(this.currentUser.uid).set({
+        interests: [],
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log('Firebase: Watchlist cleared in cloud successfully');
     } catch (error) {
       console.error('Cloud sync failed:', error);
     }

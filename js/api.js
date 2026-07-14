@@ -245,8 +245,8 @@ const api = {
     if (!list.includes(corpCode)) {
       list.push(corpCode);
       localStorage.setItem('dart_watchlist', JSON.stringify(list));
-      if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
-        window.FB_AUTH.saveInterestsToCloud();
+      if (window.FB_AUTH && typeof window.FB_AUTH.addInterestToCloud === 'function') {
+        window.FB_AUTH.addInterestToCloud(corpCode);
       }
       return true;
     }
@@ -256,15 +256,15 @@ const api = {
   removeWatch(corpCode) {
     const list = this.getWatchlist().filter(c => c !== corpCode);
     localStorage.setItem('dart_watchlist', JSON.stringify(list));
-    if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
-      window.FB_AUTH.saveInterestsToCloud();
+    if (window.FB_AUTH && typeof window.FB_AUTH.removeInterestFromCloud === 'function') {
+      window.FB_AUTH.removeInterestFromCloud(corpCode);
     }
   },
 
   clearWatchlist() {
     localStorage.setItem('dart_watchlist', '[]');
-    if (window.FB_AUTH && typeof window.FB_AUTH.saveInterestsToCloud === 'function') {
-      window.FB_AUTH.saveInterestsToCloud();
+    if (window.FB_AUTH && typeof window.FB_AUTH.clearInterestsInCloud === 'function') {
+      window.FB_AUTH.clearInterestsInCloud();
     }
   },
 
