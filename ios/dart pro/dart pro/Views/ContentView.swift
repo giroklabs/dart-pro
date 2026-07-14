@@ -155,7 +155,7 @@ struct ContentView: View {
                             .padding(.bottom, 30)
                         }
                         .refreshable {
-                            manager.fetchLatestDisclosures()
+                            manager.fetchWatchlistFromServer()
                         }
                     }
                 }
