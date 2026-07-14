@@ -54,7 +54,7 @@ async function fetchAndRenderList() {
         <div class="report-card" onclick="location.hash='#/reports/${report.id}'" style="border:1px solid var(--outline); border-radius:12px; padding:20px; margin-bottom:28px; cursor:pointer; transition:all 0.2s ease; background:var(--surface);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
             <div style="display:flex; gap:8px;">
-              <span class="badge" style="background:var(--primary-container); color:var(--on-primary-container); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600;">${report.category}</span>
+              <span class="badge" style="background:var(--primary-container); color:#ffffff; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600;">${report.category}</span>
               <span class="badge" style="background:#f1f3f4; color:#3c4043; padding:4px 8px; border-radius:4px; font-size:12px;">${report.corp_name}</span>
             </div>
             <span style="font-size:12px; color:var(--on-surface-variant);">${report.publish_date} 발행</span>
