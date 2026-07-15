@@ -27,8 +27,8 @@ def job():
     import pytz
     kst = pytz.timezone('Asia/Seoul')
     now = datetime.datetime.now(kst)
-    if now.weekday() >= 5 or not (datetime.time(7, 30) <= now.time() <= datetime.time(19, 0)):
-        logger.debug("DART 미운영 시간대(평일 07:30~19:00 KST 외)이므로 API 호출을 건너뜁니다.")
+    if now.weekday() >= 5:
+        logger.debug("주말이므로 API 호출을 건너뜁니다.")
         return
 
     if not job_lock.acquire(blocking=False):
@@ -61,9 +61,11 @@ def job():
 
 
 def main():
-    logger.info("Lean Engine 스케줄러 시작 (주기: 1분)")
-    job()
-    schedule.every(1).minutes.do(job)
+    logger.info("Lean Engine 스케줄러 시작 (오전 11:30, 오후 19:30 KST - 서버 UTC 기준 02:30, 10:30)")
+    
+    # 서버 시간(UTC) 기준 KST 오전 11:30 (UTC 02:30), KST 오후 19:30 (UTC 10:30) 설정
+    schedule.every().day.at("02:30").do(job)
+    schedule.every().day.at("10:30").do(job)
 
     while True:
         schedule.run_pending()
