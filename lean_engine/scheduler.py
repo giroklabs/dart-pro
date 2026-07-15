@@ -61,10 +61,11 @@ def job():
 
 
 def main():
-    logger.info("Lean Engine 스케줄러 시작 (오전 11:30, 오후 19:30 KST - 서버 UTC 기준 02:30, 10:30)")
+    logger.info("Lean Engine 스케줄러 시작 (오전 08:30, 오후 13:30, 오후 19:30 KST - 서버 UTC 기준 23:30, 04:30, 10:30)")
     
-    # 서버 시간(UTC) 기준 KST 오전 11:30 (UTC 02:30), KST 오후 19:30 (UTC 10:30) 설정
-    schedule.every().day.at("02:30").do(job)
+    # 서버 시간(UTC) 기준 KST 08:30(23:30), KST 13:30(04:30), KST 19:30(10:30) 설정
+    schedule.every().day.at("23:30").do(job)
+    schedule.every().day.at("04:30").do(job)
     schedule.every().day.at("10:30").do(job)
 
     while True:
