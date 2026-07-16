@@ -725,8 +725,11 @@ class DartLeanEngine:
         
         details = []
         if period:
-            details.append(f"▪ {action_name}기간: {period}")
+            period = period.replace("[테이블]", "").replace("|", "").replace("부터", "~").replace("까지", "").replace("  ", " ").strip()
+            period = period.replace(" ~ ", "~").replace("~", " ~ ")
+            details.append(f"▪ {action_name}기간: {period.strip()}")
         if shares:
+            shares = shares.replace("[테이블]", "").replace("|", "").replace("  ", " ").strip()
             details.append(f"▪ {action_name}주식수: {shares}")
             
         return "\n".join(details) if details else None
