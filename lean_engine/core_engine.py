@@ -671,6 +671,66 @@ class DartLeanEngine:
             
         return None
 
+    def _parse_treasury_stock_result(self, raw_text: str) -> str:
+        if not raw_text:
+            return None
+            
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        
+        period = ""
+        shares = ""
+        
+        for i, line in enumerate(lines):
+            line_clean = line.replace(" ", "")
+            # 처분기간 / 취득기간 매칭
+            if "처분기간" in line_clean or "취득기간" in line_clean:
+                if ":" in line:
+                    val = line.split(":", 1)[1].strip()
+                    if val:
+                        period = val
+                        continue
+                if i + 1 < len(lines):
+                    next_line = lines[i+1].strip()
+                    if next_line and not any(k in next_line[:3] for k in ["가.", "나.", "다.", "라.", "마."]):
+                        period = next_line
+                        
+            # 처분보고 주식의 종류 및 주식수 / 취득보고 주식의 종류 및 주식수 매칭
+            if "주식의종류및주식수" in line_clean or "처분주식수" in line_clean or "취득주식수" in line_clean:
+                if ":" in line:
+                    val = line.split(":", 1)[1].strip()
+                    if val:
+                        shares = val
+                        continue
+                if i + 1 < len(lines):
+                    next_line = lines[i+1].strip()
+                    if next_line and not any(k in next_line[:3] for k in ["가.", "나.", "다.", "라.", "마."]):
+                        shares = next_line
+
+        # Fallback 정규식 매칭
+        if not period:
+            period_match = re.search(r"(?:처분기간|취득기간)\s*:\s*\r?\n?\s*([^\n\r]+)", raw_text)
+            if period_match:
+                period = period_match.group(1).strip()
+                
+        if not shares:
+            shares_match = re.search(r"(?:처분보고|취득보고)\s*주식의\s*종류\s*및\s*주식수\s*\r?\n?\s*([^\n\r]+)", raw_text)
+            if shares_match:
+                shares = shares_match.group(1).strip()
+            else:
+                shares_match = re.search(r"(?:보통주|우선주)\s*(?:총\s*)?([\d,]+\s*주)", raw_text)
+                if shares_match:
+                    shares = shares_match.group(0).strip()
+
+        action_name = "처분" if "처분" in raw_text else "취득"
+        
+        details = []
+        if period:
+            details.append(f"▪ {action_name}기간: {period}")
+        if shares:
+            details.append(f"▪ {action_name}주식수: {shares}")
+            
+        return "\n".join(details) if details else None
+
     def _parse_treasury_stock_acquisition(self, raw_text: str) -> str:
         if not raw_text:
             return None
@@ -2728,6 +2788,13 @@ class DartLeanEngine:
             if capital_desc:
                 header = f"{display_name} - {report_nm_clean}"
                 return f"{header}\n\n{capital_desc}", "[]"
+
+        # 00-19. 자기주식취득/처분결과보고서 스페셜 케이스 처리
+        if "자기주식처분결과보고서" in report_nm_clean.replace(" ", "") or "자기주식취득결과보고서" in report_nm_clean.replace(" ", ""):
+            result_desc = self._parse_treasury_stock_result(raw_text)
+            if result_desc:
+                header = f"{display_name} - {report_nm_clean}"
+                return f"{header}\n\n{result_desc}", "[]"
 
         # 00-19. 자기주식취득결정 스페셜 케이스 처리
         if "자기주식취득신탁계약체결결정" in report_nm_clean.replace(" ", ""):
