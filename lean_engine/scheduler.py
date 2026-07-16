@@ -46,7 +46,7 @@ def job():
         
         # AI Insight 생성기 실행
         try:
-            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lean_engine.db")
+            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lean_engine.db")
             insight_gen = InsightGenerator(db_path)
             insight_gen.generate_daily_reports(today.strftime('%Y%m%d'))
             logger.info("AI 인사이트 리포트 생성 완료")
