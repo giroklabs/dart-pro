@@ -36,9 +36,9 @@ def job():
         return
 
     try:
-        today = datetime.date.today()
-        start_date = (today - datetime.timedelta(days=7)).strftime('%Y%m%d')
-        end_date = today.strftime('%Y%m%d')
+        today_kst = datetime.datetime.now(kst).date()
+        start_date = (today_kst - datetime.timedelta(days=7)).strftime('%Y%m%d')
+        end_date = today_kst.strftime('%Y%m%d')
 
         logger.info("전 종목 공시 수집 시작: %s ~ %s", start_date, end_date)
         engine.run_pipeline(None, start_date, end_date)
@@ -48,7 +48,7 @@ def job():
         try:
             db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lean_engine.db")
             insight_gen = InsightGenerator(db_path)
-            insight_gen.generate_daily_reports(today.strftime('%Y%m%d'))
+            insight_gen.generate_daily_reports(today_kst.strftime('%Y%m%d'))
             logger.info("AI 인사이트 리포트 생성 완료")
         except Exception as e:
             logger.error("AI 인사이트 리포트 생성 실패: %s", e)
