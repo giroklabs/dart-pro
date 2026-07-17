@@ -160,7 +160,13 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
-  const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
+  } catch (err) {
+    res.writeHead(400);
+    return res.end('Invalid URL');
+  }
   const pathname = parsedUrl.pathname;
 
   // 실시간 로그 스트리밍 엔드포인트 (SSE)
