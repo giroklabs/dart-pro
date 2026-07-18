@@ -1,13 +1,15 @@
 // Topbar Component
 function renderTopbar() {
   return `
-    <div class="topbar-search" style="position: relative; display: flex; align-items: center; flex: 1;">
+    <div style="display: flex; align-items: center; flex: 1; gap: 8px;">
       <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="메뉴 열기">
         <span class="material-symbols-outlined">menu</span>
       </button>
-      <span class="material-symbols-outlined" style="position: absolute; left: 12px; margin-left: var(--mobile-search-margin, 0px);" id="search-icon">search</span>
-      <input type="text" id="global-search" placeholder="기업명, 종목코드로 검색..." style="width: 100%; padding-right: 48px;" />
-      <kbd class="shortcut-badge" style="position: absolute; right: 8px;">⌘K</kbd>
+      <div class="topbar-search" style="position: relative; display: flex; align-items: center; flex: 1;">
+        <span class="material-symbols-outlined" style="position: absolute; left: 12px;" id="search-icon">search</span>
+        <input type="text" id="global-search" placeholder="기업명, 종목코드로 검색..." style="width: 100%; padding-right: 48px;" />
+        <kbd class="shortcut-badge" style="position: absolute; right: 8px;">⌘K</kbd>
+      </div>
     </div>
   `;
 }
