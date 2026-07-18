@@ -142,8 +142,8 @@ async function doCompanySearch() {
     if (discData.list && discData.list.length > 0) {
       discEl.innerHTML = `
         <div class="section-header"><h3 class="section-title">최근 공시 (3개월)</h3></div>
-        <div class="card card-static" style="padding:0;overflow:hidden;">
-          <table class="data-table">
+        <div class="card card-static table-responsive" style="padding:0;">
+          <table class="data-table" style="min-width: 500px;">
             <thead><tr><th>접수일</th><th>보고서명</th><th>제출인</th></tr></thead>
             <tbody>${discData.list.map(item => `
               <tr style="cursor:pointer;" onclick="window.open('${api.viewerUrl(item.rcept_no)}','_blank')">

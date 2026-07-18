@@ -1389,12 +1389,12 @@ function renderTypeStats(list) {
   const el = document.getElementById('type-stats');
   if (!el) return;
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  el.innerHTML = `<table class="data-table">
+  el.innerHTML = `<div class="table-responsive"><table class="data-table">
     <thead><tr><th>법인구분</th><th class="text-right">건수</th></tr></thead>
     <tbody>${entries.map(([cls, cnt]) => `
       <tr><td><span class="pill ${api.pillClass(cls)}">${api.corpClsNames[cls] || cls}</span></td><td class="text-right mono">${cnt}</td></tr>
     `).join('')}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function fmt(d) {

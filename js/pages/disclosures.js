@@ -136,8 +136,8 @@ async function doDisclosureSearch(page) {
       <div style="margin-bottom:12px;font-size:13px;color:var(--on-surface-variant);">
         총 <strong>${Number(totalDisplayCount).toLocaleString()}</strong>건 (${page}/${totalDisplayPage} 페이지) ${isClientSideFilter ? '<span style="color:var(--primary);">(검색 필터 적용됨)</span>' : ''}
       </div>
-      <div class="card card-static" style="padding:0;overflow:hidden;">
-        <table class="stat-table">
+      <div class="card card-static table-responsive" style="padding:0;">
+        <table class="stat-table" style="min-width: 600px;">
           <thead><tr>
             <th style="width:120px;">접수일</th>
             <th>회사명</th>

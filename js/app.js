@@ -6,7 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
   DART_API.initCorpCodes();
 
   window.router = router;
-  window.addEventListener('hashchange', router);
+  window.addEventListener('hashchange', () => {
+    closeSidebar();
+    router();
+  });
   
   // 데이터 변경 시 자동 UI 갱신
   document.addEventListener('watchlist-updated', () => router());
@@ -17,6 +20,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // 실시간 공시알리미 폴링 시작
   initNotificationPoller();
 });
+
+// 사이드바 제어 로직 (모바일)
+window.toggleSidebar = function() {
+  const sidebar = document.getElementById('app-sidebar');
+  const backdrop = document.querySelector('.sidebar-backdrop');
+  if (sidebar && backdrop) {
+    sidebar.classList.toggle('sidebar-open');
+    backdrop.classList.toggle('show');
+  }
+};
+
+window.closeSidebar = function() {
+  const sidebar = document.getElementById('app-sidebar');
+  const backdrop = document.querySelector('.sidebar-backdrop');
+  if (sidebar && backdrop) {
+    sidebar.classList.remove('sidebar-open');
+    backdrop.classList.remove('show');
+  }
+};
 
 window.showToast = function(message, type = 'info', duration = 3000, onClick = null) {
   let container = document.getElementById('toast-container');

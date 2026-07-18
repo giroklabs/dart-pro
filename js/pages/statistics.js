@@ -47,8 +47,8 @@ async function renderStatistics() {
       <!-- Ranking Table -->
       <div class="stat-card" style="grid-column: span 12;">
         <h3 style="font-size:15px; font-weight:700; margin-bottom:16px;">최신 주요 공시 리스트 (Top 10)</h3>
-        <div style="overflow-x:auto;">
-          <table class="stat-table" id="ranking-table">
+        <div class="table-responsive">
+          <table class="stat-table" id="ranking-table" style="min-width: 600px;">
             <thead>
               <tr>
                 <th style="width:120px;">접수일자</th>

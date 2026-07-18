@@ -860,3 +860,98 @@ table { border-collapse: collapse; width: 100%; }
 .stat-table tr:hover td {
   background: rgba(0,0,0,0.02);
 }
+
+/* ===== Responsive Web (Mobile) ===== */
+.mobile-menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  padding: 8px;
+  margin-right: 8px;
+  cursor: pointer;
+  color: var(--on-surface);
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 45;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-backdrop.show {
+  display: block;
+  opacity: 1;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .sidebar {
+    left: -100%;
+    transition: left 0.3s ease;
+    width: 280px;
+  }
+  
+  .sidebar.sidebar-open {
+    left: 0;
+  }
+  
+  .topbar {
+    left: 0;
+    padding: 0 var(--sp-md);
+  }
+  
+  .main-content {
+    margin-left: 0;
+    padding: var(--topbar-height) var(--sp-md) var(--sp-xl) var(--sp-md);
+  }
+  
+  .topbar-search {
+    flex: 1;
+  }
+  
+  .topbar-search input {
+    font-size: 14px;
+  }
+  
+  .shortcut-badge {
+    display: none;
+  }
+  
+  /* Make dashboard grid 1 column on mobile */
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .flex-row {
+    flex-direction: column;
+    gap: var(--sp-md);
+  }
+  
+  .dialog-content {
+    width: 95%;
+    max-height: 90vh;
+    margin: 20px auto;
+  }
+}
