@@ -1236,20 +1236,25 @@ async function checkNewDisclosures() {
           
           // Firebase에서 푸시 대상을 조회하여 알림 발송
           for (let item of newItems.reverse()) { 
-            const uniqueKey = `${item.corp_code}_${item.report_nm}`;
-            const now = Date.now();
+            // 임원/주주 관련 소유상황보고서 등 여러 명이 동시다발적으로 제출하는 공시만 중복 제거 적용
+            const isSpammyReport = item.report_nm.includes('임원ㆍ주요주주') || item.report_nm.includes('대량보유상황보고서');
             
-            // 최근 1시간(3600000ms) 이내에 동일한 푸시가 나갔다면 스킵
-            if (global.recentPushes && global.recentPushes.has(uniqueKey)) {
-              const lastPushTime = global.recentPushes.get(uniqueKey);
-              if (now - lastPushTime < 60 * 60 * 1000) {
-                console.log(`[Monitor] Skipping duplicate push (sent within 1 hour): ${item.corp_name} - ${item.report_nm}`);
-                continue;
+            if (isSpammyReport) {
+              const uniqueKey = `${item.corp_code}_${item.report_nm}`;
+              const now = Date.now();
+              
+              // 최근 1시간(3600000ms) 이내에 동일한 푸시가 나갔다면 스킵
+              if (global.recentPushes && global.recentPushes.has(uniqueKey)) {
+                const lastPushTime = global.recentPushes.get(uniqueKey);
+                if (now - lastPushTime < 60 * 60 * 1000) {
+                  console.log(`[Monitor] Skipping duplicate push (sent within 1 hour): ${item.corp_name} - ${item.report_nm}`);
+                  continue;
+                }
               }
+              
+              if (!global.recentPushes) global.recentPushes = new Map();
+              global.recentPushes.set(uniqueKey, now);
             }
-            
-            if (!global.recentPushes) global.recentPushes = new Map();
-            global.recentPushes.set(uniqueKey, now);
 
             try {
               // Firebase 앱이 초기화된 경우에만 쿼리 실행
