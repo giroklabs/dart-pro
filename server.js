@@ -1234,17 +1234,22 @@ async function checkNewDisclosures() {
         if (newItems.length > 0) {
           console.log(`[Monitor] Found ${newItems.length} new disclosures!`);
           
-          // 푸시 중복 방지를 위한 Set (동일 기업의 동일 보고서명이 같은 배치에 여러 개일 경우 하나만 발송)
-          const pushedSet = new Set();
-
           // Firebase에서 푸시 대상을 조회하여 알림 발송
           for (let item of newItems.reverse()) { 
             const uniqueKey = `${item.corp_code}_${item.report_nm}`;
-            if (pushedSet.has(uniqueKey)) {
-              console.log(`[Monitor] Skipping duplicate push in same batch: ${item.corp_name} - ${item.report_nm}`);
-              continue;
+            const now = Date.now();
+            
+            // 최근 1시간(3600000ms) 이내에 동일한 푸시가 나갔다면 스킵
+            if (global.recentPushes && global.recentPushes.has(uniqueKey)) {
+              const lastPushTime = global.recentPushes.get(uniqueKey);
+              if (now - lastPushTime < 60 * 60 * 1000) {
+                console.log(`[Monitor] Skipping duplicate push (sent within 1 hour): ${item.corp_name} - ${item.report_nm}`);
+                continue;
+              }
             }
-            pushedSet.add(uniqueKey);
+            
+            if (!global.recentPushes) global.recentPushes = new Map();
+            global.recentPushes.set(uniqueKey, now);
 
             try {
               // Firebase 앱이 초기화된 경우에만 쿼리 실행
