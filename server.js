@@ -979,6 +979,21 @@ function getRankLabel(score) {
     }
 
     function executeProxyRequest() {
+      // 10000건 일일 한도 초과 상태라면 더 이상 DART API를 찌르지 않고 즉시 로컬 DB로 폴백
+      if (global.DART_LIMIT_EXCEEDED && (Date.now() - global.DART_LIMIT_TIME < 12 * 60 * 60 * 1000)) {
+        console.warn('[DART Proxy] Global limit exceeded active. Instant fallback to local DB.');
+        if (dartPath === 'company.json') {
+          const name = globalCodeToName[corpCode] || '알 수 없는 기업';
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({
+            status: '000', message: '정상', corp_name: name, corp_code: corpCode, stock_code: '', ceo_nm: 'DART 한도 초과', adres: 'DART API 일일 한도가 모두 소진되어 상세 정보 로드가 불가능합니다.'
+          }));
+        }
+        return serveFromLocalDB(corpCode, res, bgnDe, endDe);
+      } else if (global.DART_LIMIT_EXCEEDED) {
+        global.DART_LIMIT_EXCEEDED = false; // 12시간 경과 후 초기화
+      }
+
       // 다중 종목 코드 처리 (콤마로 구분된 경우)
       if (corpCode && corpCode.includes(',')) {
         const codes = corpCode.split(',');
@@ -1082,10 +1097,14 @@ function getRankLabel(score) {
                   ceo_nm: 'DART 한도 초과',
                   adres: 'DART API 일일 한도가 모두 소진되어 상세 정보 로드가 불가능합니다.'
                 };
+                global.DART_LIMIT_EXCEEDED = true;
+                global.DART_LIMIT_TIME = Date.now();
                 res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                 return res.end(JSON.stringify(fallbackData));
               }
-              console.warn('[DART Proxy] Single request limit exceeded (020). Falling back to local DB...');
+              global.DART_LIMIT_EXCEEDED = true;
+              global.DART_LIMIT_TIME = Date.now();
+              console.warn('[DART Proxy] Single request limit exceeded (020). Falling back to local DB and enabling global lock...');
               return serveFromLocalDB(corpCode, res, bgnDe, endDe);
             }
             
