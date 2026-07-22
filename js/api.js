@@ -83,21 +83,25 @@ const api = {
   // 기업 DB 초기화 (로컬 corps.json 우선)
   async initCorpCodes() {
     if (this._corpDb && this._corpDb.data) return this._corpDb.data;
+    if (this._initCorpPromise) return this._initCorpPromise;
     
-    try {
-      // 1. 서버의 corps.json 시도 (가장 권장)
-      const res = await fetch('corps.json');
-      if (res.ok) {
-        const data = await res.json();
-        this._corpDb = { data };
-        console.log('[DART] Local corps.json loaded.');
-        return data; // 데이터 내용물 반환
+    this._initCorpPromise = (async () => {
+      try {
+        // 1. 서버의 corps.json 시도 (가장 권장)
+        const res = await fetch('corps.json', { cache: 'force-cache' });
+        if (res.ok) {
+          const data = await res.json();
+          this._corpDb = { data };
+          console.log('[DART] Local corps.json loaded.');
+          return data; // 데이터 내용물 반환
+        }
+      } catch (err) {
+        console.warn("[DART] Local DB fetch failed:", err);
       }
-    } catch (err) {
-      console.warn("[DART] Local DB fetch failed:", err);
-    }
+      return {};
+    })();
 
-    return {};
+    return this._initCorpPromise;
   },
 
   // 고유번호로 회사 이름 찾기 (INTERNAL_MAP 우선)
