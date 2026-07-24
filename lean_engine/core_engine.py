@@ -55,9 +55,15 @@ def retry_on_exception(max_retries=3, delay=1.0):
 
 class DartLeanEngine:
     def __init__(self):
-        self.api_key = os.getenv("DART_API_KEY")
-        if not self.api_key:
+        raw_key = os.getenv("DART_API_KEY")
+        if not raw_key:
             raise ValueError("DART_API_KEY is not set")
+        self.api_keys = [k.strip() for k in raw_key.split(",") if k.strip()]
+
+    @property
+    def api_key(self):
+        import random
+        return random.choice(self.api_keys)
 
         self.base_url = "https://opendart.fss.or.kr/api"
         self.rule_engine = SummaryRuleEngine()
