@@ -60,16 +60,16 @@ class DartLeanEngine:
             raise ValueError("DART_API_KEY is not set")
         self.api_keys = [k.strip() for k in raw_key.split(",") if k.strip()]
 
-    @property
-    def api_key(self):
-        import random
-        return random.choice(self.api_keys)
-
         self.base_url = "https://opendart.fss.or.kr/api"
         self.rule_engine = SummaryRuleEngine()
         self.financial_extractor = FinancialExtractor()
 
         self._init_db()
+
+    @property
+    def api_key(self):
+        import random
+        return random.choice(self.api_keys)
 
     def _init_db(self):
         self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
