@@ -3203,7 +3203,7 @@ class DartLeanEngine:
 
         return all_filings
 
-    @retry_on_exception(max_retries=2, delay=1.0)
+    @retry_on_exception(max_retries=3, delay=1.5)
     def _download_and_parse(self, rcept_no, skip_text_parsing=False):
         url = f"{self.base_url}/document.xml"
         res = requests.get(
