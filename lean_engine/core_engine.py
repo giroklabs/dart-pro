@@ -2318,14 +2318,14 @@ class DartLeanEngine:
                 if len(parts) >= 2:
                     k = parts[0].replace(" ", "")
                     v = parts[1] if len(parts) > 1 else ""
-                    if '발행회사' in k or '대상회사' in k:
-                        target_corp = v
-                    elif '취득금액' in k:
+                    if ('발행회사' in k or '대상회사' in k) and not target_corp:
+                        target_corp = parts[-1]
+                    elif '취득금액' in k and not amount:
                         amount = parts[-1]
-                    elif '자기자본대비' in k:
+                    elif '자기자본대비' in k and not ratio:
                         ratio = parts[-1]
-                    elif '취득목적' in k:
-                        purpose = v
+                    elif '취득목적' in k and not purpose:
+                        purpose = parts[-1]
                         
         details = []
         if target_corp:
