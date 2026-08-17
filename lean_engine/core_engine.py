@@ -123,30 +123,42 @@ class DartLeanEngine:
                     # DART API 과부하 및 차단 방지용 안전 마이크로 딜레이
                     time.sleep(0.35)
                 
+                chunk = []
                 for future in concurrent.futures.as_completed(futures):
                     try:
                         res = future.result()
                         if res:
-                            results.append(res)
+                            chunk.append(res)
+                            if len(chunk) >= 50:
+                                self._save_many_to_db(chunk)
+                                for r in chunk:
+                                    try:
+                                        trigger_self_healing(
+                                            DB_PATH,
+                                            r["filing"]["rcept_no"],
+                                            r["filing"].get("report_nm", ""),
+                                            r["top_score"],
+                                            r["summary_text"]
+                                        )
+                                    except Exception as she:
+                                        logger.warning("[%s] Self Healing trigger failed: %s", r["filing"]["rcept_no"], she)
+                                chunk = []
                     except Exception as e:
                         logger.error("Future error: %s", e)
-        
-        if results:
-            logger.info("DB 벌크 인서트 진행 중... (%d건)", len(results))
-            self._save_many_to_db(results)
-            
-            # Post-processing: trigger self-healing sequentially
-            for res in results:
-                try:
-                    trigger_self_healing(
-                        DB_PATH,
-                        res["filing"]["rcept_no"],
-                        res["filing"].get("report_nm", ""),
-                        res["top_score"],
-                        res["summary_text"]
-                    )
-                except Exception as she:
-                    logger.warning("[%s] Self Healing trigger failed: %s", res["filing"]["rcept_no"], she)
+                
+                if chunk:
+                    self._save_many_to_db(chunk)
+                    for r in chunk:
+                        try:
+                            trigger_self_healing(
+                                DB_PATH,
+                                r["filing"]["rcept_no"],
+                                r["filing"].get("report_nm", ""),
+                                r["top_score"],
+                                r["summary_text"]
+                            )
+                        except Exception as she:
+                            logger.warning("[%s] Self Healing trigger failed: %s", r["filing"]["rcept_no"], she)
 
         logger.info("파이프라인 실행 완료.")
 
