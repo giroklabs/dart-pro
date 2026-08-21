@@ -1219,11 +1219,13 @@ function startMonitoring() {
 }
 
 async function checkNewDisclosures() {
-  const DART_API_KEY = process.env.DART_API_KEY;
-  if (!DART_API_KEY) return;
+  const DART_API_KEYS = (process.env.DART_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+  if (DART_API_KEYS.length === 0) return;
 
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const url = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&bgn_de=${today}&page_count=20`;
+  const apiKey = DART_API_KEYS[Math.floor(Math.random() * DART_API_KEYS.length)];
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const today = kstNow.toISOString().slice(0, 10).replace(/-/g, '');
+  const url = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${apiKey}&bgn_de=${today}&page_count=30`;
   const options = { headers: { 'User-Agent': 'DART-Pro-Monitor' } };
 
   https.get(url, options, (res) => {
@@ -1232,22 +1234,31 @@ async function checkNewDisclosures() {
     res.on('end', async () => {
       try {
         const json = JSON.parse(data);
-        if (json.status !== '000' || !json.list || json.list.length === 0) return;
+        if (json.status !== '000') {
+          if (json.status !== '013') { // 013은 데이터 없음
+            console.warn(`[Monitor] DART API Warning: status=${json.status}, message=${json.message}`);
+          }
+          return;
+        }
+        if (!json.list || json.list.length === 0) return;
 
         const latest = json.list[0];
         
         // 새로운 공시가 없는 경우
         if (latest.rcept_no === lastProcessedRceptNo) return;
 
-        // 처음 시작하거나 새로운 공시들이 있는 경우
+        // 마지막 번호가 없거나 오늘 목록에 없는 오래된 번호인 경우(재시작/오랜 휴지기 등), 현재 최신 번호로 맞추고 다음 주기부터 알림
+        if (!lastProcessedRceptNo || !json.list.some(item => item.rcept_no === lastProcessedRceptNo)) {
+          lastProcessedRceptNo = latest.rcept_no;
+          fs.writeFileSync(RCEPT_FILE, lastProcessedRceptNo);
+          console.log(`[Monitor] Synchronized lastProcessedRceptNo to ${lastProcessedRceptNo}`);
+          return;
+        }
+
         let newItems = [];
-        if (!lastProcessedRceptNo) {
-          newItems = [latest]; // 처음엔 최신 것 하나만
-        } else {
-          for (let item of json.list) {
-            if (item.rcept_no === lastProcessedRceptNo) break;
-            newItems.push(item);
-          }
+        for (let item of json.list) {
+          if (item.rcept_no === lastProcessedRceptNo) break;
+          newItems.push(item);
         }
 
         if (newItems.length > 0) {
