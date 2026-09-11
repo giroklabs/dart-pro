@@ -1,15 +1,27 @@
-node_modules/
-# Firebase & Google Secrets
-GoogleService-Info.plist
-service-account.json
+# Environment & Secrets
+.env*
+**/.env*
 *.p8
-.env
+*.key
+*.pem
+service-account*.json
+*service-account*.json
+**/GoogleService-Info.plist
+**/google-services.json
+
+# Cache & Build
+node_modules/
+**/.DS_Store
+**/__pycache__/
+*.pyc
+
+# IDE & OS
 /dart pro/dart pro.xcworkspace/xcuserdata/
 data/
-ios/dart pro/GoogleService-Info.plist
 
 # SQLite DB
 lean_engine.db*
 *.db
 *.db-shm
 *.db-wal
+
